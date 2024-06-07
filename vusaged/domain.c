@@ -28,6 +28,7 @@
 #include "../storage.h"
 #include "cache.h"
 #include "domain.h"
+#include <ctype.h>
 
 /*
    Allocate a new domain structure
