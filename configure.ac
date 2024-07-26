@@ -429,6 +429,8 @@ AC_MSG_RESULT(yes)
 
 AC_MSG_CHECKING(whether password file entry for the vpopmail user exists)
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
+  #include <unistd.h>
+  #include <string.h>
   #include <stdio.h>
   #include <pwd.h>
   #include <stdlib.h>
