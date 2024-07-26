@@ -2,6 +2,7 @@ Numbers in square brackets ([]) are tracker items on SourceForge with patch
 or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
 
 unreleased
+  - fixed a configure break where a trivial C test program exits on error with gcc-14.1 due to missing headers
   - vusaged/domain.c: fixed -Wimplicit-function-declaration compilation warning
 
 5.6.1
