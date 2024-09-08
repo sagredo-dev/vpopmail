@@ -4,10 +4,6 @@ or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
 unreleased
   - fixed a configure break where a trivial C test program exits on error with gcc-14.1 due to missing headers
   - vusaged/domain.c: fixed -Wimplicit-function-declaration compilation warning
-  - vmysql.h: dropped the multicolumn PRIMARY KEY in valias table to allow multiple forwards for a given alias.
-    In case one already has the valias table defined, this is the sql query for the upgrade:
-    ALTER TABLE `vpopmail`.`valias` DROP PRIMARY KEY, ADD INDEX (`alias`, `domain`, `valias_type`) USING BTREE;
-    ALTER TABLE `vpopmail`.`valias` ADD `id` INT NOT NULL AUTO_INCREMENT FIRST, ADD PRIMARY KEY (`id`);
 
 5.6.1
   - vmysql.c: allow the insertion of a second valias row with the same alias/domain
