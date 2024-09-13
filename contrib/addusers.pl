@@ -3,7 +3,7 @@
 # this program will read users and password  from a file
 # that is separated by ":" colons
 #
-# Thanks to "Jürgen Hoffmann" <jh@byteaction.de>
+# Thanks to "JÃ¼rgen Hoffmann" <jh@byteaction.de>
 
 use IO::File;
 
