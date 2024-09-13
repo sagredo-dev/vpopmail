@@ -6684,6 +6684,8 @@ else $as_nop
 
   #include <unistd.h>
   #include <string.h>
+  #include <unistd.h>
+  #include <string.h>
   #include <stdio.h>
   #include <pwd.h>
   #include <stdlib.h>
