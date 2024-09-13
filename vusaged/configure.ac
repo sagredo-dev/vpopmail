@@ -18,7 +18,7 @@
 # * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 #
 
-AC_INIT(vusage, 1.0.0)
+AC_INIT([vusage],[1.0.0])
 AC_PROG_CC
 AC_LANG(C)
 AC_CANONICAL_HOST
@@ -150,7 +150,7 @@ esac
 AC_DEFUN([ACX_PTHREAD], [
 # AC_REQUIRE([AC_CANONICAL_HOST])
 AC_LANG_SAVE
-AC_LANG_C
+AC_LANG([C])
 acx_pthread_ok=no
 
 # We used to check for pthread.h first, but this fails if pthread.h
@@ -263,11 +263,9 @@ for flag in $acx_pthread_flags; do
         # pthread_cleanup_push because it is one of the few pthread
         # functions on Solaris that doesn't have a non-functional libc stub.
         # We try pthread_create on general principles.
-        AC_TRY_LINK([#include <pthread.h>],
-                    [pthread_t th; pthread_join(th, 0);
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread.h>]], [[pthread_t th; pthread_join(th, 0);
                      pthread_attr_init(0); pthread_cleanup_push(0, 0);
-                     pthread_create(0,0,0,0); pthread_cleanup_pop(0); ],
-                    [acx_pthread_ok=yes])
+                     pthread_create(0,0,0,0); pthread_cleanup_pop(0); ]])],[acx_pthread_ok=yes],[])
 
         LIBS="$save_LIBS"
         CFLAGS="$save_CFLAGS"
@@ -293,8 +291,7 @@ if test "x$acx_pthread_ok" = xyes; then
 	AC_MSG_CHECKING([for joinable pthread attribute])
 	attr_name=unknown
 	for attr in PTHREAD_CREATE_JOINABLE PTHREAD_CREATE_UNDETACHED; do
-	    AC_TRY_LINK([#include <pthread.h>], [int attr=$attr; return attr;],
-                        [attr_name=$attr; break])
+	    AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <pthread.h>]], [[int attr=$attr; return attr;]])],[attr_name=$attr; break],[])
 	done
         AC_MSG_RESULT($attr_name)
         if test "$attr_name" != PTHREAD_CREATE_JOINABLE; then
@@ -410,4 +407,5 @@ then
    AC_MSG_ERROR([No usage daemon client API found in libvpopmail -- Please upgrade vpopmail])
 fi
 
-AC_OUTPUT(Makefile)
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
