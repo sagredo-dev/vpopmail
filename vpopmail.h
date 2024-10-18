@@ -47,7 +47,7 @@
 #define MAX_PW_CLEAR_PASSWD 128
 /* #define MIN_PW_CLEAR_PASSWD 12 */
 #else
-#define MAX_PW_CLEAR_PASSWD 8
+#define MAX_PW_CLEAR_PASSWD 50
 /* #define MIN_PW_CLEAR_PASSWD 8 */
 #endif
 #define MAX_PW_DIR 160

@@ -761,8 +761,10 @@ int vadduser(char *username, char *domain, char *password, char *gecos,
   if (strlen(domain) > MAX_PW_DOMAIN) return (VA_DOMAIN_NAME_TOO_LONG);
   if (strlen(domain) < 3) return (VA_INVALID_DOMAIN_NAME);
 
+#ifdef CLEAR_PASS
   if (strlen(password) > MAX_PW_CLEAR_PASSWD) return (VA_PASSWD_TOO_LONG);
   if (strlen(password) < MIN_PW_CLEAR_PASSWD) return (VA_PASSWD_TOO_SHORT);
+#endif
   if (strlen(gecos) > MAX_PW_GECOS) return (VA_GECOS_TOO_LONG);
 
   umask(VPOPMAIL_UMASK);
