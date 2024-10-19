@@ -1,7 +1,10 @@
 Numbers in square brackets ([]) are tracker items on SourceForge with patch
 or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
 
-unreleased
+5.6.3
+  - bug fixed: passwords with length > 8 were denied if sha-512 was disabled
+
+5.6.2
   - fixed a configure break where a trivial C test program exits on error with gcc-14.1 due to missing headers
   - vusaged/domain.c: fixed -Wimplicit-function-declaration compilation warning
   - vusaged/configure: autoconf 2.71 compat
