@@ -42,14 +42,13 @@ userdb {
 }
 ```
 
-### This is for LDA.
+This is for LDA.
 
 ```
 userdb {
   driver = sql
   args = /usr/local/dovecot/etc/dovecot/dovecot-sql.conf.ext
 }
-
 ```
 ### dovecot-sql.conf.ext
 
