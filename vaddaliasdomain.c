@@ -49,12 +49,12 @@ int main(int argc, char *argv[])
 
     get_options(argc,argv);
 
-    /* see if Domain_a or Domain_b exist */
+    /* Check if Domain_a or Domain_b exist */
     /* Also, if domain is an alias, convert it to the real domain */ 
     doma = vget_assign(Domain_a, NULL, 0, NULL, NULL);
     domb = vget_assign(Domain_b, NULL, 0, NULL, NULL);
 
-    /* Check if both domains exists */
+    /* Check if both domains exist */
     if ((doma != NULL) && (domb != NULL))
     {
         printf("Error: Both domains already exist, unable to create alias.\n");

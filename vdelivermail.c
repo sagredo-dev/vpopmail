@@ -636,7 +636,7 @@ void deliver_mail(char *address, char *quota)
           read_quota_from_maildir (address, maildirquota, sizeof(maildirquota));
           quota = maildirquota;
         }
-        
+
         /* if the user has a quota set */
 #ifdef MAILDROP
        vget_limits(TheDomain, &limits);
@@ -644,7 +644,8 @@ void deliver_mail(char *address, char *quota)
          parse_email(maildir_to_email(address), TheUser, TheDomain, AUTH_SIZE);
          vpw=vauth_getpw(TheUser, TheDomain);
        }
-       if ( vpw!=NULL && (limits.disable_spamassassin==1 ||
+       // if ( vpw!=NULL && (limits.disable_spamassassin==1 ||
+       if ( vpw!=NULL && (limits.disable_maildrop==1 ||
            (vpw->pw_gid & NO_MAILDROP)) ) {
 #endif
         if ( strncmp(quota, "NOQUOTA", 2) != 0 ) {

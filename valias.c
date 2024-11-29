@@ -65,7 +65,11 @@ int main(int argc, char *argv[])
 		if ( strstr(Email, "@") == NULL ) {
 			/* display all aliases for domain */
 			tmpalias = valias_select_all( Alias, Email );
-			if (tmpalias == NULL) vexit(-1);
+			if (tmpalias == NULL) {
+				printf("No aliases found for domain %s\n", Email);
+                fflush(stdout);
+				vexit(-1);
+			}
 			while (tmpalias != NULL ) {
 				printf("%s@%s -> %s\n", Alias, Email, tmpalias);
                                 fflush(stdout);
@@ -74,7 +78,10 @@ int main(int argc, char *argv[])
 		} else {
 			/* display aliases for Alias@Domain */
 			tmpalias = valias_select( Alias, Domain );
-			if (tmpalias == NULL) vexit(-1);
+			if (tmpalias == NULL) {
+                printf("No aliases %s@%s found\n", Alias, Domain);
+				vexit(-1);
+			}
 			while (tmpalias != NULL ) {
 				printf("%s@%s -> %s\n", Alias, Domain,tmpalias);
 				tmpalias = valias_select_next();

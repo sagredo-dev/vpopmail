@@ -392,10 +392,10 @@ int vauth_deldomain( char *domain )
 #endif
 
 #ifdef ENABLE_SQL_LOGGING
-    qnprintf( sqlBufUpdate, SQL_BUF_SIZE,
+    qnprintf( SqlBufUpdate, SQL_BUF_SIZE,
        "delete from vlog where domain = '%s'", domain );
     pgres=PQexec(pgc, SqlBufUpdate);
-    if( !pgres || PGresultStatus(pgres)!=PGRES_COMMAND_OK) {
+    if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK) {
       return(-1);
     }
 #endif
@@ -445,11 +445,11 @@ int vauth_deluser( char *user, char *domain )
 #endif
 
 #ifdef ENABLE_SQL_LOGGING
-    qnprintf( sqlBufUpdate, SQL_BUF_SIZE,
+    qnprintf( SqlBufUpdate, SQL_BUF_SIZE,
         "delete from vlog where domain = '%s' and user='%s'", 
        domain, user );
     pgres=PQexec(pgc, SqlBufUpdate);
-    if( !pgres || PGresultStatus(pgres)!=PGRES_COMMAND_OK) {
+    if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK) {
       err = -1;
     }
 #endif
@@ -771,8 +771,9 @@ void vclear_open_smtp(time_t clear_minutes, time_t mytime)
   PGresult *pgres;
   time_t delete_time;
   int err;
-    
-  if ( (err=vauth_open(1)) != 0 ) return;
+
+  // open_smtp_relay() expects "-1" on database errors. "0" means duplicate record. (See vpopmail.c)
+  if ( (err=vauth_open(1)) != 0 ) return (-1);
   delete_time = mytime - clear_minutes;
 
   snprintf( SqlBufUpdate, SQL_BUF_SIZE, 

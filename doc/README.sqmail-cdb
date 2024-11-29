@@ -1,0 +1,11 @@
+vpopmail-sqmail-cdb patch for vpopmail-5.4.33 by Roberto Puzzanghera
+More info here https://notes.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html
+
+==============================================================================================================
+
+Patch for s/qmail users who have the QMAILDIR/users/cdb moved to QMAILDIR/users/assign.cdb.
+You can enable for vpopmail to look for the correct cdb file at configure time:
+
+--enable-sqmail-cdb
+
+Default option is disabled

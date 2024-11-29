@@ -147,7 +147,7 @@ int vadddomain( char *domain, char *dir, uid_t uid, gid_t gid )
  char Dir[MAX_BUFF];
  int call_dir;
  string_list aliases;
- 
+
 #ifdef ONCHANGE_SCRIPT
   /*  Don't execute any implied onchange in called functions  */
   allow_onchange = 0;
@@ -270,9 +270,10 @@ int vadddomain( char *domain, char *dir, uid_t uid, gid_t gid )
     fchdir(call_dir); close(call_dir);
     return(VA_COULD_NOT_OPEN_QMAIL_DEFAULT);
   } else {
-    fprintf(fs, "| %s/bin/vdelivermail '' bounce-no-mailbox\n", VPOPMAILDIR);
+    fprintf(fs, "| %s/bin/vdelivermail '' delete\n", VPOPMAILDIR);
     fclose(fs);
   }
+
 
   /* create an entry in the assign file for our new domain */
   snprintf(tmpbuf, sizeof(tmpbuf), "%s/%s/%s", dir, DOMAINS_DIR, DomainSubDir);
@@ -554,6 +555,14 @@ int vdeldomain( char *domain )
     fprintf (stderr, "Warning: Failed to delete domain from the assign file\n");
   }
 
+#ifdef SQL_ALIASDOMAINS
+  /* aliasdomain table will eventually be created */
+  for(i=0; i<aliases.count; i++)
+  {
+    vdelete_sql_aliasdomain(aliases.values[i]);
+  }
+#endif
+
   /* send a HUP signal to qmail-send process to reread control files */
   signal_process("qmail-send", SIGHUP);
 
@@ -669,6 +678,18 @@ int vadduser( char *username, char *domain, char *password, char *gecos,
  gid_t gid = VPOPMAILGID;
  struct vlimits limits;
  char quota[50];
+/* defauldelivery patch */
+ FILE *fs;
+ char tmpbuf[MAX_BUFF], tmpbuf2[MAX_BUFF];
+ char ch, defaultdelivery_file[MAX_BUFF];
+ FILE *defaultdelivery;
+ int default_delivery_option;
+#ifdef DEFAULT_DELIVERY
+ default_delivery_option = 1;
+#else
+ default_delivery_option = 0;
+#endif
+/* end defauldelivery patch */
 
 #ifdef ONCHANGE_SCRIPT
  int temp_onchange;
@@ -786,6 +807,46 @@ int vadduser( char *username, char *domain, char *password, char *gecos,
   call_onchange ( "add_user" );
   allow_onchange = 1;
 #endif
+
+  /************************** defauldelivery patch ****************************************************************/
+  if (default_delivery_option == 1) {
+    /* create the .qmail file */
+    snprintf(tmpbuf, sizeof(tmpbuf), "%s/%s/%s/.qmail", Dir, user_hash, username);
+    if ( (fs = fopen(tmpbuf, "w+"))==NULL) vexit(VA_COULD_NOT_OPEN_DOT_QMAIL);
+    /* setup the permission of the .qmail file */
+    chown(tmpbuf, uid, gid);
+    chmod(tmpbuf, 0600);
+
+    /* Copy the content of control/defaultdelivery into ~userhomedir/.qmail */
+    snprintf(defaultdelivery_file, sizeof(defaultdelivery_file), "%s/control/defaultdelivery", QMAILDIR);
+    defaultdelivery = fopen(defaultdelivery_file, "r");
+    if( defaultdelivery == NULL )
+    {
+      printf("\nERROR: Missing %s/control/defaultdelivery file.\n", QMAILDIR);
+      printf("To create a %s/control/defaultdelivery type:\n", QMAILDIR);
+      printf("echo \"| %s/bin/vdelivermail '' delete\" > %s/control/defaultdelivery\n\n", VPOPMAILDIR, QMAILDIR);
+      vexit(EXIT_FAILURE);
+    }
+
+    // is_vdelivermail = 1 if defaultdelivery already contains vdelivermail
+    int is_vdelivermail = 0;
+    while((fgets(tmpbuf2, MAX_BUFF, defaultdelivery)!=NULL)) {
+      if(strstr(tmpbuf2, "vdelivermail")!=NULL) {
+        is_vdelivermail = 1;
+        break;
+      }
+    }
+    rewind(defaultdelivery);
+
+    while ( ( ch = fgetc(defaultdelivery) ) != EOF ) fputc(ch, fs);
+
+    fclose(defaultdelivery); // close control/defaultdelivery
+    fclose(fs);              // close .qmail
+
+    // if defaultdelivery already contains vdelivermail remove the .qmail file
+    if (is_vdelivermail == 1) remove(tmpbuf);
+  }
+  /*********************** end defauldelivery patch *****************************************************************/
 
   return(VA_SUCCESS);
 }
@@ -2992,7 +3053,11 @@ char *vget_assign(char *domain, char *dir, int dir_len, uid_t *uid, gid_t *gid)
   snprintf(cdb_key, sizeof(cdb_key), "!%s-", domain);
   
   /* work out the location of the cdb file */
+#ifdef SQMAILCDB
+  snprintf(cdb_file, sizeof(cdb_file), "%s/users/assign.cdb", QMAILDIR);
+#else
   snprintf(cdb_file, sizeof(cdb_file), "%s/users/cdb", QMAILDIR);
+#endif
 
   /* try to open the cdb file */
   if ( (fs = fopen(cdb_file, "r")) == 0 ) {
@@ -3770,6 +3835,11 @@ int vaddaliasdomain( char *alias_domain, char *real_domain)
   /* tell other programs that data has changed */
   snprintf ( onchange_buf, MAX_BUFF, "%s %s", alias_domain, real_domain );
   call_onchange ( "add_alias_domain" );
+#endif
+
+#ifdef SQL_ALIASDOMAINS
+  /* aliasdomain table will eventually be created */
+  vcreate_sql_aliasdomain(real_domain, alias_domain);
 #endif
 
   return(VA_SUCCESS);
