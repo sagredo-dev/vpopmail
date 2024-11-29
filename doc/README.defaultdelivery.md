@@ -1,7 +1,7 @@
-version 2023.08.21
+# README.defaultdelivery
 
-vpopmail-defaultdelivery patch for vpopmail-5.4.33 by Roberto Puzzanghera
-More info here https://notes.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html
+by Roberto Puzzanghera  
+More info [here](https://notes.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html)
 
 ==============================================================================================================
 
@@ -27,19 +27,20 @@ In addition, this patch makes vdelivermail to be installed in .qmail-default wit
 The vmakedotqmail program will help you in the transition. It will populate/restore all your .qmail files for
 you. Have a look to it:
 
-vmakedotqmail -h for more info.
+`vmakedotqmail -h` for more info.
 
-== Settings
+## Settings
 
 An autoreconf is needed as I modified the original configure.in and Makefile.am files.
 
 Configure as follows:
 
-autoreconf -f -i
+```
+autoreconf -f -i  
 ./configure --enable-defaultdelivery (default OFF)
+```
 
-== Looking for the old patch?
+## Looking for the old patch?
 
 If you like to have the old vpopmail-defaultdelivery patch of mine, which installs the defaultdelivery in
-.qmail-default, look here:
-https://notes.sagredo.eu/files/qmail/patches/vpopmail/vpopmail-5.4.33-defaultdelivery-domains.patch
+.qmail-default, look [here](https://notes.sagredo.eu/files/qmail/patches/vpopmail/vpopmail-5.4.33-defaultdelivery-domains.patch)
