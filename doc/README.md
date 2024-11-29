@@ -36,14 +36,6 @@ Features include
     separate password file for each domain. 
   * Documented C library for all vpopmail features and transactions. 
 
---------------------------------------------------------------------------
-
-For general installation instructions see [INSTALL](INSTALL) file
-
-For people upgrading please read [UPGRADE](UPGRADE)
-
---------------------------------------------------------------------------
-
 By default, vpopmail stores all the account configuration and settings
 in CDB files. CDB is a fast, reliable & simple database package that was
 written by Dan Bernstein (the author of qmail). CDB is a good choice
@@ -195,4 +187,4 @@ sort may be apropriate for domains that end in a country code.  If someone
 has any ideas, post it on the SourceFORGE vpopmail-devel mailing list.
 
 ## More info and support
-To find more info and ask for support post a comment [here](https://notes.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html).
+To find more info and ask for support post a comment [in my blog](https://notes.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html). Pull requests are welcome in this github space.
