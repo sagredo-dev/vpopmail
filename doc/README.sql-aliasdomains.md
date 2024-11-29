@@ -1,26 +1,24 @@
-sql-aliasdomains patch for vpopmail-5.4.33 by Roberto Puzzanghera
-More info here https://notes.sagredo.eu/en/qmail-notes-185/dovecot-vpopmail-auth-driver-removal-241.html
+# sql-aliasdomains patch
 
-==================================================================================================================
+by Roberto Puzzanghera
+More info [here](https://notes.sagredo.eu/en/qmail-notes-185/dovecot-vpopmail-auth-driver-removal-241.html)
 
-* A patch to make vpopmail store domain aliases to MySQL. This gets dovecot's sql auth driver
-  aware of domain aliases, provided that you modify the sql query accordingly.
-  More info here https://notes.sagredo.eu/en/qmail-notes-185/dovecot-vpopmail-auth-driver-removal-241.html
+This patch makes vpopmail store domain aliases to MySQL. This gets dovecot's sql auth driver aware of domain aliases, provided that you modify the sql query accordingly.
 
-* A patch which gets vpopmail to compile with gcc-10
+## Settings
 
-== Settings
+* An `autoreconf` is needed as I modified the original configure.in and Makefile.am files
 
-* An autoreconf is needed as I modified the original configure.in and Makefile.am files
-
+```
   autoreconf -f -i
   ./configure \
 	--enable-auth-module=mysql \
 	--enable-sql-aliasdomains (default)
+```
 
-* Adjust your dovecot-sql.conf.ext in order to auth both real and alias domains:
-  (more info here https://notes.sagredo.eu/en/qmail-notes-185/installing-dovecot-and-sieve-on-a-vpopmail-qmail-server-28.html#sql)
+* Adjust your dovecot-sql.conf.ext in order to auth both real and alias domains (more info [here](https://notes.sagredo.eu/en/qmail-notes-185/installing-dovecot-and-sieve-on-a-vpopmail-qmail-server-28.html#sql):
 
+```
 password_query = \
         SELECT \
                 CONCAT(vpopmail.pw_name, '@', vpopmail.pw_domain) AS user, \
@@ -53,9 +51,10 @@ user_query = \
                 AND \
                 vpopmail.pw_domain='%d'
 
-* Create/delete aliasdomains in the usual way with vaddaliasdomain/vdeldomain
+```
 
-* If you already have aliasdomains, you have to populate the dbtable. You can use my "vsavealiasdomains" program
-  to save all your domain aliases to MySQL.
-  Type "vsavealiasadomains -A" to save all your domain aliases to MySQL.
-  Type "vsavealiasadomains -h" for more options.
+* Create/delete aliasdomains in the usual way with `vaddaliasdomain/vdeldomain`
+
+* If you already have aliasdomains, you have to populate the dbtable. You can use my "vsavealiasdomains" program to save all your domain aliases to MySQL.  
+  Type `vsavealiasadomains -A` to save all your domain aliases to MySQL.  
+  Type `vsavealiasadomains -h` for more options.
