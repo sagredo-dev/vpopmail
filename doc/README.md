@@ -1,14 +1,12 @@
 Vpopmail is a set of programs for creating and managing
-multiple virtual domains on a qmail server.
+multiple virtual domains on a qmail server originally developed by [Inter7](http://www.inter7.com/vpopmail-virtualized-email/).
 
 It is geared toward ease of use for system administrators as well 
 as security and efficency. With the associated command line programs,
 system administrators never need touch any of the underlying qmail files 
 and processes. All details are automatically handled. 
 
--------------------------------------------------------------------------- 
-
-Features include 
+Features include  
   * Support for 1 to 23 million virtual email domains using a 
     "grow as it goes" balenced directory tree. 
   * Support for 1 to 23 million email users per domain using the
@@ -40,9 +38,9 @@ Features include
 
 --------------------------------------------------------------------------
 
-For general installation instructions see INSTALL file
+For general installation instructions see [INSTALL](INSTALL) file
 
-For people upgrading please read UPGRADE
+For people upgrading please read [UPGRADE](UPGRADE)
 
 --------------------------------------------------------------------------
 
@@ -51,21 +49,11 @@ in CDB files. CDB is a fast, reliable & simple database package that was
 written by Dan Bernstein (the author of qmail). CDB is a good choice
 for small vpopmail sites, but if you are running a larger server,
 there are other authentication modules available that can help increase
-performance or improve managability :
+performance or improve managability.
 
-  For help with mysql see README.mysql
+For help concerning vpopmail's features look at the documentation in the *doc* directory.
 
-  For help with postgres see README.pgsql
-
-  For help with LDAP see README.ldap
-
-  For help with oracle see README.oracle
-
-  For help with sybase see README.sybase
-
---------------------------------------------------------------------------
-
-Qmail and Virtual domains
+## Qmail and Virtual domains
 
 Qmail has an idea of email domains that are "local" and "virtual". Local
 domains are ones which primarily match against /etc/passwd. Virtual domains
@@ -101,9 +89,7 @@ that can be customized. If the message is 1Kbytes or smaller the email
 will always be delivered. This is so system administration programs can 
 always get a message through to the user. 
 
---------------------------------------------------------------------------
-
-Directory structure
+## Directory structure
 
 Overall vpopmail directory structure
 Vpopmail gets it's own home directory. Under this directory there are 
@@ -144,9 +130,7 @@ or sub directory and store the new users directory there.
 Look in the source code release directory contrib/ for a contributed 
 directory reorganization program
 
---------------------------------------------------------------------------
-
-Converting current user accounts
+## Converting current user accounts
 
 The vconvert program can convert email accounts from one format into
 another format. Conversion can be between /etc/passwd, vpasswd files,
@@ -168,17 +152,13 @@ all /etc/passwd accounts and creates mysql entries using their
 passwords. The passwords can be in either /etc/passwd or /etc/shadow.
 These passwords should work under vchkpw authentication program.
 
---------------------------------------------------------------------------
-
-Security and pop server under tcpserver
+## Security and pop server under tcpserver
 
 If all of your pop email accounts are under virtual domains, you can
 increase the security of your pop server by running it under the uid
 and gid of vpopmail/vchkpw using the tcpserver -u and -g options.
 
---------------------------------------------------------------------------
-
-Sorting qmail control files
+## Sorting qmail control files
 
 vpopmail now sorts the qmail control files.  When adding a record vpopmail
 uses an insertion sort to keep entries in order.  As it is doing this
@@ -213,3 +193,6 @@ developersdesk.com.mail
 I bet for most people that tends to group customers together.  A special
 sort may be apropriate for domains that end in a country code.  If someone
 has any ideas, post it on the SourceFORGE vpopmail-devel mailing list.
+
+## More info and support
+To find more info and ask for support post a comment [here](https://notes.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html).
