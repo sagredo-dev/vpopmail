@@ -4,6 +4,18 @@ When recompiling vpopmail, you need to recompile all binaries that link
 into the vpopmail libraries.  These include QmailAdmin, qmail-smtpd (if 
 you have the chkuser patch applied), Courier-IMAP etc.
 
+Upgrading to vpopmail-5.6.x
+----------------------------
+When upgrading from version 5.4.33 to version 5.6.x, and if you have the
+accounts on SQL, you should enlarge the vpopmail.pw_passwd column size,
+as the default password encryption is SHA512, which is longer than the old MD5;
+you can disable SHA512 pwd with --disable-sha512-passwords at configure time.
+In addition, the minimum password length was set to 12, even though you can always
+disable it or set as you prefer (--enable-min-pwd-length=10). The default dimension
+for the vpopmail.pw_passwd column is now 128; here is how you can quickly alter the table:
+
+ALTER TABLE `vpopmail` CHANGE `pw_passwd` `pw_passwd` CHAR(128) CHARACTER SET latin1 COLLATE latin1_swedish_ci NULL DEFAULT NULL;
+
 Upgrading to vpopmail-5.4.33
 ----------------------------
 If you are storing limits in MySQL, the following schema changes must be made:
