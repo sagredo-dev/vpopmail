@@ -23,19 +23,6 @@ Widmer and some pages from John Simpson's qmail web site:
   http://qmail.jms1.net/
 
 
-If you are looking for step by step instructions for setting up a qmail +
-vpopmail server that includes the daemon, try Bill Shupp's toaster:
-
-   http://shupp.org/toaster/
-
-
-Another source of information on the daemain is Inter7's qmail
-wiki:
-
-  http://qmailwiki.inter7.com/Vpopmaild
-
-
-
 The most basic capability of vpopmaild is to verify whether or not a
 given email address and password are correct.  This can be done with 
 the slogin command.  Basically, if the slogin command succeeds, the 

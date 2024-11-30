@@ -28,7 +28,7 @@ Features include
   * Configurable logging based on real world admin's comments
     and requirements. 
   * Support for MySQL, Oracle, PostgreSQL, /etc/passwd, /etc/shadow,
-     LDAP, Sybase, and default cdb authentication storage. 
+     LDAP, Sybase, SQLite and default cdb authentication storage. 
   * Delivers directly to Maildir for use with qmail-pop3d,
     .qmail files or any other Maildir program. 
   * No need to have hundreds of .qmail files for virtual domains.
@@ -87,14 +87,15 @@ Overall vpopmail directory structure
 Vpopmail gets it's own home directory. Under this directory there are 
 the following:
 
-  bin - contains all the binaries
-  lib - contains the libvpopmail.a file
-  include - contains the C header files
+  bin - contains all the binaries  
+  lib - contains the libvpopmail.a file  
+  include - contains the C header files  
   users - for backward compatibility for people who mix /etc/passwd users 
-  with vpopmail users in one domain
+  with vpopmail users in one domain  
   domains - where all the virtual domains are kept.
 
-Virtual domain user directory structure
+## Virtual domain user directory structure
+
 Vpopmail uses an adaptive directory structure based on a state file 
 ".dir-control" which is automatically managed by the core vpopmail api 
 functions "vadduser" and "vdeluser". For sites with 100 users or less, 
@@ -167,15 +168,15 @@ programs like vdominfo and vpopmaild will report domain names in order.
 At first glance, the sort order may seem bizarre, but once you work with
 it, it should become natural.  Here is a small example from my test server:
 
-developersdesk.com
-admin.developersdesk.com
-mail.developersdesk.com
-test.developersdesk.com
-developersdesk.net
-developersdesk.org
-mvas.com
-mvas.net
-mvas.org
+developersdesk.com  
+admin.developersdesk.com  
+mail.developersdesk.com  
+test.developersdesk.com  
+developersdesk.net  
+developersdesk.org  
+mvas.com  
+mvas.net  
+mvas.org  
 test.com
 
 They are actually sorted as if they were written like this:
@@ -187,4 +188,5 @@ sort may be apropriate for domains that end in a country code.  If someone
 has any ideas, post it on the SourceFORGE vpopmail-devel mailing list.
 
 ## More info and support
+
 To find more info and ask for support post a comment [in my blog](https://notes.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html). Pull requests are welcome in this github space.

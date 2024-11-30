@@ -245,13 +245,3 @@ service pop3
     This removes the need for vpopmail to compile a tcp.smtp.cdb file
     for each pop authentication. Instead, tcpserver looks directly
     into the vpopmail mysql table of IP's.
-
-14. Good luck
-
-For further information and support, please visit the SourceForge project 
-page: http://sourceforge.net/projects/vpopmail/
-
-Please report any bugs to the Bug Tracker on SourceForge.
-
-Join the vpopmail users mailing list vchkpw@inter7.com by sending an email 
-to vchkpw-subscribe@inter7.com
