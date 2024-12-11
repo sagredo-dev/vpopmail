@@ -811,7 +811,6 @@ enable_valias
 enable_defaultdelivery
 enable_many_domains
 enable_sql_aliasdomains
-enable_min_pwd_length
 enable_mysql_bin
 enable_mysql_logging
 enable_pgsql_logging
@@ -1518,7 +1517,6 @@ Optional Features:
   --enable-defaultdelivery   Copy the content of control/defaultdelivery to ~mailbox/.qmail on user creation.
   --disable-many-domains     Creates a table for each virtual domain instead of storing all users in a single table. Only valid for MySQL and PostgreSQL
   --enable-sql-aliasdomains  Saves the domain aliases to database. Only valid for MySQL auth module.
-  --enable-min-pwd-length=NUMBER      Minimum password length (default 12).
   --enable-mysql-bin=PATH      Full path to your MySQL binary. Only with --disable-many-domains.
 
 
@@ -8457,50 +8455,6 @@ esac
 
 #----------------------------------------------------------------------
 
-# Enable min password length
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether min pwd length has been defined" >&5
-printf %s "checking whether min pwd length has been defined... " >&6; }
-# Check whether --enable-min-pwd-length was given.
-if test ${enable_min_pwd_length+y}
-then :
-  enableval=$enable_min_pwd_length; MIN_PWD_LENGTH=$enableval
-else $as_nop
-
-            MIN_PWD_LENGTH=12
-
-
-fi
-
-
-if test $MIN_PWD_LENGTH = "yes"
-then
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-    minpwdlength=12
-else
-    if test $MIN_PWD_LENGTH = "no"
-    then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-        minpwdlength=1
-    else
-        if ! test $MIN_PWD_LENGTH = ""
-        then
-            { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-            minpwdlength=$MIN_PWD_LENGTH
-        else
-            as_fn_error $? "Unable to set minimum password length. Please specify --enable-min-pwd-length=NUMBER." "$LINENO" 5
-        fi
-    fi
-fi
-
-
-printf "%s\n" "#define MIN_PW_CLEAR_PASSWD $minpwdlength" >>confdefs.h
-
-
-#----------------------------------------------------------------------
-
 # MySQL binary is needed because we have to create the procedure calling an sql file via command line
 # This is only with --disable-many-domains
 
@@ -10510,18 +10464,6 @@ then
     echo "one domain per SQL table     = --disable-many-domains"
   fi
 fi
-
-case $MIN_PWD_LENGTH  in
-  yes)
-    echo "   min password length = 12  --enable-min-pwd-length"
-    ;;
-  no)
-    echo "   min password length = 1  --disable-min-pwd-length"
-    ;;
-  *)
-    echo "   min password length = ${minpwdlength}  --enable-min-pwd-length (default)"
-    ;;
-esac
 
 if [ "$AUTH_MODULE" == "mysql" ];
 then

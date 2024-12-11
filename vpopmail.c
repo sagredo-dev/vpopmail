@@ -763,7 +763,6 @@ int vadduser(char *username, char *domain, char *password, char *gecos,
 
 #ifdef CLEAR_PASS
   if (strlen(password) > MAX_PW_CLEAR_PASSWD) return (VA_PASSWD_TOO_LONG);
-  if (strlen(password) < MIN_PW_CLEAR_PASSWD) return (VA_PASSWD_TOO_SHORT);
 #endif
   if (strlen(gecos) > MAX_PW_GECOS) return (VA_GECOS_TOO_LONG);
 
@@ -1700,7 +1699,6 @@ int vpasswd(char *username, char *domain, char *password, int apop) {
 #endif
   if (strlen(domain) > MAX_PW_DOMAIN) return (VA_DOMAIN_NAME_TOO_LONG);
   if (strlen(password) > MAX_PW_CLEAR_PASSWD) return (VA_PASSWD_TOO_LONG);
-  if (strlen(password) < MIN_PW_CLEAR_PASSWD) return (VA_PASSWD_TOO_SHORT);
 
   lowerit(username);
   lowerit(domain);
@@ -2985,10 +2983,6 @@ char *verror(int va_err) {
       return ("can't read users/assign file");
     case VA_CANNOT_DELETE_CATCHALL:
       return ("can't delete catchall account");
-    case VA_PASSWD_TOO_SHORT:
-      snprintf(errorstr, MAX_BUFF, "password too short (min=%d)",
-               MIN_PW_CLEAR_PASSWD);
-      return errorstr;
     default:
       return ("Unknown error");
   }

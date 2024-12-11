@@ -258,9 +258,6 @@
 /* "" */
 #undef MD5_PASSWORDS
 
-/* Minimum password length */
-#undef MIN_PW_CLEAR_PASSWD
-
 /* "" */
 #undef MYSQLBIN
 
