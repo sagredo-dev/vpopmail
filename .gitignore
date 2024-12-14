@@ -106,3 +106,34 @@ Makefile
 
 # vpopmail
 vauth.c
+authvchkpw
+clearopensmtp
+dotqmail2valias
+vaddaliasdomain
+vadddomain
+vadduser
+valias
+vchangepw
+vchkpw
+vconvert
+vdeldomain
+vdelivermail
+vdeloldusers
+vdeluser
+vdominfo
+vipmap
+vkill
+vlist
+vmakedotqmail
+vmkpasswd
+vmoddomlimits
+vmoduser
+vpasswd
+vpopbull
+vpopmaild
+vrcptcheck
+vsavealiasdomains
+vsetuserquota
+vusagec
+vuserinfo
+vverifypw
