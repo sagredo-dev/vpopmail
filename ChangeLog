@@ -2,7 +2,8 @@ Numbers in square brackets ([]) are tracker items on SourceForge with patch
 or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
 
 unreleased
-  - Added configurable password strength enforcement (Matt Brookings from 5.5.0-dev version)
+  - Added configurable password strength enforcement (Matt Brookings' 5.5.0-dev version)
+  - Dropped min pwd length feature
 
 5.6.3 - Released Oct 19, 2024
   - bug fixed: passwords with length > 8 were denied if sha-512 was disabled
