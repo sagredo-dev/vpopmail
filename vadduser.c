@@ -28,6 +28,7 @@
 #include "config.h"
 #include "vauth.h"
 #include "vpopmail.h"
+#include "pwstr.h"
 
 char Email[MAX_BUFF];
 char Passwd[MAX_BUFF];
@@ -105,6 +106,8 @@ int main(int argc, char **argv) {
   /* add the user */
   if ((i = vadduser(User, Domain, Passwd, Gecos, apop)) < 0) {
     printf("Error: %s\n", verror(i));
+    if (((i <= -69) && (i >= -74)) && (pw_strength_policy() != NULL))
+      printf("A password policy is in place:\n\t%s\n", pw_strength_policy());
     vexit(i);
   }
 
@@ -150,9 +153,6 @@ void usage() {
   //  sites)\n");
   printf("         -c comment (sets the gecos comment field)\n");
   printf("         -e standard_encrypted_password\n");
-  if (MIN_PW_CLEAR_PASSWD == 0) {
-    printf("         -n no_password\n");
-  }
   printf(
       "         -r[len] (generate a len (default 12) char random password)\n");
 }
@@ -191,16 +191,6 @@ void get_options(int argc, char **argv) {
         fprintf(stderr, "Warning: The -s option has been disabled.\n");
         /* NoMakeIndex = 1; */
         break;
-      case 'n':
-        if (MIN_PW_CLEAR_PASSWD == 0) {
-          NoPassword = 1;
-        } else {
-          fprintf(stderr,
-                  "Error: The -n option is available only when minimum "
-                  "password size = 0\n");
-          vexit(-1);
-        }
-        break;
       case 'r':
         RandomPw = 1;
         if (optarg) {
@@ -222,7 +212,7 @@ void get_options(int argc, char **argv) {
 
   /* need a temporary password for vadduser(), before replacing it by the
      crypted password */
-  if ((MIN_PW_CLEAR_PASSWD != 0) && (*Crypted != '\0')) {
+  if (*Crypted != '\0') {
     vrandom_pass(Passwd, 12);
   }
 

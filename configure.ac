@@ -1748,40 +1748,6 @@ esac
 
 #----------------------------------------------------------------------
 
-# Enable min password length
-AC_MSG_CHECKING(whether min pwd length has been defined)
-AC_ARG_ENABLE(min-pwd-length,
-      [  --enable-min-pwd-length=NUMBER      Minimum password length (default 12).],
-      MIN_PWD_LENGTH=$enableval,
-         [
-            MIN_PWD_LENGTH=12
-         ]
-)
-
-if test $MIN_PWD_LENGTH = "yes"
-then
-    AC_MSG_RESULT(yes)
-    minpwdlength=12
-else
-    if test $MIN_PWD_LENGTH = "no" 
-    then
-        AC_MSG_RESULT(no)
-        minpwdlength=1
-    else
-        if ! test $MIN_PWD_LENGTH = ""
-        then
-            AC_MSG_RESULT(yes)
-            minpwdlength=$MIN_PWD_LENGTH
-        else
-            AC_MSG_ERROR([Unable to set minimum password length. Please specify --enable-min-pwd-length=NUMBER.])
-        fi
-    fi
-fi
-
-AC_DEFINE_UNQUOTED(MIN_PW_CLEAR_PASSWD,$minpwdlength,Minimum password length)
-
-#----------------------------------------------------------------------
-
 # MySQL binary is needed because we have to create the procedure calling an sql file via command line
 # This is only with --disable-many-domains
 AC_SUBST(MANY_DOMAINS)
@@ -2266,18 +2232,6 @@ then
     echo "one domain per SQL table     = --disable-many-domains"
   fi
 fi
-
-case $MIN_PWD_LENGTH  in
-  yes)
-    echo "   min password length = 12  --enable-min-pwd-length"
-    ;;
-  no)
-    echo "   min password length = 1  --disable-min-pwd-length"
-    ;;
-  *)
-    echo "   min password length = ${minpwdlength}  --enable-min-pwd-length (default)"
-    ;;
-esac
 
 if [[ "$AUTH_MODULE" == "mysql" ]];
 then

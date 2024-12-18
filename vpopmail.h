@@ -45,10 +45,8 @@
 #define MAX_PW_GECOS 64
 #if defined(MD5_PASSWORDS) || defined(SHA512_PASSWORDS)
 #define MAX_PW_CLEAR_PASSWD 128
-/* #define MIN_PW_CLEAR_PASSWD 12 */
 #else
 #define MAX_PW_CLEAR_PASSWD 50
-/* #define MIN_PW_CLEAR_PASSWD 8 */
 #endif
 #define MAX_PW_DIR 160
 #define MAX_PW_QUOTA 20
@@ -124,7 +122,12 @@
 #define VA_CANNOT_CREATE_DATABASE -43
 #define VA_CANNOT_CREATE_TABLE -44
 #define VA_CANNOT_DELETE_CATCHALL -55
-#define VA_PASSWD_TOO_SHORT -56
+#define VA_PWSTR_EMPTY   -69
+#define VA_PWSTR_LENGTH  -70
+#define VA_PWSTR_ALPHA   -71
+#define VA_PWSTR_NUMERIC -72
+#define VA_PWSTR_OTHER   -73
+#define VA_PWSTR_DELTA   -74
 
 /* gid flags */
 #define NO_PASSWD_CHNG 0x01
