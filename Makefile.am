@@ -13,13 +13,13 @@ else
 EXTRA_DIST=README.* vcdb.c vldap.c vmysql.c voracle.pc vpgsql.c vsybase.c
 endif
 
-noinst_HEADERS=md5.h vpopmail.h file_lock.h vauth.h vlimits.h maildirquota.h vcdb.h vldap.h vmysql.h voracle.h vpgsql.h vsybase.h vlog.h global.h hmac_md5.h seek.h vutil.h vlogger.h
+noinst_HEADERS=md5.h vpopmail.h file_lock.h vauth.h vlimits.h maildirquota.h vcdb.h vldap.h vmysql.h voracle.h vpgsql.h vsybase.h vlog.h global.h hmac_md5.h seek.h vutil.h vlogger.h pwstr.h
 
-COMMONSOURCES=vpopmail.c md5.c bigdir.c vauth.c file_lock.c vpalias.c seek.c vlimits.c maildirquota.c vutil.c vlistlib.c backfill.c client.c conf.c ippp.c vlogger.c
+COMMONSOURCES=vpopmail.c md5.c bigdir.c vauth.c file_lock.c vpalias.c seek.c vlimits.c maildirquota.c vutil.c vlistlib.c backfill.c client.c conf.c ippp.c vlogger.c pwstr.c
 
-CONFIG_CLEAN_FILES=vauth.c 
+CONFIG_CLEAN_FILES=vauth.c
 if BUILD_CDB
-CONFIG_CLEAN_FILES+=cdb/conf-cc cdb/conf-ld cdb/compile cdb/load  
+CONFIG_CLEAN_FILES+=cdb/conf-cc cdb/conf-ld cdb/compile cdb/load
 endif
 
 INSTALL_PROGRAM= ${INSTALL} -o @vpopuser@ -m 711 -g @vpopgroup@ $(AM_INSTALL_PROGRAM_FLAGS)
@@ -29,10 +29,11 @@ MYSQLCONF=$(DESTDIR)@vpopmaildir@/etc/vpopmail.mysql
 VLIMITS=$(DESTDIR)@vpopmaildir@/etc/vlimits.default
 VUSAGECCONF=$(DESTDIR)@vpopmaildir@/etc/vusagec.conf
 DOVECOT_SQL=$(DESTDIR)@vpopmaildir@/etc/disable-many-domains_procedures.sql
+PWD_STRENGTH=$(DESTDIR)@vpopmaildir@/etc/password_strength.conf
 
 noinst_LIBRARIES=libvpopmail.a
 
-libvpopmail_a_SOURCES=$(COMMONSOURCES) 
+libvpopmail_a_SOURCES=$(COMMONSOURCES)
 if BUILD_CDB
 libvpopmail_a_LIBADD =  cdb/*.o
 endif
@@ -48,7 +49,7 @@ vpopmailbin_PROGRAMS = vchkpw vdelivermail clearopensmtp vadddomain \
 
 vusagec_SOURCES = vusagec.c client.c conf.c ippp.c
 vusagec_LDADD = libvpopmail.a @auth_libs@
-	
+
 vuserinfo_SOURCES = vuserinfo.c maildirquota.c
 vuserinfo_LDADD = libvpopmail.a @auth_libs@
 
@@ -156,7 +157,7 @@ vusage-msg:
 	@echo "     Then follow the INSTALL file to install"
 	@echo ""
 	@echo "****************************************************"
-	@echo ""                                                                                                                                                                     
+	@echo ""
 
 install-exec-am:
 	for d in bin doc etc include lib ; do \
@@ -190,6 +191,10 @@ install-data-local:
 	if test ! -r $(VLIMITS); then \
 	  $(INSTALL) -o @vpopuser@ -m 0644 -g @vpopgroup@ \
 	    vlimits.default $(VLIMITS); \
+	fi
+
+	if test ! -r $(PWD_STRENGTH); then \
+	  $(INSTALL) -m 644 password_strength.conf $(PWD_STRENGTH); \
 	fi
 
 	if test "@USE_MYSQL@" = "1"; then \

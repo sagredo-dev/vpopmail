@@ -122,7 +122,12 @@
 #define VA_CANNOT_CREATE_DATABASE -43
 #define VA_CANNOT_CREATE_TABLE -44
 #define VA_CANNOT_DELETE_CATCHALL -55
-#define VA_PASSWD_TOO_SHORT -56
+#define VA_PWSTR_EMPTY   -69
+#define VA_PWSTR_LENGTH  -70
+#define VA_PWSTR_ALPHA   -71
+#define VA_PWSTR_NUMERIC -72
+#define VA_PWSTR_OTHER   -73
+#define VA_PWSTR_DELTA   -74
 
 /* gid flags */
 #define NO_PASSWD_CHNG 0x01
