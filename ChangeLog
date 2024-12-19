@@ -2,13 +2,16 @@ Numbers in square brackets ([]) are tracker items on SourceForge with patch
 or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
 
 unreleased
-  - Added configurable password strength enforcement (Matt Brookings' 5.5.0-dev version)
-  - Dropped min pwd length feature
+  - Added configurable password strength enforcement (Matt Brookings' 5.5.0-dev version).
+  - Dropped min pwd length feature.
+  - vmysql.h: tables' layout changed in order to have VARCHAR instead of CHAR.  
+    Fields containing ip addresses enlarged to VARCHAR(39), to create room for ipv6.  
+    Unix timestamps definition changed from BIGINT(20) to INT(11).
 
-5.6.3 - Released Oct 19, 2024
+5.6.3 - Released Oct 19, 2024 (Roberto Puzzanghera)
   - bug fixed: passwords with length > 8 were denied if sha-512 was disabled
 
-5.6.2 - Released Oct 14, 2024
+5.6.2 - Released Oct 14, 2024 (Roberto Puzzanghera)
   - fixed a configure break where a trivial C test program exits on error with gcc-14.1 due to missing headers
   - vusaged/domain.c: fixed -Wimplicit-function-declaration compilation warning
   - vusaged/configure: autoconf 2.71 compat

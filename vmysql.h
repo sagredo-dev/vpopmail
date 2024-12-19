@@ -20,24 +20,24 @@
 
 /* NOTE: As of vpopmail 5.3.25, MySQL connection info is stored in
    ~vpopmail/etc/vpopmail.mysql.  The format of the file is as follows:
-   
+
    read server|read port|read user|read password|read database
    update server|update port|update user|update password|update database
-   
+
    Comments (lines starting with '#') are allowed.  The first line contains
    connection information for READING from the database.  The second (optional)
    line contains connection information for UPDATING the database.  If the
    second line is left out, then vpopmail will use the same settings for
    reading and updating.
-   
+
    Port should be the actual port, or 0 for default.
-   
+
    For example:
-   
+
    # This is the MySQL configuration file for vpopmail.
    localhost|0|readonly|somepass|vpopmail
    localhost|0|root|secret|vpopmail
-   
+
  */
 
 /* defaults - no need to change */
@@ -47,54 +47,54 @@
 
 #ifdef MANY_DOMAINS
 #ifdef CLEAR_PASS
-#define TABLE_LAYOUT "pw_name char(64) not null, \
-pw_domain char(96) not NULL, \
-pw_passwd char(128), \
+#define TABLE_LAYOUT "pw_name VARCHAR(64) not null, \
+pw_domain VARCHAR(96) not NULL, \
+pw_passwd VARCHAR(128), \
 pw_uid int, pw_gid int, \
-pw_gecos char(64), \
-pw_dir char(160), \
-pw_shell char(20), \
-pw_clear_passwd char(16), \
+pw_gecos VARCHAR(64), \
+pw_dir VARCHAR(160), \
+pw_shell VARCHAR(20), \
+pw_clear_passwd VARCHAR(16), \
 primary key (pw_name, pw_domain ) "
 #else
-#define TABLE_LAYOUT "pw_name char(64) not null, \
-pw_domain char(96) not null, \
-pw_passwd char(128), \
+#define TABLE_LAYOUT "pw_name VARCHAR(64) not null, \
+pw_domain VARCHAR(96) not null, \
+pw_passwd VARCHAR(128), \
 pw_uid int, pw_gid int, \
-pw_gecos char(64), \
-pw_dir char(160), \
-pw_shell char(20), \
+pw_gecos VARCHAR(64), \
+pw_dir VARCHAR(160), \
+pw_shell VARCHAR(20), \
 primary key (pw_name, pw_domain ) "
 #endif
 #else
 #ifdef CLEAR_PASS
-#define TABLE_LAYOUT "pw_name char(64) not null, \
-pw_passwd char(128), \
+#define TABLE_LAYOUT "pw_name VARCHAR(64) not null, \
+pw_passwd VARCHAR(128), \
 pw_uid int, pw_gid int, \
-pw_gecos char(64), \
-pw_dir char(160), \
-pw_shell char(20), \
-pw_clear_passwd char(16), \
+pw_gecos VARCHAR(64), \
+pw_dir VARCHAR(160), \
+pw_shell VARCHAR(20), \
+pw_clear_passwd VARCHAR(16), \
 primary key (pw_name ) "
 #else
-#define TABLE_LAYOUT "pw_name char(64) not null, \
-pw_passwd char(128), \
+#define TABLE_LAYOUT "pw_name VARCHAR(64) not null, \
+pw_passwd VARCHAR(128), \
 pw_uid int, pw_gid int, \
-pw_gecos char(64), \
-pw_dir char(160), \
-pw_shell char(20), \
+pw_gecos VARCHAR(64), \
+pw_dir VARCHAR(160), \
+pw_shell VARCHAR(20), \
 primary key (pw_name ) "
 #endif
 #endif
 
-#define RELAY_TABLE_LAYOUT "ip_addr char(18) not null, \
-timestamp char(12), primary key (ip_addr)"
+#define RELAY_TABLE_LAYOUT "ip_addr VARCHAR(39) not null, \
+timestamp INT, primary key (ip_addr)"
 
 #define LASTAUTH_TABLE_LAYOUT \
-"user char(32) NOT NULL, \
-domain char(96) NOT NULL,\
-remote_ip char(18) not null,  \
-timestamp bigint default 0 NOT NULL, \
+"user VARCHAR(32) NOT NULL, \
+domain VARCHAR(96) NOT NULL,\
+remote_ip VARCHAR(39) not null,  \
+timestamp INT default 0 NOT NULL, \
 primary key (user, domain)"
 
 char *vauth_munch_domain(char *);
@@ -225,15 +225,15 @@ where pw_name = \"%s\" "
 #endif
 
 #ifdef IP_ALIAS_DOMAINS
-#define IP_ALIAS_TABLE_LAYOUT "ip_addr char(18) not null, domain char(96),  primary key(ip_addr)"
+#define IP_ALIAS_TABLE_LAYOUT "ip_addr VARCHAR(39) not null, domain VARCHAR(96),  primary key(ip_addr)"
 #endif
 
-#define DIR_CONTROL_TABLE_LAYOUT "domain char(96) not null, cur_users int, \
+#define DIR_CONTROL_TABLE_LAYOUT "domain VARCHAR(96) not null, cur_users int, \
 level_cur int, level_max int, \
 level_start0 int, level_start1 int, level_start2 int, \
 level_end0 int, level_end1 int, level_end2 int, \
 level_mod0 int, level_mod1 int, level_mod2 int, \
-level_index0 int , level_index1 int, level_index2 int, the_dir char(160), \
+level_index0 int , level_index1 int, level_index2 int, the_dir VARCHAR(160), \
 primary key (domain) "
 
 #define DIR_CONTROL_SELECT "cur_users, \
@@ -247,16 +247,16 @@ level_index0, level_index1, level_index2, the_dir"
 #define VALIAS_TABLE_LAYOUT \
 "id int(11) PRIMARY KEY AUTO_INCREMENT, \
 valias_type tinyint(1) NOT NULL DEFAULT 1 COMMENT '1=forwarder 0=lda', \
-alias char(32) NOT NULL, \
-domain char(96) NOT NULL, \
+alias VARCHAR(32) NOT NULL, \
+domain VARCHAR(96) NOT NULL, \
 valias_line text NOT NULL, \
 copy tinyint(1) NOT NULL DEFAULT 0 COMMENT '0=redirect 1=copy&redirect', \
 INDEX (alias,domain,valias_type), \
 INDEX (alias, domain)"
 #else
 #define VALIAS_TABLE_LAYOUT "id int(11) PRIMARY KEY AUTO_INCREMENT, \
-alias char(32) NOT NULL, \
-domain char(96) NOT NULL, \
+alias VARCHAR(32) NOT NULL, \
+domain VARCHAR(96) NOT NULL, \
 valias_line text NOT NULL, \
 INDEX (alias, domain)"
 #endif
@@ -265,17 +265,17 @@ INDEX (alias, domain)"
 
 #ifdef ENABLE_SQL_LOGGING
 #define VLOG_TABLE_LAYOUT "id BIGINT PRIMARY KEY AUTO_INCREMENT, \
-      user char(32), passwd CHAR(32), \
-      domain CHAR(96), logon VARCHAR(200), \
-      remoteip char(18), message VARCHAR(255), \
-      timestamp bigint default 0 NOT NULL, error INT, \
+      user VARCHAR(32), passwd VARCHAR(32), \
+      domain VARCHAR(96), logon VARCHAR(200), \
+      remoteip VARCHAR(39), message VARCHAR(255), \
+      timestamp INT default 0 NOT NULL, error TINYINT(1), \
       INDEX user_idx (user), \
       INDEX domain_idx (domain), INDEX remoteip_idx (remoteip), \
       INDEX error_idx (error), INDEX message_idx (message)"
 #endif
 
 #ifdef ENABLE_MYSQL_LIMITS
-#define LIMITS_TABLE_LAYOUT "domain CHAR(96) PRIMARY KEY, \
+#define LIMITS_TABLE_LAYOUT "domain VARCHAR(96) PRIMARY KEY, \
       maxpopaccounts           INT(10) NOT NULL DEFAULT -1, \
       maxaliases               INT(10) NOT NULL DEFAULT -1, \
       maxforwards              INT(10) NOT NULL DEFAULT -1, \
@@ -294,7 +294,7 @@ INDEX (alias, domain)"
       disable_smtp             TINYINT(1) NOT NULL DEFAULT 0, \
       disable_spamassassin     TINYINT(1) NOT NULL DEFAULT 0, \
       delete_spam              TINYINT(1) NOT NULL DEFAULT 0, \
-      disable_maildrop		   TINYINT(1) NOT NULL DEFAULT 0, \
+      disable_maildrop	       TINYINT(1) NOT NULL DEFAULT 0, \
       perm_account             TINYINT(2) NOT NULL DEFAULT 0, \
       perm_alias               TINYINT(2) NOT NULL DEFAULT 0, \
       perm_forward             TINYINT(2) NOT NULL DEFAULT 0, \
@@ -308,8 +308,8 @@ void vcreate_aliasdomains_table();
 int vdelete_sql_aliasdomain(char *alias);
 int vcreate_sql_aliasdomain(char *domain, char *alias);
 
-#define ALIASDOMAINS_TABLE_LAYOUT "alias varchar(100) NOT NULL, \
-      domain varchar(100) NOT NULL, \
+#define ALIASDOMAINS_TABLE_LAYOUT "alias VARCHAR(100) NOT NULL, \
+      domain VARCHAR(100) NOT NULL, \
       PRIMARY KEY (alias)"
 
 int vcreate_sql_procedures();
