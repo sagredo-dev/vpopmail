@@ -1,7 +1,7 @@
 Numbers in square brackets ([]) are tracker items on SourceForge with patch
 or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
 
-unreleased
+5.6.4 - Released Dec 19, 2024
   - Added configurable password strength enforcement (Matt Brookings' 5.5.0-dev version).
   - Dropped min pwd length feature.
   - vmysql.h: tables' layout changed in order to have VARCHAR instead of CHAR.  

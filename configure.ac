@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.71])
-AC_INIT([vpopmail],[5.6.3])
+AC_INIT([vpopmail],[5.6.4])
 PACKAGE=$PACKAGE_NAME
 VERSION=$PACKAGE_VERSION
 
@@ -1951,10 +1951,10 @@ esac
 
 case $ENABLE_SHA512_PASSWORDS in
   1*|y*|Y*)
-    echo "     sha512 passwords = ON  --enable-sha512-passwords (default)"
+    echo "  sha512 passwords = ON  --enable-sha512-passwords (default)"
     ;;
   *)
-    echo "     sha512 passwords = OFF --disable-sha512-passwords"
+    echo "  sha512 passwords = OFF --disable-sha512-passwords"
     ;;
 esac
 
@@ -2148,10 +2148,10 @@ echo "          auth lib = $auth_libs"
 
 case $TINYCDB in
   1*|y*|Y*)
-    echo "  using tinycdb = ON  --enable-tinycdb"
+    echo "     using tinycdb = ON  --enable-tinycdb"
     ;;
   *)
-    echo "  using tinycdb = OFF --disable-tinycdb (default)"
+    echo "     using tinycdb = OFF --disable-tinycdb (default)"
     ;;
 esac
 
@@ -2195,20 +2195,20 @@ esac
 
 case $ENABLE_LOGGER_SYSLOG in
   1*|y*|Y*)
-    echo "   logger syslog = ON  --enable-logger-syslog"
+    echo "     logger syslog = ON  --enable-logger-syslog"
     ;;
   *)
-    echo "   logger syslog = OFF --disable-logger-syslog (default)"
+    echo "     logger syslog = OFF --disable-logger-syslog (default)"
     ;;
 esac
 
 
 case $ENABLE_LOGGER_SQLITE in
   1*|y*|Y*)
-    echo "   logger sqlite = ON  --enable-logger-sqlite"
+    echo "     logger sqlite = ON  --enable-logger-sqlite"
     ;;
   *)
-    echo "   logger sqlite = OFF --disable-logger-sqlite (default)"
+    echo "     logger sqlite = OFF --disable-logger-sqlite (default)"
     ;;
 esac
 
@@ -2254,17 +2254,17 @@ esac
 
 case $ENABLE_SPAM_JUNKFOLDER in
   1*|y*|Y*)
-    echo "      spam junkfolder = ON  --enable-spam-junkfolder"
+    echo "   spam junkfolder = ON  --enable-spam-junkfolder"
     ;;
   *)
-    echo "      spam junkfolder = OFF --disable-spam-junkfolder (default)"
+    echo "   spam junkfolder = OFF --disable-spam-junkfolder (default)"
     ;;
 esac
 
 if test "${enable_spam_threshold+set}" = set; then
-    echo "      spam threshold = ${enable_spam_threshold} --enable-spam-threshold"
+    echo "    spam threshold = ${enable_spam_threshold} --enable-spam-threshold"
 else
-    echo "      spam threshold = OFF --disable-spam-threshold (default)"
+    echo "    spam threshold = OFF --disable-spam-threshold (default)"
 fi
 
 case $ENABLE_MAILDROP in
