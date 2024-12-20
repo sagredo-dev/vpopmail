@@ -14,6 +14,7 @@ Here is the SQL query to upgrade the `vpopmail` table:
 ``` sql
 ALTER TABLE `vpopmail` CHANGE `pw_passwd` `pw_passwd` VARCHAR(128) CHARACTER SET latin1 COLLATE latin1_swedish_ci NULL DEFAULT NULL;
 ```
+### Upgrading from version 5.6.3 to 5.6.4
 
 Several other non breaking changes have been made to the `MySQL` tables' layout.  
 Here is how you can quickly alter the tables (inlcluded the change mentioned above):
