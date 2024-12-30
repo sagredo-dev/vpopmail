@@ -50,6 +50,9 @@ int show_query = 0;
 int dump_data = 0;
 #endif
 
+/* Return value for password strength check */
+int ret = 0;
+
 #ifdef POP_AUTH_OPEN_RELAY
 /* keep a output pipe to tcp.smtp file */
 int tcprules_fdm;
@@ -785,6 +788,10 @@ int vadduser(char *username, char *domain, char *password, char *gecos,
   if (vget_limits(domain, &limits) != 0) {
     return (VA_CANNOT_READ_LIMITS);
   }
+
+  /* Check password strength */
+  ret = pw_strength(password);
+  if (ret != 1) return ret;
 
   /* record the dir where the vadduser command was run from */
   call_dir = open(".", O_RDONLY);
@@ -1687,7 +1694,6 @@ int parse_email(char *email, char *user, char *domain, int buff_size) {
  * update a users virtual password file entry with a different password
  */
 int vpasswd(char *username, char *domain, char *password, int apop) {
-  int ret = 0;
   struct vqpasswd *mypw;
   char Crypted[MAX_BUFF];
 #ifdef SQWEBMAIL_PASS

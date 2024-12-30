@@ -106,8 +106,12 @@ int main(int argc, char **argv) {
   /* add the user */
   if ((i = vadduser(User, Domain, Passwd, Gecos, apop)) < 0) {
     printf("Error: %s\n", verror(i));
+    /*
+     *  pwd strength feature. Error codes in vpoopamil.h between -69 and -74
+     */
     if (((i <= -69) && (i >= -74)) && (pw_strength_policy() != NULL))
       printf("A password policy is in place:\n\t%s\n", pw_strength_policy());
+    /* end pwd strength feature */
     vexit(i);
   }
 

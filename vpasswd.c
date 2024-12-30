@@ -60,8 +60,12 @@ int main(int argc, char *argv[]) {
 
   if ((i = vpasswd(User, Domain, Passwd, apop)) != 0) {
     printf("Error: %s\n", verror(i));
+    /*
+       pwd strength feature. Error codes in vpopamil.h between -69 and -74
+     */
     if (((i <= -69) && (i >= -74)) && (pw_strength_policy() != NULL))
       printf("A password policy is in place:\n\t%s\n", pw_strength_policy());
+    /* end pwd strength feature */
     vexit(i);
   }
   if (RandomPw) printf("Random password: %s\n", Passwd);
