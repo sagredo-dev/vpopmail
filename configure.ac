@@ -16,7 +16,7 @@ AC_CANONICAL_HOST
 
 if test -z "$CFLAGS"
 then
-   AC_SUBST(CFLAGS, "-std=c99 -D_XOPEN_SOURCE=500")
+   AC_SUBST(CFLAGS, "-std=c99 -D_XOPEN_SOURCE=700")
 fi
 
 #
