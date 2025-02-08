@@ -136,7 +136,8 @@ void *client_connect(void)
    */
 
    if (*socket_file)
-	  s = socket(PF_UNIX, SOCK_STREAM, 0);
+//	  s = socket(PF_UNIX, SOCK_STREAM, 0);
+          s = socket(AF_UNIX, SOCK_STREAM, 0);
    else
 	  s = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -167,7 +168,8 @@ void *client_connect(void)
 
    if (*socket_file) {
 	  memset(&lun, 0, sizeof(lun));
-	  lun.sun_family = PF_UNIX;
+//	  lun.sun_family = PF_UNIX;
+          lun.sun_family = AF_UNIX;
 	  memcpy(lun.sun_path, socket_file, strlen(socket_file));
    }
 

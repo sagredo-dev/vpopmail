@@ -149,7 +149,7 @@ char *strrstr(const char *haystack, const char *needle)
 	do {
 		last = ptr;
 		ptr++;
-	} while (ptr = strstr(ptr, needle));
+	} while ((ptr = strstr(ptr, needle)));
 
 	/* The last known good location is in last */
 	return last;

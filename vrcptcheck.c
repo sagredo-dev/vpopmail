@@ -46,7 +46,7 @@ void pam_exit(int fail, DIR *dir)
 	vexit(fail);
 }
 
-void main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	char path[MAX_BUFF];
 	DIR *dir;

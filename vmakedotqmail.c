@@ -142,7 +142,7 @@ int make_dotqmail(char *homedir) {
   // if -r delete the .qmail
   if (reverse && remove(tmpbuf)==-1) {
     printf("Unable to remove %s\n", tmpbuf);
-    exit -1;
+    vexit(-1);
   }
   else if (!reverse) {
     // open .qmail
@@ -303,7 +303,7 @@ int make_domain(char *domain) {
   if (qValue) make_dotqmail_default(domain);
   // else proceed to make the mailbox's .qmail
   else {
-    while (mypw = vauth_getall(domain, first, 1)) {
+    while ((mypw = vauth_getall(domain, first, 1))) {
       first = 0;
       // build the mailbox address
       sprintf(address, "%s@%s", mypw->pw_name, domain);
@@ -455,6 +455,7 @@ int make(int argc, char *argv[])
     usage();
     return -1;
   }
+  return 0; 
 }
 
 
