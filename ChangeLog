@@ -1,11 +1,16 @@
 Numbers in square brackets ([]) are tracker items on SourceForge with patch
 or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
 
+5.6.4 - Released Feb 9, 2025
+  - added pwd strength check also for vadduser.c
+  - removed -std=c99 -D_XOPEN_SOURCE=500 arguments from CFLAGS in configure.ac to make clang happy
+  - several changes to compile on FreeBSD clang v. 18.1.6
+
 5.6.4 - Released Dec 19, 2024
   - Added configurable password strength enforcement (Matt Brookings' 5.5.0-dev version).
   - Dropped min pwd length feature.
-  - vmysql.h: tables' layout changed in order to have VARCHAR instead of CHAR.  
-    Fields containing ip addresses enlarged to VARCHAR(39), to create room for ipv6.  
+  - vmysql.h: tables' layout changed in order to have VARCHAR instead of CHAR.
+    Fields containing ip addresses enlarged to VARCHAR(39), to create room for ipv6.
     Unix timestamps definition changed from BIGINT(20) to INT(11).
 
 5.6.3 - Released Oct 19, 2024 (Roberto Puzzanghera)
