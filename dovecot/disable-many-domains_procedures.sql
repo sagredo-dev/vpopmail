@@ -6,31 +6,7 @@
   https://notes.sagredo.eu/en/qmail-notes-185/dovecot-vpopmail-auth-driver-removal-migrating-to-the-sql-driver-241.html
 
   By Roberto Puzzanghera
-
-######  auth-sql.conf.ext
-
-passdb {
-  driver = sql
-  args = /usr/local/dovecot/etc/dovecot/dovecot-sql.conf.ext
-}
-
-userdb {
-  driver = prefetch
-}
-
-# This is for LDA.
-userdb {
-  driver = sql
-  args = /usr/local/dovecot/etc/dovecot/dovecot-sql.conf.ext
-}
-
-##### dovecot-sql.conf.ext
-
-password_query = CALL dovecot_password_query_disable_many_domains('%n','%d','127.0.0.1','%r','%a')
-user_query = CALL dovecot_user_query_disable_many_domains('%n','%d')
-
  ***************************************************************************************************/
-
 
 /****************************************************************
   Returns the domain table
