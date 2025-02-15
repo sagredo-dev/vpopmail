@@ -29,30 +29,24 @@ autoreconf -f -i
 
 ## dovecot configuration
 
-### auth-sql.conf.ext
-
-```
-passdb {
-  driver = sql
-  args = /usr/local/dovecot/etc/dovecot/dovecot-sql.conf.ext
-}
-
-userdb {
-  driver = prefetch
-}
-```
-
-This is for LDA.
-
-```
-userdb {
-  driver = sql
-  args = /usr/local/dovecot/etc/dovecot/dovecot-sql.conf.ext
-}
-```
 ### dovecot-sql.conf.ext
 
 ```
-password_query = CALL dovecot_password_query_disable_many_domains('%n','%d','127.0.0.1','%r','%a')
-user_query = CALL dovecot_user_query_disable_many_domains('%n','%d')
+passdb sql {
+ # passdb query to retrieve the password
+
+ # Thanks to Pablo Murillo for sharing his sql example
+ query = CALL dovecot_password_query_disable_many_domains('%{user | username}','%{user | domain}','127.0.0.1','%{remote_ip}','%{local_port}')
+} 
+
+userdb prefetch { 
+ driver = prefetch 
+} 
+
+# This is needed for LDA and for the iteration feature. They both need a userdb sql query. 
+# The order of the declared drivers is important. Leave this at the end, otherwise 
+# it will be used also for the login instead of the prefetch, which is faster. 
+userdb sql { 
+ userdb_sql_query = CALL dovecot_user_query_disable_many_domains('%{user | username}','%{user | domain}')
+}
 ```
