@@ -86,27 +86,27 @@ DECLARE vpopmail varchar(256);
 SET vpopmail = get_domain_table(domain);
 
 IF (vpopmail) IS NULL THEN
-   SET @SQL = "SELECT NULL";
+  SET @SQL = "SELECT NULL";
 ELSE
-	SET @SQL = CONCAT("SELECT CONCAT(",vpopmail,".pw_name, '@', '",domain,"') AS user,",
-	vpopmail,".pw_passwd AS password,",
-	vpopmail,".pw_dir AS userdb_home,
-	89 AS userdb_uid,
-	89 AS userdb_gid,
-	CONCAT('*:bytes=', REPLACE(SUBSTRING_INDEX(",vpopmail,".pw_shell, 'S', 1), 'NOQUOTA', '0')) AS userdb_quota_rule
-	FROM ",vpopmail,"
-	LEFT JOIN limits ON limits.domain='",get_real_domain(domain),"'
-	WHERE ",vpopmail,".pw_name='",name,"'
-	AND
-	('",port,"'!='995' OR !(",vpopmail,".pw_gid & 2))
-	AND
-	('",remote_ip,"'!='",webmail_ip,"' OR !(",vpopmail,".pw_gid & 4))
-	AND
-	('",remote_ip,"'='",webmail_ip,"' OR '",port,"'!='993' OR !(",vpopmail,".pw_gid & 8))
-	AND
-	('",remote_ip,"'!='",webmail_ip,"' OR COALESCE(disable_webmail,0)!=1)
-	AND
-	('",remote_ip,"'='",webmail_ip,"' OR COALESCE(disable_imap,0)!=1)");
+  SET @SQL = CONCAT("SELECT CONCAT(",vpopmail,".pw_name, '@', '",domain,"') AS user,",
+    vpopmail,".pw_passwd AS password,",
+    vpopmail,".pw_dir AS userdb_home,
+    89 AS userdb_uid,
+    89 AS userdb_gid,
+    CONCAT(REPLACE(SUBSTRING_INDEX(vpopmail.pw_shell, 'S', 1), 'NOQUOTA', '0'), 'B') AS userdb_quota_storage_size
+  FROM ",vpopmail,"
+    LEFT JOIN limits ON limits.domain='",get_real_domain(domain),"'
+  WHERE ",vpopmail,".pw_name='",name,"'
+    AND
+    ('",port,"'!='995' OR !(",vpopmail,".pw_gid & 2))
+    AND
+    ('",remote_ip,"'!='",webmail_ip,"' OR !(",vpopmail,".pw_gid & 4))
+    AND
+    ('",remote_ip,"'='",webmail_ip,"' OR '",port,"'!='993' OR !(",vpopmail,".pw_gid & 8))
+    AND
+    ('",remote_ip,"'!='",webmail_ip,"' OR COALESCE(disable_webmail,0)!=1)
+    AND
+    ('",remote_ip,"'='",webmail_ip,"' OR COALESCE(disable_imap,0)!=1)");
 END IF;
 
 PREPARE sql_code FROM @SQL;
@@ -129,9 +129,14 @@ DECLARE vpopmail varchar(256);
 SET vpopmail = get_domain_table(domain);
 
 IF (vpopmail) IS NULL THEN
-	SET @SQL = "SELECT NULL";
+  SET @SQL = "SELECT NULL";
 ELSE
-	set @SQL = concat("SELECT ",vpopmail,".pw_dir AS home, 89 AS uid, 89 AS gid FROM ",vpopmail," where ",vpopmail,".pw_name='",name,"'");
+  set @SQL = CONCAT("SELECT ",vpopmail,".pw_dir AS home,
+      89 AS uid, 89 AS gid,
+      CONCAT(REPLACE(SUBSTRING_INDEX(",vpopmail,".pw_shell, 'S', 1), 'NOQUOTA', '0'), 'B') AS quota_storage_size
+    FROM ",vpopmail,"
+    WHERE ",vpopmail,
+      ".pw_name='",name,"'");
 END IF;
 
 PREPARE sql_code FROM @SQL;
