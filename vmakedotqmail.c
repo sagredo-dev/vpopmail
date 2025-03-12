@@ -1,5 +1,5 @@
 /*
- * vmakedotqmail v. 1.0.1 (Nov 11, 2023)
+ * vmakedotqmail v. 1.0.2 (Mar 12, 2025)
  * Roberto Puzzanghera - https://notes.sagredo.eu
  *
  * This program is free software; you can redistribute it and/or modify
@@ -41,6 +41,11 @@
  * Existing .qmail files won't be overwritten unless you pass -o
  *
  * Examples:
+ *       Install control/defaultdelivery to .qmail of all mailboxes of all domain (overwrite -o active)
+ *       vmakedotqmail -o -A
+ *
+ *       Install control/defaultdelivery to .qmail of user <username@domain> (skip if existing)
+ *       vmakedotqmail -o -u <username@domain>
  *
  *       Install .qmail-default with vdelivermail (delete option) for domain 'domain.tld'
  *       vmakedotqmail -d domain.tld -q default
@@ -374,8 +379,8 @@ void usage()
   printf("\tInstall .qmail-default with vdelivermail (delete option) for domain 'domain.tld'\n");
   printf("\tvmakedotqmail -d domain.tld -q default\n\n");
 
-  printf("\tInstall .qmail-default with vdelivermail (delete option) for domain 'domain.tld'\n");
-  printf("\tvmakedotqmail -d domain.tld -q default\n\n");
+  printf("\tInstall .qmail-default with vdelivermail (delete option) for all domains\n");
+  printf("\tvmakedotqmail -A -q default\n\n");
 
   printf("\tInstall .qmail-default with your favourite LDA for all domains\n");
   printf("\tvmakedotqmail -A -q \"My LDA instruction as quoted argument here\"\n\n");
@@ -455,7 +460,7 @@ int make(int argc, char *argv[])
     usage();
     return -1;
   }
-  return 0; 
+  return 0;
 }
 
 
