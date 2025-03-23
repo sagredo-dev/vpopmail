@@ -556,7 +556,7 @@ int del_user()
 
 int mod_user()
 {
- char Crypted[64];
+ char Crypted[128];
  char *email_address;
  char *param;
  char *value;
