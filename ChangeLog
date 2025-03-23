@@ -1,6 +1,12 @@
 Numbers in square brackets ([]) are tracker items on SourceForge with patch
 or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
 
+5.6.7 - Released Mar 23, 2025
+  - Bug fix in vpopmaild.c: Crypted[64] enlarged to Crypted[128] to make room for SHA-512 passwords.
+    This restores the usability of the RoundCube's 'password' plugin.
+  - Fixed quota calculation in sql procedures for dovecot (tx Hakan Cakiroglu)
+  - Minor changes to the usage function of vmakedotqmail.c
+
 5.6.6 - Released Feb 15, 2025
   - bug fix: pwstr.h was not installed by Makefile (tx Bai Borko)
 
