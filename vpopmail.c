@@ -732,18 +732,6 @@ int vadduser(char *username, char *domain, char *password, char *gecos,
   gid_t gid = VPOPMAILGID;
   struct vlimits limits;
   char quota[50];
-  /* defauldelivery patch */
-  FILE *fs;
-  char tmpbuf[MAX_BUFF], tmpbuf2[MAX_BUFF];
-  char ch, defaultdelivery_file[MAX_BUFF];
-  FILE *defaultdelivery;
-  int default_delivery_option;
-#ifdef DEFAULT_DELIVERY
-  default_delivery_option = 1;
-#else
-  default_delivery_option = 0;
- #endif
- /* end defauldelivery patch */
 
 #ifdef USE_ONCHANGE
   char user_domain[MAX_BUFF];
@@ -885,46 +873,6 @@ int vadduser(char *username, char *domain, char *password, char *gecos,
   on_change("add_user", user_domain, "-", 1, 1);
   allow_onchange = 1;
 #endif
-
-  /************************** defauldelivery patch ****************************************************************/
-  if (default_delivery_option == 1) {
-    /* create the .qmail file */
-    snprintf(tmpbuf, sizeof(tmpbuf), "%s/%s/%s/.qmail", Dir, user_hash, username);
-    if ( (fs = fopen(tmpbuf, "w+"))==NULL) vexit(VA_COULD_NOT_OPEN_DOT_QMAIL);
-    /* setup the permission of the .qmail file */
-    chown(tmpbuf, uid, gid);
-    chmod(tmpbuf, 0600);
-
-    /* Copy the content of control/defaultdelivery into ~userhomedir/.qmail */
-    snprintf(defaultdelivery_file, sizeof(defaultdelivery_file), "%s/control/defaultdelivery", QMAILDIR);
-    defaultdelivery = fopen(defaultdelivery_file, "r");
-    if( defaultdelivery == NULL )
-    {
-      printf("\nERROR: Missing %s/control/defaultdelivery file.\n", QMAILDIR);
-      printf("To create a %s/control/defaultdelivery type:\n", QMAILDIR);
-      printf("echo \"| %s/bin/vdelivermail '' delete\" > %s/control/defaultdelivery\n\n", VPOPMAILDIR, QMAILDIR);
-      vexit(EXIT_FAILURE);
-    }
-
-    // is_vdelivermail = 1 if defaultdelivery already contains vdelivermail
-    int is_vdelivermail = 0;
-    while((fgets(tmpbuf2, MAX_BUFF, defaultdelivery)!=NULL)) {
-      if(strstr(tmpbuf2, "vdelivermail")!=NULL) {
-        is_vdelivermail = 1;
-        break;
-      }
-    }
-    rewind(defaultdelivery);
-
-    while ( ( ch = fgetc(defaultdelivery) ) != EOF ) fputc(ch, fs);
-
-    fclose(defaultdelivery); // close control/defaultdelivery
-    fclose(fs);              // close .qmail
-
-    // if defaultdelivery already contains vdelivermail remove the .qmail file
-    if (is_vdelivermail == 1) remove(tmpbuf);
-  }
-  /*********************** end defauldelivery patch *****************************************************************/
 
   return (VA_SUCCESS);
 }
