@@ -2,15 +2,16 @@ Numbers in square brackets ([]) are tracker items on SourceForge with patch
 or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
 
 5.6.8 - Released Mar 29, 2025
-  - defaultdelivery feature (--enable-defauldelivery) changes:
-    * vdelivermail is installed by default in .qmail-default of newly created domains with option 'delete'
-    * if no valiases and no user's .qmail are found, then the message is sent
-    * to the control/defaultdelivery file, where dovecot-lda (or whatelse) can
+  - defaultdelivery feature (--enable-defaultdelivery) changes:
+    * vdelivermail is installed by default in .qmail-default of newly created domains
+      with option 'delete' as in the previous version.
+    * if no user's valiases and no .qmail are found, then the message is sent
+      to the control/defaultdelivery file, so that dovecot-lda (or whatelse) can
       store the mail into inbox and execute the sieve rules.
-    * if vdelivermail is found in control/defaultdelivery, then the delivery
-      remains in charge of vdelivermail, to avoid loops.
-    * users with .qmail from previous versions of the defauldelivery feature
-      are not touched and work as in the past.
+    * if vdelivermail is found in control/defaultdelivery, then the .qmailm8s ignored
+      and the delivery remains in charge to vdelivermail, to avoid loops.
+    * v. 5.6.8 is backward compatible. The users having .qmail from previous versions
+      of the defauldelivery feature are not affected by this change.
 
 5.6.7 - Released Mar 23, 2025
   - Bug fix in vpopmaild.c: Crypted[64] enlarged to Crypted[128] to make room for SHA-512 passwords.
