@@ -100,6 +100,9 @@ void checkuser(void);
 void usernotfound(void);
 int is_loop_match(const char *dt, const char *address);
 int deliver_quota_warning(const char *dir, const char *q);
+#ifdef DEFAULT_DELIVERY
+int check_default_delivery();
+#endif
 
 /* print an error string and then exit
  * vexit() never returns, so vexiterr() and vexit() should actually return void
@@ -1116,7 +1119,9 @@ ssize_t get_message_size() {
 /*
  * check for locked account
  * deliver to .qmail file if any
- * deliver to user if no .qmail file
+ * else deliver to control/defaultdelivery if DEFAULT_DELIVERY is defined and
+ *              control/defaultdelivery does not contain vdelivermail already
+ * else deliver to user if no .qmail file and DEFAULT_DELIVERY is not defined
  */
 void checkuser() {
   struct stat mystatbuf;
@@ -1154,6 +1159,18 @@ void checkuser() {
   if (check_forward_deliver(vpw->pw_dir) == 1) {
     vexit(EXIT_OK);
   }
+#ifdef DEFAULT_DELIVERY
+  /*
+   * check for control/defaultdelivery file
+   * if it does not contain vdelivermail already,
+   * then deliver to its contents and exit
+   */
+  else if (check_default_delivery() == 1) {
+    vexiterr(EXIT_OK, "exiting success from check_default_delivery");
+
+    vexit(EXIT_OK);
+  }
+#endif
 
   snprintf(TheDir, sizeof(TheDir), "%s/Maildir/", vpw->pw_dir);
 
@@ -1364,5 +1381,59 @@ int is_spam(char *spambuf, int len) {
     }
   }
   return (0);
+}
+#endif
+
+/*
+ * Checks if control/defaultdelivery exists,
+ * if it contains a valid delivery agent (not vdelivermail)
+ * and sends the email to that program, presumibly dovecot-lda.
+ *
+ * @return 1 on success
+ *         0 on failure or when vdelivermail is found
+ *        -1 if control/defaultdelivery is not found
+ */
+#ifdef DEFAULT_DELIVERY
+int check_default_delivery() {
+  FILE *fs;
+  char defaultdelivery_file[MAX_BUFF];
+  static char line[500];
+  int return_value = 0;
+  int i;
+
+  /* open control/defaultdelivery */
+  snprintf(defaultdelivery_file, sizeof(defaultdelivery_file), "%s/control/defaultdelivery", QMAILDIR);
+  fs = fopen(defaultdelivery_file, "r");
+
+  /* if no control/defaultdelivery return -1 */
+  if( fs == NULL ) return -1;
+
+  /* read the file, line by line */
+  while (fgets(line, sizeof(line), fs) != NULL) {
+
+    /* if comment continue to next line */
+    if (*line == '#') continue;
+
+    /* remove the trailing new line */
+    for (i = 0; line[i] != 0; ++i) {
+      if (line[i] == '\n') line[i] = 0;
+    }
+
+    /* if vdelivermail present exit and return 0 */
+    // fprintf(stderr, "exec defaultdelivery line: %s", line);
+    if(strstr(line, "vdelivermail")!=NULL) {
+      // fprintf(stderr, "vdelivermail found in defaultdelivery. Exiting\n");
+      return_value = 0;
+      break;
+    }
+
+    /* deliver the line found */
+    deliver_mail(line, "");
+
+    return_value = 1;
+  }
+
+  fclose(fs); // close control/defaultdelivery
+  return return_value;
 }
 #endif
