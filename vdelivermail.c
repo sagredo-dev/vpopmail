@@ -1166,8 +1166,6 @@ void checkuser() {
    * then deliver to its contents and exit
    */
   else if (check_default_delivery() == 1) {
-    vexiterr(EXIT_OK, "exiting success from check_default_delivery");
-
     vexit(EXIT_OK);
   }
 #endif
