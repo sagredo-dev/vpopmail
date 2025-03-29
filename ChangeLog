@@ -8,7 +8,7 @@ or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
     * if no user's valiases and no .qmail are found, then the message is sent
       to the control/defaultdelivery file, so that dovecot-lda (or whatelse) can
       store the mail into inbox and execute the sieve rules.
-    * if vdelivermail is found in control/defaultdelivery, then the .qmailm8s ignored
+    * if vdelivermail is found in control/defaultdelivery, then the .qmail is ignored
       and the delivery remains in charge to vdelivermail, to avoid loops.
     * v. 5.6.8 is backward compatible. The users having .qmail from previous versions
       of the defauldelivery feature are not affected by this change.
