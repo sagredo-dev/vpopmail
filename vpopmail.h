@@ -375,9 +375,7 @@ extern void on_change(const char *cmd, const char *arg1, const char *arg2,
                       int change, int mode);
 #endif
 
-#ifdef USERS_BIG_DIR
 char *backfill(char *, char *, char *, int);
-#endif
 
 int vcreate_sql_aliasdomain(char *domain, char *alias);
 int vdelete_sql_aliasdomain(char *alias);
