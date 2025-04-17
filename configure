@@ -10511,12 +10511,3 @@ esac
 echo "${CC} -O2" > cdb/conf-cc
 echo "${CC} -s" > cdb/conf-ld
 
-echo ""
-echo ""
-
-if test $WARN_LIMITS -eq 1; then
-   echo "*** You have MySQL limits enabled.  If you are upgrading, please see doc/UPGRADE for information on database schema changes ****"
-   echo ""
-   echo ""
-fi
-
