@@ -189,4 +189,4 @@ has any ideas, post it on the SourceFORGE vpopmail-devel mailing list.
 
 ## More info and support
 
-To find more info and ask for support post a comment [in my blog](https://notes.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html). Pull requests are welcome in this github space.
+To find more info and ask for support post a comment [in my blog](https://www.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html). Pull requests are welcome in this github space.

@@ -1,7 +1,7 @@
 # README.defaultdelivery
 
 by Roberto Puzzanghera  
-More info [here](https://notes.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html)
+More info [here](https://www.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html)
 
 ==============================================================================================================
 

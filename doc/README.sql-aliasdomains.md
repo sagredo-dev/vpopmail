@@ -1,7 +1,7 @@
 # sql-aliasdomains patch
 
 by Roberto Puzzanghera  
-More info [here](https://notes.sagredo.eu/en/qmail-notes-185/dovecot-vpopmail-auth-driver-removal-241.html)
+More info [here](https://www.sagredo.eu/en/qmail-notes-185/dovecot-vpopmail-auth-driver-removal-241.html)
 
 This patch makes vpopmail store domain aliases to MySQL. This gets dovecot's sql auth driver aware of domain aliases, provided that you modify the sql query accordingly.
 
@@ -16,7 +16,7 @@ This patch makes vpopmail store domain aliases to MySQL. This gets dovecot's sql
 	--enable-sql-aliasdomains (default)
 ```
 
-* Adjust your dovecot-sql.conf.ext in order to auth both real and alias domains (more info [here](https://notes.sagredo.eu/en/qmail-notes-185/installing-dovecot-and-sieve-on-a-vpopmail-qmail-server-28.html#sql):
+* Adjust your dovecot-sql.conf.ext in order to auth both real and alias domains (more info [here](https://www.sagredo.eu/en/qmail-notes-185/installing-dovecot-and-sieve-on-a-vpopmail-qmail-server-28.html#sql):
 
 ```
 password_query = \

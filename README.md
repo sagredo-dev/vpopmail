@@ -59,4 +59,4 @@ ALTER TABLE `aliasdomains` CHANGE `domain` `domain` VARCHAR(96) CHARACTER SET la
 
 ## More info and support
 
-To find more info and ask for support post a comment in [my blog](https://notes.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html).
+To find more info and ask for support post a comment in [my blog](https://www.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html).

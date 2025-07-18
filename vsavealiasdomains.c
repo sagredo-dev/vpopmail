@@ -1,5 +1,5 @@
 /*
- * Roberto Puzzanghera - https://notes.sagredo.eu
+ * Roberto Puzzanghera - https://www.sagredo.eu
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
  * Type 'vsavealiasdomain -h' for more options.
  *
  * Look at the documentation concerning the sql-aliasdomains feature in the doc/README.sql-aliasdomains file
- * or at https://notes.sagredo.eu/en/qmail-notes-185/dovecot-vpopmail-auth-driver-removal-migrating-to-the-sql-driver-241.html
+ * or at https://www.sagredo.eu/en/qmail-notes-185/dovecot-vpopmail-auth-driver-removal-migrating-to-the-sql-driver-241.html
  * web page.
  */
 

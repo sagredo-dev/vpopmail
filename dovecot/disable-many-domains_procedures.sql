@@ -3,7 +3,7 @@
   It supports aliasdomains and mysql-limits.
 
   More info here
-  https://notes.sagredo.eu/en/qmail-notes-185/dovecot-vpopmail-auth-driver-removal-migrating-to-the-sql-driver-241.html
+  https://www.sagredo.eu/en/qmail-notes-185/dovecot-vpopmail-auth-driver-removal-migrating-to-the-sql-driver-241.html
 
   By Roberto Puzzanghera
  ***************************************************************************************************/

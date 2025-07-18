@@ -1,6 +1,6 @@
 /*
  * vmakedotqmail v. 1.0.2 (Mar 12, 2025)
- * Roberto Puzzanghera - https://notes.sagredo.eu
+ * Roberto Puzzanghera - https://www.sagredo.eu
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
  * control/defauldelivery. It can also handle domain's .qmail-default files.
  * Look at the documentation concerning the defaultdelivery feature in the
  * doc/README.defaultdelivery file or at the
- * https://notes.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html
+ * https://www.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html
  * web page.
  *
  *
