@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.71])
-AC_INIT([vpopmail],[5.6.8])
+AC_INIT([vpopmail],[5.6.9])
 PACKAGE=$PACKAGE_NAME
 VERSION=$PACKAGE_VERSION
 
@@ -16,7 +16,7 @@ AC_CANONICAL_HOST
 
 if test -z "$CFLAGS"
 then
-   AC_SUBST(CFLAGS, "")
+   AC_SUBST(CFLAGS, "-std=gnu17")
 fi
 
 #
@@ -2276,5 +2276,5 @@ case $ENABLE_MAILDROP in
     ;;
 esac
 
-echo "${CC} -O2" > cdb/conf-cc
+echo "${CC} -O2 -std=gnu17" > cdb/conf-cc
 echo "${CC} -s" > cdb/conf-ld
