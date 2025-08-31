@@ -3411,7 +3411,7 @@ case $host_os in *\ *) host_os=`echo "$host_os" | sed 's/ /-/g'`;; esac
 
 if test -z "$CFLAGS"
 then
-   CFLAGS=""
+   CFLAGS="-std=gnu17"
 
 fi
 
