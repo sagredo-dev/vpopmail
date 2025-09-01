@@ -40,7 +40,7 @@ pw_uid int, pw_gid int, \
 pw_gecos char(64), \
 pw_dir char(160), \
 pw_shell char(20), \
-pw_clear_passwd char(16), \
+pw_clear_passwd char(128), \
 primary key (pw_name, pw_domain ) "
 #else
 #define TABLE_LAYOUT "pw_name char(32) not null, \
@@ -60,7 +60,7 @@ pw_uid int, pw_gid int, \
 pw_gecos char(64), \
 pw_dir char(160), \
 pw_shell char(20), \
-pw_clear_passwd char(16), \
+pw_clear_passwd char(128), \
 primary key (pw_name ) "
 #else
 #define TABLE_LAYOUT "pw_name char(32) not null, \

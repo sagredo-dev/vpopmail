@@ -39,7 +39,7 @@ pw_uid int4, pw_gid int4, \
 pw_gecos varchar(64), \
 pw_dir varchar(160), \
 pw_shell varchar(20), \
-pw_clear_passwd varchar(16), \
+pw_clear_passwd varchar(128), \
 PRIMARY KEY(\"pw_domain\", \"pw_name\")"
 #else
 #define TABLE_LAYOUT "pw_name varchar(64) NOT NULL, \
@@ -59,7 +59,7 @@ pw_uid int4, pw_gid int4, \
 pw_gecos varchar(64), \
 pw_dir varchar(160), \
 pw_shell varchar(20), \
-pw_clear_passwd varchar(16), \
+pw_clear_passwd varchar(128), \
 PRIMARY KEY (pw_name ) "
 #else
 #define TABLE_LAYOUT "pw_name varchar(64) NOT NULL, \
