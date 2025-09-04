@@ -2004,11 +2004,11 @@ list_alias()
     } else {
       snprintf(WriteBuf, sizeof(WriteBuf), "%s", RET_OK_MORE);
       wait_write();
-      
+
       while (tmpalias != NULL) {
         snprintf(WriteBuf, sizeof(WriteBuf), "%s@%s %s" RET_CRLF, Alias, Domain, tmpalias);
         wait_write();
-        tmpalias = valias_select_next(Alias);
+        tmpalias = valias_select_next(); //valias_select_next(Alias);
       }
     }
   }

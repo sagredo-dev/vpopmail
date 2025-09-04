@@ -977,8 +977,7 @@ int check_forward_deliver(char *dir) {
   return (return_value);
 }
 
-void sig_catch(sig, f) int sig;
-void (*f)();
+void sig_catch(int sig, void (*f)(int))
 {
 #ifdef HAVE_SIGACTION
   struct sigaction sa;
@@ -995,9 +994,9 @@ void (*f)();
  * return the pid or -1 if error
  */
 void run_command(char *prog) {
-  int child; 
-  int wstat; 
-  char *(args[4]);	
+  int child;
+  int wstat;
+  char *(args[4]);
 
   while ((*prog == ' ') || (*prog == '|')) ++prog;
 

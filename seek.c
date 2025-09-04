@@ -27,17 +27,12 @@
 /* long	lseek(); */
 char	*getenv();
 
-int
-Seekable(fd)
-	int fd;
+int Seekable(int fd)
 {
-
 	return (lseek(fd, 0L, 1) >= 0 && !isatty(fd));
 }
 
-int
-MakeSeekable(f)
-	register FILE *f;
+int MakeSeekable(FILE *f)
 {
 	register int tf, n;
 	FILE *tmpf;

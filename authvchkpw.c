@@ -124,11 +124,7 @@ getEnvConfigStr(char **source, const char *envname, char *defaultValue)
 	return;
 }
 
-int
-Login_Tasks(pw, user, ServiceType)
-	struct passwd  *pw;
-	char           *user;
-	const char     *ServiceType __unused;
+int Login_Tasks(struct vqpasswd  *pw, char *user, const char *ServiceType __unused)
 {
 	char           *domain, *ptr;
 	char            fqemail[MAX_BUFF];
@@ -183,7 +179,7 @@ int
 pipe_exec(char **argv, char *tmpbuf, size_t len)
 {
 	int             pipe_fd[2];
-	void            (*pstat) ();
+	void            (*pstat) (int);
 	ssize_t         n;
 	size_t          pos;
 

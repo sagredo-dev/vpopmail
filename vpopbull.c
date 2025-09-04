@@ -170,10 +170,7 @@ int main(int argc, char *argv[])
 
 }
 
-int process_domain(domain, fsi, fsx )
- char *domain;
- FILE *fsi;
- FILE *fsx;
+int process_domain(char *domain, FILE *fsi, FILE *fsx)
 {
  char filename[MAX_BUFF+50];
  char hostname[MAX_BUFF];
@@ -208,11 +205,7 @@ int process_domain(domain, fsi, fsx )
 	return(0);
 }
 
-int copy_email( fs_file, filename, domain, pwent)
- FILE *fs_file;
- char *filename;
- char *domain;
- struct vqpasswd *pwent;
+int copy_email(FILE *fs_file, char *filename, char *domain, struct vqpasswd *pwent)
 {
  static char tmpbuf[MAX_BUFF];
  static char tmpbuf1[MAX_BUFF];

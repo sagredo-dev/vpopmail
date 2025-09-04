@@ -66,7 +66,7 @@ int allow_onchange = 1;
 int call_onchange();
 #endif
 
-extern int cdb_seek();
+extern int cdb_seek(int, char *, unsigned int, uint32 *);
 
 /* Global Flags */
 int NoMakeIndex = 0;

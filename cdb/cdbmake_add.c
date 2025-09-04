@@ -1,7 +1,6 @@
 #include "cdbmake.h"
 
-void cdbmake_init(cdbm)
-struct cdbmake *cdbm;
+void cdbmake_init(struct cdbmake *cdbm)
 {
   cdbm->head = 0;
   cdbm->split = 0;
@@ -9,11 +8,7 @@ struct cdbmake *cdbm;
   cdbm->numentries = 0;
 }
 
-int cdbmake_add(cdbm,h,p,alloc)
-struct cdbmake *cdbm;
-uint32 h;
-uint32 p;
-char *(*alloc)();
+int cdbmake_add(struct cdbmake *cdbm, uint32 h, uint32 p, char *(*alloc)(unsigned int))
 {
   struct cdbmake_hplist *head;
 
@@ -32,9 +27,7 @@ char *(*alloc)();
   return 1;
 }
 
-int cdbmake_split(cdbm,alloc)
-struct cdbmake *cdbm;
-char *(*alloc)();
+int cdbmake_split(struct cdbmake *cdbm, char *(*alloc)(unsigned int))
 {
   int i;
   uint32 u;
@@ -82,10 +75,7 @@ char *(*alloc)();
   return 1;
 }
 
-uint32 cdbmake_throw(cdbm,pos,b)
-struct cdbmake *cdbm;
-uint32 pos;
-int b;
+uint32 cdbmake_throw(struct cdbmake *cdbm, uint32 pos, int b)
 {
   uint32 len;
   uint32 j;
