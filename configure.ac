@@ -1190,7 +1190,7 @@ AC_SUBST(domains_dir)
 
 # cant contain this following block in the mysql section, as it is also used by oracle
 incdir=""
-for f in /usr/local/mysql/include/mysql /usr/local/mysql/include /usr/local/include/mysql /usr/include/mysql
+for f in /usr/include/mariadb /usr/local/mariadb/include/mysql /usr/local/mariadb/include /usr/local/include/mariadb /usr/include/mysql /usr/local/mysql/include/mysql /usr/local/mysql/include /usr/local/include/mysql
 do
     if test -d $f
     then
@@ -1205,7 +1205,7 @@ AC_ARG_ENABLE(incdir,
 )
 
 libdir=""
-for f in /usr/local/mysql/lib/mysql /usr/local/mysql/lib  /usr/local/lib/mysql /usr/lib/mysql
+for f in /usr/lib64/mysql /usr/lib/mysql /usr/local/mysql/lib/mysql /usr/local/mysql/lib /usr/local/lib64/mysql /usr/local/lib/mysql /usr/lib64/mariadb /usr/lib/mariadb /usr/local/mariadb/lib/mariadb /usr/local/mariadb/lib /usr/local/lib64/mariadb /usr/local/lib/mariadb
 do
     if test -d $f
     then
@@ -1758,7 +1758,7 @@ then
   AC_MSG_CHECKING(whether we can locate the MySQL binary)
   # default MySQL binary
   mysqlbin=""
-  for f in /usr/bin/mysql /usr/local/mysql/bin/mysql /usr/local/bin/mysql
+  for f in /usr/bin/mariadb /usr/local/mariadb/bin/mariadb /usr/local/bin/mariadb /usr/bin/mysql /usr/local/mysql/bin/mysql /usr/local/bin/mysql
   do
       if test -x $f
       then

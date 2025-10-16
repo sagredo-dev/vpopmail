@@ -6,6 +6,7 @@ or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
 5.6.10 - unreleased
   - dropped -std=gnu17 from compilation options and solved (probably) all breaks and  
     warnings on gcc 15.2
+  - condigure.ac now looks for mariadb include and lib dir in addition to mysql
 
 5.6.9 - Released Sep 1, 2025
   - added -std=gnu17 to compiler to compile with gcc-15.2
