@@ -1517,13 +1517,22 @@ AC_DEFINE_UNQUOTED(LOG_NAME,"$log_name","")
 
 #----------------------------------------------------------------------
 
-qmail_cdb_name="cdb"
+cdbname="cdb"
+for f in cdb assign.cdb
+do
+    if test -r $qmaildir/users/$f
+    then
+        cdbname=$f
+        break
+    fi
+done
+
 AC_ARG_ENABLE(qmail_cdb_name,
     [ --enable-qmail-cdb-name=TEXT      Set qmail cdb file name [cdb].],
-    qmail_cdb_name="$enableval",
+        cdbname="$enableval",
 )
 
-AC_DEFINE_UNQUOTED(QMAIL_CDB_NAME,"$qmail_cdb_name","")
+AC_DEFINE_UNQUOTED(QMAIL_CDB_NAME,"$cdbname","")
 
 #----------------------------------------------------------------------
 
@@ -1905,6 +1914,7 @@ echo "vpopmail directory = "$vpopmaildir""
 echo " domains directory = "$vpopmaildir"/"$domains_dir""
 echo "               uid = "$vpopmailuid""
 echo "               gid = "$vpopmailgid""
+echo "   users' cdb file = "${qmaildir}users/$cdbname""
 
 case $POPRELAY in
   1*|y*|Y*)
