@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
   memset(Domain, 0, sizeof(Domain));
 
   /* parse the email address into user and domain
-   * If the user didnt specify a domain, the default domain will returned
+   * If the user didnt specify a domain, the default domain will be returned
    */
   if ((i = parse_email(Email, User, Domain, sizeof(Email))) != 0) {
     printf("Error: %s\n", verror(i));
@@ -132,6 +132,7 @@ int main(int argc, char **argv) {
       printf("Error in vauth_getpw()\n");
       vexit(-1);
     }
+
     /* Set the crypted pass and get rid of the cleartext pass (if any)
      * since it won't match the crypted pass. */
     vpw->pw_passwd = Crypted;
@@ -150,15 +151,20 @@ int main(int argc, char **argv) {
 void usage() {
   printf("vadduser: usage: [options] email_address [passwd]\n");
   printf("options: -v (print the version)\n");
-  printf(
-      "         -q quota_in_bytes (sets the users quota, use NOQUOTA for "
-      "unlimited)\n");
-  //  printf("         -s (don't rebuild the vpasswd.cdb file, faster for large
-  //  sites)\n");
+  printf("         -q quota_in_bytes (sets the users quota, use NOQUOTA for unlimited)\n");
+  //  printf("         -s (don't rebuild the vpasswd.cdb file, faster for large sites)\n");
   printf("         -c comment (sets the gecos comment field)\n");
-  printf("         -e standard_encrypted_password\n");
-  printf(
-      "         -r[len] (generate a len (default 12) char random password)\n");
+  printf("         -e standard_encrypted_password\n"
+         "            (MD5 '$1$', SHA-512 '$6$', etc.)\n"
+         "            NOTE: Wrap the password in single quotes to prevent shell expansion:\n"
+         "                  vadduser -e '$6$...hashed_password...' user@domain\n");
+  printf("         -r[len] (generate a len (default 12) char random password)\n");
+  printf("\nExamples:\n"
+         "  vadduser user@domain                      # prompt for cleartext password\n"
+         "  vadduser -q 100000 -c 'Test user' -e '$1$abcd$XYZ...' user@domain\n"
+         "           (MD5 hashed password, use single quotes)\n"
+         "  vadduser -q 100000 -c 'Test user' -e '$6$56RNlxOG$...' user@domain\n"
+         "           (SHA-512 hashed, use single quotes)\n");
 }
 
 void get_options(int argc, char **argv) {

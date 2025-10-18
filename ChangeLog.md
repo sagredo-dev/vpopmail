@@ -9,6 +9,8 @@ or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
   - configure.ac now looks for mariadb include and lib dir in addition to mysql
   - configure.ac automatically looks for vanilla qmail's users/cdb and
     s/qmail's users/assign.cdb file
+  - Updated the usage() funcion message in vadduser.c to clarify the use of pre-hashed
+    passwords with -e.
 
 5.6.9 - Released Sep 1, 2025
   - added -std=gnu17 to compiler to compile with gcc-15.2
