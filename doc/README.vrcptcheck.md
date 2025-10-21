@@ -3,5 +3,5 @@
 Just call this program within */var/qmail/control/recipients* as follows:
 
 ```
-cat /home/vpopmail/bin/vrcptcheck > /var/qmail/control/recipients
+echo "*|~vpopmail/bin/vrcptcheck" > /var/qmail/control/recipients
 ```

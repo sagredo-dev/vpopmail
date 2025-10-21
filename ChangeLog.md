@@ -11,6 +11,7 @@ or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
     s/qmail's users/assign.cdb file
   - Updated the usage() funcion message in vadduser.c to clarify the use of pre-hashed
     passwords with -e.
+  - updated README.vrcptcheck.md documentation
 
 5.6.9 - Released Sep 1, 2025
   - added -std=gnu17 to compiler to compile with gcc-15.2
