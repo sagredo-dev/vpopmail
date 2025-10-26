@@ -650,6 +650,7 @@ am__EXEEXT_TRUE
 LTLIBOBJS
 LIBOBJS
 MANY_DOMAINS
+DEFAULT_DELIVERY
 USE_SQLITE
 USE_MYSQL
 auth_inc
@@ -660,6 +661,7 @@ domains_dir
 vpopmaildir
 vpopgroup
 vpopuser
+qmaildir
 CPP
 EGREP
 GREP
@@ -6483,6 +6485,7 @@ fi
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
 
+
 printf "%s\n" "#define QMAILDIR \"$qmaildir\"" >>confdefs.h
 
 
@@ -8369,6 +8372,7 @@ case $DEFAULT_DELIVERY in
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
         DEFAULT_DELIVERY=1
+
 
 printf "%s\n" "#define DEFAULT_DELIVERY $DEFAULT_DELIVERY" >>confdefs.h
 

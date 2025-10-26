@@ -30,6 +30,7 @@ VLIMITS=$(DESTDIR)@vpopmaildir@/etc/vlimits.default
 VUSAGECCONF=$(DESTDIR)@vpopmaildir@/etc/vusagec.conf
 DOVECOT_SQL=$(DESTDIR)@vpopmaildir@/etc/disable-many-domains_procedures.sql
 PWD_STRENGTH=$(DESTDIR)@vpopmaildir@/etc/password_strength.conf
+DEFAULTDELIVERY=@qmaildir@/control/defaultdelivery
 
 noinst_LIBRARIES=libvpopmail.a
 
@@ -194,6 +195,12 @@ install-data-local:
 	if test ! -r $(VLIMITS); then \
 	  $(INSTALL) -o @vpopuser@ -m 0644 -g @vpopgroup@ \
 	    vlimits.default $(VLIMITS); \
+	fi
+
+	if test "@DEFAULT_DELIVERY@" = "1"; then \
+	  if test ! -r $(DEFAULTDELIVERY); then \
+	    echo "| @vpopmaildir@/bin/vdelivermail '' delete" > $(DEFAULTDELIVERY); \
+	  fi \
 	fi
 
 	if test ! -r $(PWD_STRENGTH); then \

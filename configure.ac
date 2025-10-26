@@ -285,6 +285,7 @@ AC_ARG_ENABLE(qmaildir,
 )
 
 AC_MSG_RESULT(yes)
+AC_SUBST(qmaildir)
 AC_DEFINE_UNQUOTED(QMAILDIR,"$qmaildir","")
 
 #----------------------------------------------------------------------
@@ -1685,6 +1686,7 @@ case $DEFAULT_DELIVERY in
   1*|y*|Y*)
         AC_MSG_RESULT(yes)
         DEFAULT_DELIVERY=1
+        AC_SUBST(DEFAULT_DELIVERY)
         AC_DEFINE_UNQUOTED(DEFAULT_DELIVERY,$DEFAULT_DELIVERY,"")
         ;;
   *)

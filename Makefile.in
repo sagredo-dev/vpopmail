@@ -398,6 +398,7 @@ CFLAGS = @CFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
+DEFAULT_DELIVERY = @DEFAULT_DELIVERY@
 DEFS = -I. @auth_inc@ 
 DEPDIR = @DEPDIR@
 ECHO_C = @ECHO_C@
@@ -479,6 +480,7 @@ pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
+qmaildir = @qmaildir@
 runstatedir = @runstatedir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
@@ -502,6 +504,7 @@ VLIMITS = $(DESTDIR)@vpopmaildir@/etc/vlimits.default
 VUSAGECCONF = $(DESTDIR)@vpopmaildir@/etc/vusagec.conf
 DOVECOT_SQL = $(DESTDIR)@vpopmaildir@/etc/disable-many-domains_procedures.sql
 PWD_STRENGTH = $(DESTDIR)@vpopmaildir@/etc/password_strength.conf
+DEFAULTDELIVERY = @qmaildir@/control/defaultdelivery
 noinst_LIBRARIES = libvpopmail.a
 libvpopmail_a_SOURCES = $(COMMONSOURCES)
 @BUILD_CDB_TRUE@libvpopmail_a_LIBADD = cdb/*.o
@@ -1402,6 +1405,12 @@ install-data-local:
 	if test ! -r $(VLIMITS); then \
 	  $(INSTALL) -o @vpopuser@ -m 0644 -g @vpopgroup@ \
 	    vlimits.default $(VLIMITS); \
+	fi
+
+	if test "@DEFAULT_DELIVERY@" = "1"; then \
+	  if test ! -r $(DEFAULTDELIVERY); then \
+	    echo "| @vpopmaildir@/bin/vdelivermail '' delete" > $(DEFAULTDELIVERY); \
+	  fi \
 	fi
 
 	if test ! -r $(PWD_STRENGTH); then \
