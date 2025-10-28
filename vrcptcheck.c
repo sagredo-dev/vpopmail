@@ -39,39 +39,39 @@ char inputbuf[MAX_BUFF];
 
 void pam_exit(int fail, DIR *dir)
 {
-	int i;
-	close(FDAUTH);
-	for (i = 0; i < sizeof(inputbuf); ++i) inputbuf[i] = 0;
-	if (dir != NULL) closedir(dir);
-	vexit(fail);
+  int i;
+  close(FDAUTH);
+  for (i = 0; i < sizeof(inputbuf); ++i) inputbuf[i] = 0;
+  if (dir != NULL) closedir(dir);
+  vexit(fail);
 }
 
 int main(int argc, char *argv[])
 {
-	char path[MAX_BUFF];
-	DIR *dir;
+  char path[MAX_BUFF];
+  DIR *dir;
 
-        /* read input */
-        if (read(FDAUTH, inputbuf, sizeof(inputbuf)) == -1)
-        {
-                fprintf(stderr, "qmail-smtpd: Error while reading file descriptor in vrcptcheck\n");
-                pam_exit(111,NULL);
-        }
-        close(FDAUTH);
+  /* read input */
+  if (read(FDAUTH, inputbuf, sizeof(inputbuf)) == -1)
+  {
+    fprintf(stderr, "qmail-smtpd: Error while reading file descriptor in vrcptcheck\n");
+    pam_exit(111,NULL);
+  }
+  close(FDAUTH);
 
-        /* retrieve username/domain (assuming that MAV has already been done) */
-        int i = 0;
-        char *p = strtok (inputbuf, "@");
-        char *recipient[2];
-        while (p != NULL)
-        {
-                recipient[i++] = p;
-                p = strtok (NULL, "@");
-        }
+  /* retrieve username/domain (assuming that MAV has already been done) */
+  int i = 0;
+  char *p = strtok (inputbuf, "@");
+  char *recipient[2];
+  while (p != NULL)
+  {
+    recipient[i++] = p;
+    p = strtok (NULL, "@");
+  }
 
-	/* recipient check */
-	snprintf(path, MAX_BUFF, "%s/%s", vget_assign(recipient[1], NULL, 0, NULL, NULL), recipient[0]);
-	dir = opendir(path);
-	if (dir) pam_exit(0, dir);
-	else pam_exit(1, dir);
+  /* recipient check */
+  snprintf(path, MAX_BUFF, "%s/%s", vget_assign(recipient[1], NULL, 0, NULL, NULL), recipient[0]);
+  dir = opendir(path);
+  if (dir) pam_exit(0, dir);
+  else pam_exit(1, dir);
 }
