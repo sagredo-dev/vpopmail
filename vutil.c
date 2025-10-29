@@ -52,7 +52,7 @@
 //
 
  /*
-  *  s t r _ r e p l a c e
+  *  str_replace
   *
   *  replace all instances of orig with repl in s.
   */
@@ -66,7 +66,7 @@ void str_replace (char *s, char orig, char repl) {
 
 
  /*
-  * f i l e _ e x i s t s 
+  * file_exists
   *
   * return 1 if filename is an existing file
   *
@@ -80,11 +80,11 @@ int file_exists (char *filename) {
 
 //////////////////////////////////////////////////////////////////////
 //
-//   issomething functions
+//   isSomething functions
 //
 
  /*
-  *  i s V a l i d M a i l L i s t
+  *  is Valid MailList
   *
   *  See if the specified address is a mailing list
   */
@@ -106,7 +106,7 @@ int isValidMailList ( char *path, char *Name )
 
 
  /*
-  *  i s E x i s t i n g A l i a s
+  *  is Existing Alias
   *
   *  See if the specified address is an alias
   */
@@ -130,7 +130,7 @@ int isExistingAlias ( char *path, char *Name )
 
 
  /*
-  *  i s E x i s t i n g U s e r
+  *  is Existing User
   *
   *  See if the specified address is a user
   */
@@ -149,7 +149,7 @@ int isExistingUser( char *Name, char *Domain )
 
 
  /*
-  *  i s E x i s t i n g A d d r e s s 
+  *  is Existing Address
   *
   *  See if the specified address is a valid address of any kind.
   */
@@ -162,6 +162,66 @@ int isExistingAddress( char *Domain, char *Name, char *Path )
     //  Try things that might make it true
          if( isExistingUser( Name, Domain )) result = 1;
     else if( isExistingAlias( Path, Name ))  result = 1;
+
+    return result;
+}
+
+ /*
+  *  check dot-qmail alias file
+  *
+  *  See if the specified alias name exists in qmail/alias
+  *
+  */
+int isQmailAlias (char *Name) {
+  FILE *fp;
+  char FileName[MAX_BUFF];
+  int result = 0;
+
+  // look for qmail/alias/.qmail-name-default
+  snprintf( FileName, MAX_BUFF, "%s/alias/.qmail-%s-default", QMAILDIR, Name );
+  fp = fopen(FileName, "r");
+  if (fp != NULL) {
+    result = 1;
+    fclose(fp);
+  }
+  // look for qmail/alias/.qmail-name
+  else {
+    snprintf( FileName, MAX_BUFF, "%s/alias/.qmail-%s", QMAILDIR, Name );
+    fp = fopen(FileName, "r");
+    if (fp != NULL) {
+      result = 1;
+      fclose(fp);
+    }
+  }
+
+  return result;
+}
+
+
+ /*
+  *  is Existing Any Address
+  *
+  *  See if the specified address is a valid address of any kind
+  *  valiases and qmail/alias/.qmail-something included.
+  */
+
+int isExistingAnyAddress( char *Domain, char *Name, char *Path )
+{
+    // Set it to false
+    int result = 0;
+
+    // Try things that might make it true
+
+    // catch regular users
+         if( isExistingUser( Name, Domain )) result = 1;
+    // catch .qmail-something, m/l lists included
+    else if( isExistingAlias( Path, Name ))  result = 1;
+#ifdef VALIAS
+    // catch sql valiases
+    else if (valias_select (Name, Domain) != NULL) result = 1;
+#endif
+    // catch qmail/alias/.qmail-something aliases
+    else if (isQmailAlias (Name)) result = 1;
 
     return result;
 }

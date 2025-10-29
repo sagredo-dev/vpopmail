@@ -13,6 +13,7 @@ or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
     passwords with -e.
   - updated README.vrcptcheck.md documentation
   - control/defaultdelivery is now installed by vpopmail if --enable-defaultdelivery
+  - vrcptcheck: it now checks all kind of address (users, forwards, valiases)
 
 5.6.9 - Released Sep 1, 2025
   - added -std=gnu17 to compiler to compile with gcc-15.2

@@ -27,35 +27,32 @@
            111: temporary problem
  */
 
-#include <dirent.h>
 #include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "vpopmail.h"
+#include "vutil.h"
 
 #define FDAUTH 3
 char inputbuf[MAX_BUFF];
 
-void pam_exit(int fail, DIR *dir)
+void pam_exit(int fail)
 {
   int i;
   close(FDAUTH);
   for (i = 0; i < sizeof(inputbuf); ++i) inputbuf[i] = 0;
-  if (dir != NULL) closedir(dir);
   vexit(fail);
 }
 
-int main(int argc, char *argv[])
+void main()
 {
   char path[MAX_BUFF];
-  DIR *dir;
 
   /* read input */
   if (read(FDAUTH, inputbuf, sizeof(inputbuf)) == -1)
   {
     fprintf(stderr, "qmail-smtpd: Error while reading file descriptor in vrcptcheck\n");
-    pam_exit(111,NULL);
+    pam_exit(111);
   }
   close(FDAUTH);
 
@@ -69,9 +66,11 @@ int main(int argc, char *argv[])
     p = strtok (NULL, "@");
   }
 
-  /* recipient check */
-  snprintf(path, MAX_BUFF, "%s/%s", vget_assign(recipient[1], NULL, 0, NULL, NULL), recipient[0]);
-  dir = opendir(path);
-  if (dir) pam_exit(0, dir);
-  else pam_exit(1, dir);
+  /************ recipient check ****************/
+
+  /* get the domain path */
+  snprintf(path, MAX_BUFF, "%s", vget_assign(recipient[1], NULL, 0, NULL, NULL));
+
+  if ( isExistingAnyAddress(recipient[1], recipient[0], path) ) pam_exit(0);
+  else pam_exit(1);
 }
