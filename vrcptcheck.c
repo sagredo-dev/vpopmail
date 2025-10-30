@@ -19,7 +19,7 @@
 /*
  * Recipient check for s/qmail.
  * Just call this program within /var/qmail/control/recipients as follows:
- * echo "*|~vpopmail/bin/vrcptcheck" > /var/qmail/control/recipients
+ * echo "*|~vpopmail/bin/vrcptcheck" >> /var/qmail/control/recipients
 
  * @file vrcptcheck.c
    @return 0: virtual user exists

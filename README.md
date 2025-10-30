@@ -57,6 +57,23 @@ ALTER TABLE `aliasdomains` CHANGE `alias` `alias` VARCHAR(96) CHARACTER SET lati
 ALTER TABLE `aliasdomains` CHANGE `domain` `domain` VARCHAR(96) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL; 
 ```
 
+## Usage for `s/qmail` users
+
+The location of the users' cdb file in [`s/qmail`](https://www.fehcom.de/sqmail/sqmail.html) is `assign.cdb`.
+Therefore `s/qmail` users have to configure `vpopmail` by adding the following to the configure command:
+
+```
+--enable-qmail-cdb-name=assign.cdb
+```
+
+`s/qmail` users can use the [`vrcptcheck`](https://github.com/sagredo-dev/vpopmail/blob/main/vrcptcheck.c) program to
+perform the recipient check, provided that `qmail-smtpd` is run as the `vpopmail` user.
+Just call the program within `control/recipients` as follows:
+
+```
+echo "*|/path/to/vpopmail/bin/vrcptcheck" >> /var/qmail/control/recipients
+```
+
 ## More info and support
 
 To find more info and ask for support post a comment in [my blog](https://www.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html).
