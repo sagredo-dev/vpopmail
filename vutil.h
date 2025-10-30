@@ -71,7 +71,7 @@ int isValidMailList ( char *path, char *Name );
   *  See if the specified address is an alias
   */
 
-int isExistingAlias ( char *path, char *Name );
+int isExistingAlias ( char *path, char *Name, char *Domain );
 
 
  /*
@@ -91,3 +91,22 @@ int isExistingUser( char *Name, char *Domain );
 
 int isExistingAddress( char *Domain, char *Name, char *Path );
 
+
+ /*
+  *  check dot-qmail alias file
+  *
+  *  See if the specified alias name exists in qmail/alias
+  *
+  */
+
+int isQmailAlias (char *Name);
+
+
+ /*
+  *  is Existing Any Address
+  *
+  *  See if the specified address is a valid address of any kind
+  *  valiases and qmail/alias/.qmail-something included.
+  */
+
+int isExistingAnyAddress( char *Domain, char *Name, char *Path );
