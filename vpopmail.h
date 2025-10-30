@@ -349,6 +349,7 @@ struct linklist {
 };
 struct linklist *linklist_add(struct linklist *list, const char *d1,
                               const char *d2);
+struct linklist *linklist_del(struct linklist *list);
 
 #ifdef APOP
 char *dec2hex(unsigned char *);
