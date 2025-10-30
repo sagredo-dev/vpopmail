@@ -3,7 +3,7 @@
 Numbers in square brackets ([]) are tracker items on SourceForge with patch
 or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
 
-5.6.10 - unreleased
+5.6.10 - Oct 30, 2025
   - dropped -std=gnu17 from compilation options and solved (probably) all breaks and
     warnings on gcc 15.2
   - configure.ac now looks for mariadb include and lib dir in addition to mysql
@@ -14,6 +14,7 @@ or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
   - updated README.vrcptcheck.md documentation
   - control/defaultdelivery is now installed by vpopmail if --enable-defaultdelivery
   - vrcptcheck: it now checks all kind of address (users, forwards, valiases)
+  - dropped several unused functions in vpopmail.c
 
 5.6.9 - Released Sep 1, 2025
   - added -std=gnu17 to compiler to compile with gcc-15.2

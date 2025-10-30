@@ -2982,90 +2982,6 @@ int vexiterror(FILE *f, char *comment) {
 
 /************************************************************************/
 
-/* Michael Bowe 21st Aug 2003
- * This function doesnt appear to be used by vpopmail or qmailadmin
- * Consider it for removal perhaps
- */
-/* Add an entry to a domain/.qmail-alias file */
-int vadddotqmail(char *alias, char *domain, ...) {
-  struct vqpasswd *mypw = NULL;
-  FILE *fs;
-  va_list args;
-  char *email;
-  char Dir[MAX_BUFF];
-  uid_t uid;
-  gid_t gid;
-  char tmpbuf[MAX_BUFF];
-  int r;
-
-  /* extract the details for the domain (Dir, uid, gid) */
-  if (vget_assign(domain, Dir, sizeof(Dir), &uid, &gid) == NULL) {
-    return (VA_DOMAIN_DOES_NOT_EXIST);
-  }
-
-  /* open the .qmail-alias file for writing */
-  r = snprintf(tmpbuf, sizeof(tmpbuf), "%s/.qmail-%s", Dir, alias);
-  if (r == -1) {
-    return (VA_DOMAIN_NAME_TOO_LONG);
-  }
-  if ((fs = fopen(tmpbuf, "w")) == NULL) return (VA_COULD_NOT_OPEN_DOT_QMAIL);
-
-  va_start(args, domain);
-  while ((email = va_arg(args, char *)) != NULL) {
-    /* are we dealing with an email address? */
-    if (strstr(email, "@") == NULL) {
-      /* not an email address */
-      /* get passwd entry for this user */
-      mypw = vauth_getpw(email, domain);
-      if (mypw == NULL) return (VA_USER_DOES_NOT_EXIST);
-      /* write out the appropriate maildir entry for this user */
-      fprintf(fs, "%s/Maildir/\n", mypw->pw_dir);
-    } else {
-      /* yes, we have an email address, so write it out */
-      fprintf(fs, "%s\n", email);
-    }
-  }
-  fclose(fs);
-
-  /* setup the permission of the .qmail-alias file */
-  r = snprintf(tmpbuf, sizeof(tmpbuf), "%s/.qmail-%s", Dir, alias);
-  if (r == -1) {
-    return (VA_DOMAIN_NAME_TOO_LONG);
-  }
-  chown(tmpbuf, uid, gid);
-
-  va_end(args);
-  return (VA_SUCCESS);
-}
-
-/************************************************************************/
-
-/* Michael Bowe 21st Aug 2003
- * This function doesnt appear to be used by vpopmail or qmailadmin
- * Consider it for removal perhaps
- */
-/* delete a domain/qmail-alias file */
-int vdeldotqmail(char *alias, char *domain) {
-  char Dir[MAX_BUFF];
-  uid_t uid;
-  gid_t gid;
-  char tmpbuf[MAX_BUFF];
-  int r;
-
-  if (vget_assign(domain, Dir, sizeof(Dir), &uid, &gid) == NULL) {
-    return (VA_DOMAIN_DOES_NOT_EXIST);
-  }
-
-  r = snprintf(tmpbuf, sizeof(tmpbuf), "%s/.qmail-%s", Dir, alias);
-  if (r == -1) {
-    return (VA_DOMAIN_NAME_TOO_LONG);
-  }
-  if (unlink(tmpbuf) < 0) return (VA_COULD_NOT_OPEN_DOT_QMAIL);
-  return (VA_SUCCESS);
-}
-
-/************************************************************************/
-
 /*
  * Given the domain name:
  *
@@ -3211,28 +3127,6 @@ char *vget_assign(char *domain, char *dir, int dir_len, uid_t *uid,
   }
   fclose(fs);
   return (in_dir);
-}
-
-/************************************************************************/
-
-/* THE USE OF THIS FUNCTION IS DEPRECIATED.
- *
- * None of the vpopmail code uses this function,
- * but it has been left in the source for the time being,
- * to ensure backwards compatibility with some of the popular
- * patches such as Tonix's chkusr
- *
- * This function is scheduled to be removed at a future date
- *
- * You can obtain same functionality by calling
- *   vget_assign (domain, NULL, 0, NULL, NULL)
- *
- */
-
-int vget_real_domain(char *domain, int len) {
-  if (domain == NULL) return (0);
-  vget_assign(domain, NULL, 0, NULL, NULL);
-  return (0);
 }
 
 /************************************************************************/
@@ -3844,32 +3738,6 @@ char *vgen_pass(int len)
   p = malloc(len + 1);
   if (p == NULL) return NULL;
   return (vrandom_pass(p, len));
-}
-
-/************************************************************************/
-
-/* if inchar is valid, return 1
- * if inchar is invalid, return 0
- *
- * Michael Bowe 15th August 2003
- * This  function isnt used by vpopmail, cantidate for removal?
- */
-int vvalidchar(char inchar) {
-  /* check lower case a to lower case z */
-  if (inchar >= 'a' && inchar <= 'z') return (1);
-
-  /* check upper case a to upper case z */
-  if (inchar >= 'A' && inchar <= 'Z') return (1);
-
-  /* check numbers */
-  if (inchar >= '0' && inchar <= '9') return (1);
-
-  /* check for '-' and '.' */
-  if (inchar == '-' || inchar == '.' || inchar == '_') return (1);
-
-  /* everything else is invalid */
-  verrori = VA_INVALID_EMAIL_CHAR;
-  return (0);
 }
 
 /************************************************************************/

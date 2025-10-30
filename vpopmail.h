@@ -320,9 +320,6 @@ void vset_default_domain(char *);
 void vupdate_rules(int);
 void vclear_open_smtp(time_t, time_t);
 char *verror(int);
-int vadddotqmail(char *alias, char *domain, ...);
-int vdeldotqmail(char *alias, char *domain);
-int vget_real_domain(char *domain, int len);
 struct vqpasswd *vauth_user(char *user, char *domain, char *password,
                             char *apop);
 int vmake_maildir(char *domain, char *dir);
@@ -335,7 +332,6 @@ int update_rules();
 char *vversion(char *);
 int vcheck_vqpw(struct vqpasswd *inpw, char *domain);
 char *vgen_pass(int len);
-int vvalidchar(char inchar);
 char *format_maildirquota(const char *q);
 char *date_header();
 int qnprintf(char *buffer, size_t size, const char *format, ...);
@@ -353,7 +349,6 @@ struct linklist {
 };
 struct linklist *linklist_add(struct linklist *list, const char *d1,
                               const char *d2);
-struct linklist *linklist_del(struct linklist *list);
 
 #ifdef APOP
 char *dec2hex(unsigned char *);
