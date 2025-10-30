@@ -71,7 +71,7 @@ int isValidMailList ( char *path, char *Name );
   *  See if the specified address is an alias
   */
 
-int isExistingAlias ( char *path, char *Name );
+int isExistingAlias ( char *path, char *Name, char *Domain );
 
 
  /*

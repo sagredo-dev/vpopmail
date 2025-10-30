@@ -108,21 +108,25 @@ int isValidMailList ( char *path, char *Name )
  /*
   *  is Existing Alias
   *
-  *  See if the specified address is an alias
+  *  See if the specified address is an alias.
+  *  It now checks sql valiases as well.
   */
 
-int isExistingAlias ( char *path, char *Name )
+int isExistingAlias ( char *path, char *Name, char *Domain )
 {
     FILE *fs = NULL;
     char FileName[MAX_BUFF];
     int result = 0;
 
     snprintf( FileName, MAX_BUFF, "%s/.qmail-%s", path, Name );
-    if ( (fs=fopen(FileName,"r"))==NULL) {
-    }   else  {
+    if ( (fs=fopen(FileName,"r")) != NULL) {
         result = 1;
         fclose(fs);
     }
+#ifdef VALIAS
+    // catch sql valiases
+    else if (valias_select (Name, Domain) != NULL) result = 1;
+#endif
 
 //    printf( " result: %d\n", result );
     return result;
@@ -161,7 +165,7 @@ int isExistingAddress( char *Domain, char *Name, char *Path )
 
     //  Try things that might make it true
          if( isExistingUser( Name, Domain )) result = 1;
-    else if( isExistingAlias( Path, Name ))  result = 1;
+    else if( isExistingAlias( Path, Name, Domain ))  result = 1;
 
     return result;
 }
@@ -214,12 +218,8 @@ int isExistingAnyAddress( char *Domain, char *Name, char *Path )
 
     // catch regular users
          if( isExistingUser( Name, Domain )) result = 1;
-    // catch .qmail-something, m/l lists included
-    else if( isExistingAlias( Path, Name ))  result = 1;
-#ifdef VALIAS
-    // catch sql valiases
-    else if (valias_select (Name, Domain) != NULL) result = 1;
-#endif
+    // catch .qmail-something, valiases and m/l included
+    else if( isExistingAlias( Path, Name, Domain ))  result = 1;
     // catch qmail/alias/.qmail-something aliases
     else if (isQmailAlias (Name)) result = 1;
 
