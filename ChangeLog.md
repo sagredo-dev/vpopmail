@@ -1,8 +1,5 @@
 # ChangeLog
 
-Numbers in square brackets ([]) are tracker items on SourceForge with patch
-or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
-
 5.6.10 - Oct 30, 2025
   - dropped -std=gnu17 from compilation options and solved (probably) all breaks and
     warnings on gcc 15.2
@@ -246,6 +243,11 @@ or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
     and disable ldap sorting because it's not supported by openldap
   - add an option --enable-qmail-cdb-name to set qmail cdb file name, 
     after Erwin Hoffmann changed cdb name since s/qmail 4.2.03
+
+--------------------------------------------------------------------------
+
+Numbers in square brackets ([]) are tracker items on SourceForge with patch
+or info related to the entry. <http://sourceforge.net/projects/vpopmail/>
 
 5.4.33 - Released 10-21-2012
   Matt Brookings
