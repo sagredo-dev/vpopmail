@@ -1,5 +1,9 @@
 # ChangeLog
 
+5.6.11 - unreleased
+  - Added definition of 'call_onchange' function and cured its calls to avoid break
+    on latest compilers on vpopmail and qmailadmin.
+
 5.6.10 - Oct 30, 2025
   - dropped -std=gnu17 from compilation options and solved (probably) all breaks and
     warnings on gcc 15.2
