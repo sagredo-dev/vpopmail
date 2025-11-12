@@ -376,4 +376,6 @@ char *backfill(char *, char *, char *, int);
 int vcreate_sql_aliasdomain(char *domain, char *alias);
 int vdelete_sql_aliasdomain(char *alias);
 
+#ifdef USE_ONCHANGE
 int call_onchange(const char *, const char *, const char *, const char *);
+#endif

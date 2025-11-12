@@ -63,7 +63,6 @@ int verrori = 0;
 
 #ifdef USE_ONCHANGE
 int allow_onchange = 1;
-int call_onchange(const char *, const char *, const char *, const char *);
 #endif
 
 extern int cdb_seek(int, char *, unsigned int, uint32 *);
