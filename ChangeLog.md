@@ -1,8 +1,10 @@
 # ChangeLog
 
-5.6.11 - unreleased
+5.6.11 - Nov 20, 2025
   - Added definition of 'call_onchange' function and cured its calls to avoid break
     on latest compilers on vpopmail and qmailadmin.
+  - vutil.h installed in ~vpopmail/include as it's now needed by qmailadmin
+  - vutil.c: 'isSomething' functions reviewed to satisfy qmailadmin calls
 
 5.6.10 - Oct 30, 2025
   - dropped -std=gnu17 from compilation options and solved (probably) all breaks and

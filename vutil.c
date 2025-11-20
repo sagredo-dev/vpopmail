@@ -38,44 +38,42 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <dirent.h>
-#include "config.h"
-
 #include <fcntl.h>
 #include <signal.h>
+#include <ctype.h>
+
+#include "config.h"
 #include "vpopmail.h"
 #include "vauth.h"
 
+char dotqmailfn[MAX_BUFF], Buffer[MAX_BUFF];
 
 //////////////////////////////////////////////////////////////////////
 //
 //   utility functions
 //
 
- /*
-  *  str_replace
-  *
-  *  replace all instances of orig with repl in s.
-  */
-
+/*
+ *  replace all instances of orig with repl in s.
+ */
 void str_replace (char *s, char orig, char repl) {
     while (*s) {
-        if (*s == orig) *s = repl; 
+        if (*s == orig) *s = repl;
         s++;
     }
 }
 
 
- /*
-  * file_exists
-  *
-  * return 1 if filename is an existing file
-  *
-  * Would this be better using stat?
-  *
-  */
-
+/*
+ * return 1 if filename is an existing file
+ *
+ * Would this be better using stat?
+ *
+ */
 int file_exists (char *filename) {
-    return(access(filename, R_OK) == 0);
+   FILE *f = fopen(filename, "r");
+   if (f) { fclose(f); return 1; }
+   else return 0;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -83,81 +81,130 @@ int file_exists (char *filename) {
 //   isSomething functions
 //
 
- /*
-  *  is Valid MailList
-  *
-  *  See if the specified address is a mailing list
-  */
-
+/*
+ *  See if the specified address is a mailing list
+ *  (both dot-qmail and SQL)
+ */
 int isValidMailList ( char *path, char *Name )
 {
     FILE *fs = NULL;
     char FileName[MAX_BUFF];
-    char TmpBuf2[MAX_BUFF];
 
-    snprintf( FileName, MAX_BUFF, "%s/.qmail-%s", path, Name );
-    if ( (fs=fopen(FileName,"r"))==NULL)
-        return(0);
-    fgets( TmpBuf2, sizeof(TmpBuf2), fs);
+    /* Replace . with : in dot-qmail file */
+    snprintf (dotqmailfn, sizeof(dotqmailfn), ".qmail-%s", Name);
+    str_replace (dotqmailfn+7, '.', ':');
+
+    snprintf( FileName, MAX_BUFF, "%s/%s", path, dotqmailfn );
+    if ( (fs=fopen(FileName,"r"))==NULL) return 0;
+    fgets( Buffer, sizeof(Buffer), fs);
     fclose(fs);
-    return ( strstr( TmpBuf2, "ezmlm-reject") != 0 ||
-        strstr( TmpBuf2, "ezmlm-send")   != 0 );
+    /* See if "ezmlm-reject" or "ezmlm-send" is present in the dot-qmail file */
+    return ( strstr( Buffer, "ezmlm-reject") != 0 ||
+        strstr( Buffer, "ezmlm-send")   != 0 );
 }
 
 
- /*
-  *  is Existing Alias
-  *
-  *  See if the specified address is an alias.
-  *  It now checks sql valiases as well.
-  */
-
+/*
+ *  See if the specified address is an alias (dot-qmail) or
+ *  a SQL valias. This is called 'forward' in qmailadmin.
+ */
 int isExistingAlias ( char *path, char *Name, char *Domain )
 {
     FILE *fs = NULL;
     char FileName[MAX_BUFF];
     int result = 0;
+    char *aliasline, *space, *ar, *ez;
 
-    snprintf( FileName, MAX_BUFF, "%s/.qmail-%s", path, Name );
+    /* Replace . with : in dot-qmail file */
+    snprintf (dotqmailfn, sizeof(dotqmailfn), ".qmail-%s", Name);
+    str_replace (dotqmailfn+7, '.', ':');
+
+    /* ignore .qmail-default/.qmail-default-something */
+    if (strncmp(dotqmailfn, ".qmail-default", 14) == 0) return 0;
+
+    /* See if dot-qmail file exists */
+    snprintf( FileName, MAX_BUFF, "%s/%s", path, dotqmailfn );
     if ( (fs=fopen(FileName,"r")) != NULL) {
-        result = 1;
-        fclose(fs);
+      fgets(Buffer, sizeof(Buffer), fs);
+      /*
+        See if "ezmlm-reject" or "ezmlm-send" or "autorespond" are
+        present in the dot-qmail file. If yes, it's a m/l or a robot.
+       */
+      if ( strstr( Buffer, "ezmlm-reject" ) == 0 &&
+           strstr( Buffer, "ezmlm-send" )   == 0 &&
+           strstr( Buffer, "autorespond" )  == 0
+         ) result = 1;
+      fclose(fs);
     }
 #ifdef VALIAS
     // catch sql valiases
-    else if (valias_select (Name, Domain) != NULL) result = 1;
+    else {
+      aliasline = valias_select (Name, Domain);
+      /* Autoresponder/Mailing List detection algorithm:
+       * We're looking for either '/autorespond ' or '/ezmlm-reject '
+       * to appear in the first line, before a space appears.
+       */
+      if (aliasline != NULL) {
+        space = strstr (aliasline, " ");
+        ar = strstr (aliasline, "/autorespond ");
+        ez = strstr (aliasline, "/ezmlm-reject ");
+        /* is autoresponder? */
+        if (ar && space && (ar < space)) result = 0;
+        /* is ezmlm? */
+        else if (ez && space && (ez < space)) result = 0;
+        /* it's a valias */
+        else result = 1;
+      }
+      else result = 0;
+    }
 #endif
 
-//    printf( " result: %d\n", result );
     return result;
 }
 
 
- /*
-  *  is Existing User
-  *
-  *  See if the specified address is a user
-  */
+/*
+ *  See if the specified address is an autoresponder (robot).
+ *  This function is used by qmailadmin.
+ */
+int isExistingRobot ( char *path, char *Name )
+{
+    FILE *fs = NULL;
+    char FileName[MAX_BUFF], upname[MAX_BUFF];
+    size_t i;
 
+    /* copy Name into upname and uppercase it */
+    for (i = 0; i < sizeof(upname)-1 && Name[i]; ++i)
+        upname[i] = (char) toupper((unsigned char)Name[i]);
+    upname[i] = '\0';
+
+    snprintf(FileName, MAX_BUFF, "%s/%s/message", path, upname);
+
+    if (file_exists(FileName)) return 1;
+    else return 0;
+}
+
+
+/*
+ * See if the specified address is a POP user
+ */
 int isExistingUser( char *Name, char *Domain )
 {
     int result = 1;
     struct vqpasswd *mypw;
 
-    if ( (mypw = vauth_getpw( Name, Domain )) == NULL ) {
-        result = 0;
-    }
+    if ( (mypw = vauth_getpw( Name, Domain )) == NULL ) result = 0;
 
     return result;
 }
 
 
- /*
-  *  is Existing Address
-  *
-  *  See if the specified address is a valid address of any kind.
-  */
-
+/*
+ *  is Existing Address
+ *
+ *  See if the specified address is a valid address of any kind.
+ *  We are not including qmail/alias/.qmail-something addresses here.
+ */
 int isExistingAddress( char *Domain, char *Name, char *Path )
 {
     //  Set it to false
@@ -165,17 +212,16 @@ int isExistingAddress( char *Domain, char *Name, char *Path )
 
     //  Try things that might make it true
          if( isExistingUser( Name, Domain )) result = 1;
-    else if( isExistingAlias( Path, Name, Domain ))  result = 1;
+    else if( isExistingAlias( Path, Name, Domain )) result = 1;
+    else if( isExistingRobot( Path, Name )) result = 1;
 
     return result;
 }
 
- /*
-  *  check dot-qmail alias file
-  *
-  *  See if the specified alias name exists in qmail/alias
-  *
-  */
+/*
+ *  check dot-qmail alias file
+ *  See if the specified alias name exists in qmail/alias
+ */
 int isQmailAlias (char *Name) {
   FILE *fp;
   char FileName[MAX_BUFF];
@@ -202,13 +248,12 @@ int isQmailAlias (char *Name) {
 }
 
 
- /*
-  *  is Existing Any Address
-  *
-  *  See if the specified address is a valid address of any kind
-  *  valiases and qmail/alias/.qmail-something included.
-  */
-
+/*
+ *  is Existing Any Address
+ *
+ *  See if the specified address is a valid address of any kind
+ *  valiases and qmail/alias/.qmail-something included.
+ */
 int isExistingAnyAddress( char *Domain, char *Name, char *Path )
 {
     // Set it to false
@@ -217,11 +262,13 @@ int isExistingAnyAddress( char *Domain, char *Name, char *Path )
     // Try things that might make it true
 
     // catch regular users
-         if( isExistingUser( Name, Domain )) result = 1;
-    // catch .qmail-something, valiases and m/l included
-    else if( isExistingAlias( Path, Name, Domain ))  result = 1;
+         if( isExistingUser(Name, Domain) ) result = 1;
+    // catch .qmail-something, valiases, robots and m/l included
+    else if( isExistingAlias(Path, Name, Domain) )  result = 1;
+    // catch robots (autoresponder)
+    else if( isExistingRobot(Path, Name) )  result = 1;
     // catch qmail/alias/.qmail-something aliases
-    else if (isQmailAlias (Name)) result = 1;
+    else if( isQmailAlias(Name) ) result = 1;
 
     return result;
 }
