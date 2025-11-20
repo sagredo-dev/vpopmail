@@ -35,78 +35,66 @@
 //   utility functions
 //
 
- /*
-  *  s t r _ r e p l a c e
-  *
-  *  replace all instances of orig with repl in s.
-  */
-
+/*
+ *  replace all instances of orig with repl in s.
+ */
 void str_replace (char *s, char orig, char repl);
 
- /*
-  * f i l e _ e x i s t s 
-  *
-  * return 1 if filename is an existing file
-  */
 
+/*
+ * return 1 if filename is an existing file
+ */
 int file_exists (char *filename);
 
 //////////////////////////////////////////////////////////////////////
 //
-//   issomething functions
+//   isSomething functions
 //
 
- /*
-  *  i s V a l i d M a i l L i s t
-  *
-  *  See if the specified address is a mailing list
-  */
-
+/*
+ *  See if the specified address is a mailing list
+ *  (both dot-qmail and SQL)
+ */
 int isValidMailList ( char *path, char *Name );
 
 
- /*
-  *  i s E x i s t i n g A l i a s
-  *
-  *  See if the specified address is an alias
-  */
-
+/*
+ *  See if the specified address is an alias (dot-qmail) or
+ *  a SQL valias. This is called 'forward' in qmailadmin.
+ */
 int isExistingAlias ( char *path, char *Name, char *Domain );
 
 
- /*
-  *  i s E x i s t i n g U s e r
-  *
-  *  See if the specified address is a user
-  */
+/*
+ *  See if the specified address is an autoresponder (robot).
+ *  This function is used by qmailadmin.
+ */
+int isExistingRobot ( char *path, char *Name );
 
+
+/*
+ *  See if the specified address is a POP user
+ */
 int isExistingUser( char *Name, char *Domain );
 
 
- /*
-  *  i s E x i s t i n g A d d r e s s 
-  *
-  *  See if the specified address is a valid address of any kind.
-  */
-
+/*
+ *  See if the specified address is a valid address of any kind.
+ */
 int isExistingAddress( char *Domain, char *Name, char *Path );
 
 
- /*
-  *  check dot-qmail alias file
-  *
-  *  See if the specified alias name exists in qmail/alias
-  *
-  */
-
+/*
+ *  check dot-qmail alias file
+ *  See if the specified alias name exists in qmail/alias
+ */
 int isQmailAlias (char *Name);
 
 
- /*
-  *  is Existing Any Address
-  *
-  *  See if the specified address is a valid address of any kind
-  *  valiases and qmail/alias/.qmail-something included.
-  */
-
+/*
+ *  is Existing Any Address
+ *
+ *  See if the specified address is a valid address of any kind
+ *  valiases and qmail/alias/.qmail-something included.
+ */
 int isExistingAnyAddress( char *Domain, char *Name, char *Path );
