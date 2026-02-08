@@ -353,7 +353,7 @@ int vauth_create_table (char *table, char *layout, int showerror)
   char SqlBufCreate[SQL_BUF_SIZE];
 
   if ((err = vauth_open_update()) != 0) return (err);
-  snprintf (SqlBufCreate, SQL_BUF_SIZE, "CREATE TABLE %s ( %s )", table, layout);
+  snprintf (SqlBufCreate, SQL_BUF_SIZE, "CREATE TABLE IF NOT EXISTS %s ( %s )", table, layout);
   if (mysql_query (&mysql_update, SqlBufCreate)) {
     if (showerror)
       fprintf (stderr, "vmysql: error creating table '%s': %s\n", table, 
@@ -1471,12 +1471,12 @@ int valias_type = 1;
  */
     if (alias_line[0] == '|') valias_type = 0;
     snprintf( SqlBufUpdate, SQL_BUF_SIZE, "insert into valias \
-     ( alias, domain, valias_line, valias_type) values ( '%s', '%s', '%s', '%d')",
+     ( alias, domain, valias_line, valias_type) values ( '%s', '%s', \"%s\", '%d')",
        alias, domain,  alias_line, valias_type);
 /* end patch */
 #else
     snprintf( SqlBufUpdate, SQL_BUF_SIZE, "insert into valias \
-     ( alias, domain, valias_line ) values ( '%s', '%s', '%s')",
+     ( alias, domain, valias_line ) values ( '%s', '%s', \"%s\")",
        alias, domain,  alias_line );
 #endif
 
