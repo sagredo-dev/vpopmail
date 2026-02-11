@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.71])
-AC_INIT([vpopmail],[5.6.12])
+AC_INIT([vpopmail],[5.6.13])
 AM_INIT_AUTOMAKE([foreign subdir-objects])
 AM_MAINTAINER_MODE([disable])
 AC_USE_SYSTEM_EXTENSIONS

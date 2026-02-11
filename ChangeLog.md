@@ -1,5 +1,8 @@
 # ChangeLog
 
+5.6.13 - Feb 11, 2026
+  - vlimits.c: avoids no file found exit when .qmailadmin-limits is not existent because no limits are defined yet
+
 5.6.12 - Feb 8, 2026
   - vmysql.c changes:
     - valias_create_table now check if table is already created in order to avoid warnings in dotqmail2valias
