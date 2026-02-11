@@ -2,6 +2,7 @@
 
 5.6.13 - Feb 11, 2026
   - vlimits.c: avoids no file found exit when .qmailadmin-limits is not existent because no limits are defined yet
+  - added sql files to be imported on upgrade to v. 5.6.x 
 
 5.6.12 - Feb 8, 2026
   - vmysql.c changes:
