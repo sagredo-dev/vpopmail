@@ -644,11 +644,31 @@ int vdel_limits(const char *domain)
 
     /* get filename */
     if (vget_assign(mydomain, dir, sizeof(dir), &uid, &gid) == NULL) {
+      if (dir[0] == '\0') {
+        errno = EINVAL;
+        return -1;
+      }
+      if (strlen(dir) >= sizeof(dir)) {
+        errno = ENAMETOOLONG;
+        return -1;
+      }
       printf ("Failed vget_assign for %s\n",mydomain);
       return (-1);
     }
+
     strncat(dir, "/.qmailadmin-limits", sizeof(dir)-strlen(dir)-1);
-    return unlink(dir);
+
+    // return unlink(dir);
+    if (unlink(dir) == -1) {
+      if (errno == ENOENT) {
+        /* non exixting limit file (no limit defined yet), go on */
+        return 0;
+      }
+      fprintf(stderr, "vqadmin: Cannot remove '%s': %s\n", dir, strerror(errno));
+      return -1;
+    }
+
+    return 0;
 }
 #endif
 
