@@ -157,4 +157,4 @@ CREATE TABLE IF NOT EXISTS `vpopmail` (
   PRIMARY KEY (`pw_name`,`pw_domain`),
   UNIQUE KEY `id` (`id`),
   KEY `pw_domain` (`pw_domain`)
-) ENGINE=InnoDB AUTO_INCREMENT=175 DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
