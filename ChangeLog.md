@@ -1,5 +1,9 @@
 # ChangeLog
 
+unreleased
+  - storage.h: refactored 64-bit endian conversion handling, replacing non-portable GNU-specific byte-swap
+    fallbacks with OpenBSD-compatible implementations.
+
 5.6.13 - Feb 11, 2026
   - vlimits.c: avoids no file found exit when .qmailadmin-limits is not existent because no limits are defined yet
   - added sql files to be imported on upgrade to v. 5.6.x 
