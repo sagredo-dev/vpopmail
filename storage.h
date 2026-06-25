@@ -17,103 +17,58 @@
 */
 
 #ifndef __STORAGE_H_
-   #define __STORAGE_H_
+#define __STORAGE_H_
 
 #include "config.h"
 #include <stdint.h>
 #include <stdlib.h>
-
-/*
-   htonll() and ntohll()
-*/
-
-#ifdef HAVE_ENDIAN_H
-	#include <endian.h>
-#endif
-
-#ifdef HAVE_BYTESWAP_H
-	#include <byteswap.h>
-#endif
-
-#ifdef HAVE_SYS_ENDIAN_H
-	#include <sys/endian.h>
-#endif
-
-#ifdef HAVE_MACHINE_ENDIAN_H
-	#include <machine/endian.h>
-#endif
-
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <inttypes.h>
 
-#ifdef HAVE_INTTYPES_H
-	#include <inttypes.h>
-#endif
+/*
+ * 64-bit endian conversion helpers
+ *
+ * Goal:
+ *  - OpenBSD: use sys/endian.h (htobe64 / be64toh)
+ *  - BSD/Linux: use bswap64 if available
+ *  - Never use __bswap_64 (glibc internal, non-portable)
+ */
 
-#if !defined(LLONG_MAX)
-	#define LLONG_MAX 9223372036854775807LL
-#endif
+#if defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__)
+  #include <sys/endian.h>
+  #define ntohll(x) be64toh(x)
+  #define htonll(x) htobe64(x)
 
-#if !defined(HAVE_HTONLL) || !defined(HAVE_NTOHLL)
-#if defined(__LITTLE_ENDIAN) || defined(_LITTLE_ENDIAN) || defined(__LITTLE_ENDIAN__)
-# ifndef ntohll
-# if defined(__DARWIN__)
-# define ntohll(_x_) NXSwapBigLongLongToHost(_x_)
-# else
-  #ifdef HAVE_BSWAP64
-	#define ntohll(_x_) bswap64(_x_)
-  #else
-	# define ntohll(_x_) __bswap_64(_x_)
-  #endif
-# endif
-# endif
-# ifndef htonll
-# if defined(__DARWIN__)
-# define htonll(_x_) NXSwapHostLongLongToBig(_x_)
-# else
-  #ifdef HAVE_BSWAP64
-	#define htonll(_x_) bswap64(_x_)
-  #else
-	# define htonll(_x_) __bswap_64(_x_)
-  #endif
-# endif
-# endif
-#elif defined(__BIG_ENDIAN) || defined(_BIG_ENDIAN) || defined(__BIG_ENDIAN__)
-# ifndef ntohll
-# define ntohll(_x_) _x_
-# endif
-# ifndef htonll
-# define htonll(_x_) _x_
-# endif
-#else /* No Endian selected */
-# error A byte order must be selected
+#elif defined(__APPLE__)
+  #include <libkern/OSByteOrder.h>
+  #define ntohll(x) OSSwapBigToHostInt64(x)
+  #define htonll(x) OSSwapHostToBigInt64(x)
+
+#elif defined(HAVE_ENDIAN_H)
+  #include <endian.h>
+  #define ntohll(x) be64toh(x)
+  #define htonll(x) htobe64(x)
+
+#elif defined(HAVE_BYTESWAP_H)
+  #include <byteswap.h>
+  #define ntohll(x) bswap_64(x)
+  #define htonll(x) bswap_64(x)
+
+#else
+  #error "No portable 64-bit endian conversion available"
 #endif
 
 /*
-   Define htonll() and ntohll() if not already defined
-*/
-
-#ifndef ntohll
-	#ifdef HAVE_BSWAP64
-		#define ntohll(x) bswap64(x)
-	#else
-		#define ntohll(x) __bswap_64(x)
-	#endif
-#endif
-
-#ifndef htonll
-   #ifdef HAVE_BSWAP64
-   		#define htonll(x) bswap64(x)
-   #else
-		#define htonll(x) __bswap_64(x)
-   #endif
-#endif
+ * Safety fallback for missing limits
+ */
+#ifndef LLONG_MAX
+#define LLONG_MAX 9223372036854775807LL
 #endif
 
 /*
-   Arbitrary storage counts
-*/
-
+ * Arbitrary storage counts
+ */
 typedef uint64_t storage_t;
 
-#endif
+#endif /* __STORAGE_H_ */
