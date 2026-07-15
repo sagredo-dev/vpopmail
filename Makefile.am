@@ -31,6 +31,7 @@ VUSAGECCONF=$(DESTDIR)@vpopmaildir@/etc/vusagec.conf
 DOVECOT_SQL=$(DESTDIR)@vpopmaildir@/etc/disable-many-domains_procedures.sql
 PWD_STRENGTH=$(DESTDIR)@vpopmaildir@/etc/password_strength.conf
 DEFAULTDELIVERY=@qmaildir@/control/defaultdelivery
+PURGE_VLOG=$(DESTDIR)@vpopmaildir@/bin/purge_vlog
 
 noinst_LIBRARIES=libvpopmail.a
 
@@ -205,6 +206,10 @@ install-data-local:
 
 	if test ! -r $(PWD_STRENGTH); then \
 	  $(INSTALL) -m 644 password_strength.conf $(PWD_STRENGTH); \
+	fi
+
+	if test "@USE_MYSQL@" = "1"; then \
+	  $(INSTALL) -m 755 purge_vlog.sh $(PURGE_VLOG); \
 	fi
 
 	if test "@USE_MYSQL@" = "1"; then \
