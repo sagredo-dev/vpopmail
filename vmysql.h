@@ -252,13 +252,15 @@ domain VARCHAR(96) NOT NULL, \
 valias_line text NOT NULL, \
 copy tinyint(1) NOT NULL DEFAULT 0 COMMENT '0=redirect 1=copy&redirect', \
 INDEX (alias,domain,valias_type), \
-INDEX (alias, domain)"
+INDEX (alias, domain), \
+INDEX (timestamp)"
 #else
 #define VALIAS_TABLE_LAYOUT "id int(11) PRIMARY KEY AUTO_INCREMENT, \
 alias VARCHAR(32) NOT NULL, \
 domain VARCHAR(96) NOT NULL, \
 valias_line text NOT NULL, \
-INDEX (alias, domain)"
+INDEX (alias, domain), \
+INDEX (timestamp)"
 #endif
 
 #endif
