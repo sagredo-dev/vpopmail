@@ -209,7 +209,7 @@ install-data-local:
 	fi
 
 	if test "@USE_MYSQL@" = "1"; then \
-	  $(INSTALL) -m 755 purge_vlog.sh $(PURGE_VLOG); \
+	  $(INSTALL) -o @vpopuser@ -g @vpopgroup@ -m 711 purge_vlog.sh $(PURGE_VLOG); \
 	fi
 
 	if test "@USE_MYSQL@" = "1"; then \
