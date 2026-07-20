@@ -651,6 +651,7 @@ LTLIBOBJS
 LIBOBJS
 MANY_DOMAINS
 DEFAULT_DELIVERY
+ENABLE_SQL_LOGGING
 USE_SQLITE
 USE_MYSQL
 auth_inc
@@ -9323,6 +9324,7 @@ printf "%s\n" "yes" >&6; }
           as_fn_error $? "sql-logging is only supported in the MySQL/Postgres authentication modules" "$LINENO" 5
       else
         ENABLE_SQL_LOGGING=1
+
 
 printf "%s\n" "#define ENABLE_SQL_LOGGING $ENABLE_SQL_LOGGING" >>confdefs.h
 
