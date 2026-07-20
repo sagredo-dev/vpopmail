@@ -1579,6 +1579,7 @@ case $ENABLE_SQL_LOGGING in
           AC_MSG_ERROR(sql-logging is only supported in the MySQL/Postgres authentication modules)
       else
         ENABLE_SQL_LOGGING=1
+        AC_SUBST(ENABLE_SQL_LOGGING)
         AC_DEFINE_UNQUOTED(ENABLE_SQL_LOGGING,$ENABLE_SQL_LOGGING,"")
       fi
       ;;
