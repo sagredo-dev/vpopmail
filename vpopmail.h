@@ -335,6 +335,17 @@ char *vgen_pass(int len);
 char *format_maildirquota(const char *q);
 char *date_header();
 int qnprintf(char *buffer, size_t size, const char *format, ...);
+
+/* Escape src for inclusion in a SQL literal delimited by quote ('\'', '"' or
+ * '`'), writing the result and a terminating NUL to dst.  dst holds room for
+ * 2*strlen(src)+1 bytes.  Returns the length written, or (size_t)-1 when the
+ * value cannot be escaped safely, which makes qnprintf() discard the whole
+ * query.  Only the backend knows how the server treats backslashes, so only
+ * the backend can answer this correctly.
+ */
+typedef size_t (*vsql_escape_fn)(char *dst, const char *src, char quote);
+extern vsql_escape_fn vsql_escape_hook;
+
 int readuserquota(const char *dir, storage_t *sizep, storage_t *cntp);
 #ifndef HAVE_WARN
 #define warn(...) fprintf(stderr, __VA_ARGS__)

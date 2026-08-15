@@ -111,7 +111,53 @@ int MYSQL_UPDATE_VPORT;
 char *MYSQL_UPDATE_DATABASE;
 
 /************************************************************************/
-/* 
+/*
+ * Escaping.
+ *
+ * Whether a backslash escapes anything is a property of the server session
+ * (NO_BACKSLASH_ESCAPES), not of this code, so the only correct escaper is
+ * the one in the client library, and it needs a live connection to consult.
+ * vsql_escape_conn points at whichever connection was opened last; every
+ * qnprintf() call site opens a connection first, so it is set by the time an
+ * argument needs escaping.
+ */
+static MYSQL *vsql_escape_conn = NULL;
+
+static size_t vmysql_escape(char *dst, const char *src, char quote)
+{
+    /* A backtick-quoted identifier is not a string literal: MySQL defines no
+     * escape sequences inside one, only backtick doubling.
+     */
+    if (quote == '`') {
+        size_t n = 0;
+        for (; *src != '\0'; src++) {
+            if (*src == '`') dst[n++] = '`';
+            dst[n++] = *src;
+        }
+        dst[n] = '\0';
+        return n;
+    }
+
+    /* mysql_real_escape_string() escapes for a single-quoted literal.  Under
+     * NO_BACKSLASH_ESCAPES it doubles the single quote and leaves everything
+     * else alone, which is only sound if the literal really is single quoted
+     * -- so every literal in vmysql.h is.  Refuse any other delimiter instead
+     * of emitting an escape the server might not honour.
+     */
+    if (quote != '\'') return (size_t)-1;
+    if (vsql_escape_conn == NULL) return (size_t)-1;
+
+    return mysql_real_escape_string(vsql_escape_conn, dst, src, strlen(src));
+}
+
+static void vmysql_register_escaper(MYSQL *conn)
+{
+    vsql_escape_conn = conn;
+    vsql_escape_hook = vmysql_escape;
+}
+
+/************************************************************************/
+/*
  * get mysql connection info
  */
 int load_connection_info() {
@@ -217,7 +263,10 @@ int vauth_open_update()
 {
     unsigned int timeout = 2;
 
-    if ( update_open && (mysql_ping(&mysql_update)==0) ) return(0);
+    if ( update_open && (mysql_ping(&mysql_update)==0) ) {
+        vmysql_register_escaper(&mysql_update);
+        return(0);
+    }
     update_open = 1;
 
     verrori = load_connection_info();
@@ -257,6 +306,7 @@ int vauth_open_update()
       }    
     }
 
+    vmysql_register_escaper(&mysql_update);
     return(0);
 }
 
@@ -269,7 +319,10 @@ int vauth_open_update()
 int vauth_open_read()
 {
     /* if we are already connected, just return */
-    if ( read_open && (mysql_ping(&mysql_read)==0) ) return(0);
+    if ( read_open && (mysql_ping(&mysql_read)==0) ) {
+        vmysql_register_escaper(&mysql_read);
+        return(0);
+    }
     read_open = 1;
     
     /* connect to mysql and set the database */
@@ -289,6 +342,7 @@ int vauth_open_read()
     }
 
     /* return success */
+    vmysql_register_escaper(&mysql_read);
     return(0);
 }
 #else
@@ -321,7 +375,10 @@ int vauth_open_read_getall()
 {
 
     /* if we are already connected, just return */
-    if ( read_getall_open != 0 ) return(0);
+    if ( read_getall_open != 0 ) {
+        vmysql_register_escaper(&mysql_read_getall);
+        return(0);
+    }
     read_getall_open = 1;
     
     /* connect to mysql and set the database */
@@ -342,6 +399,7 @@ int vauth_open_read_getall()
     }
 
     /* return success */
+    vmysql_register_escaper(&mysql_read_getall);
     return(0);
 }
 
@@ -1021,6 +1079,7 @@ void vclose()
         mysql_close(&mysql_update);
         update_open = 0;
     }
+    vsql_escape_conn = NULL;
 }
 
 
@@ -1470,13 +1529,13 @@ int valias_type = 1;
   insertion of a second row with the same alias/domain.
  */
     if (alias_line[0] == '|') valias_type = 0;
-    snprintf( SqlBufUpdate, SQL_BUF_SIZE, "insert into valias \
-     ( alias, domain, valias_line, valias_type) values ( '%s', '%s', \"%s\", '%d')",
+    qnprintf( SqlBufUpdate, SQL_BUF_SIZE, "insert into valias \
+     ( alias, domain, valias_line, valias_type) values ( '%s', '%s', '%s', '%d')",
        alias, domain,  alias_line, valias_type);
 /* end patch */
 #else
-    snprintf( SqlBufUpdate, SQL_BUF_SIZE, "insert into valias \
-     ( alias, domain, valias_line ) values ( '%s', '%s', \"%s\")",
+    qnprintf( SqlBufUpdate, SQL_BUF_SIZE, "insert into valias \
+     ( alias, domain, valias_line ) values ( '%s', '%s', '%s')",
        alias, domain,  alias_line );
 #endif
 

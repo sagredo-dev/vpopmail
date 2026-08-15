@@ -4044,6 +4044,69 @@ char *maildir_to_email(const char *maildir) {
 /* escape these characters out of strings: ', \, " */
 #define ESCAPE_CHARS "'\"\\"
 
+/* Installed by the SQL backend once it has a connection it can ask about the
+ * server's quoting rules.  While this is NULL qnprintf() falls back to the
+ * historical backslash escaping, which is only correct on a server that
+ * honours backslash escapes -- see vsql_escape_arg().
+ */
+vsql_escape_fn vsql_escape_hook = NULL;
+
+/* A %s that lands outside every quote is a table name or a column list, never
+ * user data.  Such a token cannot be escaped at all, so the only defence is to
+ * insist it could not change the query in the first place.
+ */
+static int vsql_bare_is_safe(const char *s) {
+  for (; *s != '\0'; s++) {
+    if (*s >= 'a' && *s <= 'z') continue;
+    if (*s >= 'A' && *s <= 'Z') continue;
+    if (*s >= '0' && *s <= '9') continue;
+    if (*s == '_' || *s == '$' || *s == '.' || *s == ',' || *s == ' ') continue;
+    return 0;
+  }
+  return 1;
+}
+
+/* Escape one %s argument for the SQL context it is being interpolated into.
+ * quote is the delimiter of the literal it sits inside, or 0 when it sits
+ * outside any quoting.  Returns a malloc'd string the caller frees, or NULL
+ * if the value cannot be represented safely.
+ */
+static char *vsql_escape_arg(const char *s, char quote) {
+  size_t len = strlen(s);
+  char *out;
+  char *o;
+
+  if (quote == 0) {
+    if (!vsql_bare_is_safe(s)) return NULL;
+    return strdup(s);
+  }
+
+  /* worst case is every byte escaped, so two bytes out per byte in */
+  out = malloc(2 * len + 1);
+  if (out == NULL) return NULL;
+
+  if (vsql_escape_hook != NULL) {
+    if (vsql_escape_hook(out, s, quote) == (size_t)-1) {
+      free(out);
+      return NULL;
+    }
+    return out;
+  }
+
+  /* No backend escaper registered.  Backslash escaping is wrong whenever the
+   * server does not treat backslash as an escape character (MySQL's
+   * NO_BACKSLASH_ESCAPES, and standard SQL generally), but it is what this
+   * code has always done, so keep it rather than break a backend that has not
+   * been converted yet.
+   */
+  for (o = out; *s != '\0'; s++) {
+    if (strchr(ESCAPE_CHARS, *s) != NULL) *o++ = '\\';
+    *o++ = *s;
+  }
+  *o = '\0';
+  return out;
+}
+
 /* qnprintf - Custom version of snprintf for creating SQL queries with escaped
  *            strings.
  *
@@ -4074,6 +4137,9 @@ int qnprintf(char *buffer, size_t size, const char *format, ...) {
   const char *f; /* current position in format string */
   char *b;       /* current position in output buffer */
   char n[60];    /* buffer to hold string representation of number */
+  char quote;    /* SQL delimiter we are inside of, or 0 */
+  char *esc;     /* escaped copy of a %s argument, freed each pass */
+  int failed;    /* an argument could not be escaped safely */
 
   int argn = 0; /* used for numbered arguments */
   char argstr[10];
@@ -4085,13 +4151,25 @@ int qnprintf(char *buffer, size_t size, const char *format, ...) {
   va_start(ap, format);
 
   printed = 0;
+  quote = 0;
+  failed = 0;
   b = buffer;
   for (f = format; *f != '\0'; f++) {
     if (*f != '%') {
+      /* Track the literal being assembled.  The format string is compile-time
+       * SQL, and arguments are copied in already escaped, so this state can
+       * only ever be driven by the query itself.
+       */
+      if (quote == 0) {
+        if (*f == '\'' || *f == '"' || *f == '`') quote = *f;
+      } else if (*f == quote) {
+        quote = 0;
+      }
       if (++printed < (int)size) *b++ = *f;
     } else {
       f++;
       s = n;
+      esc = NULL;
       switch (*f) {
         case '%':
           strcpy(n, "%");
@@ -4130,6 +4208,15 @@ int qnprintf(char *buffer, size_t size, const char *format, ...) {
 
         case 's':
           s = va_arg(ap, char *);
+          if (s == NULL) s = "";
+          esc = vsql_escape_arg(s, quote);
+          if (esc == NULL) {
+            failed = 1;
+            s = n;
+            n[0] = '\0';
+          } else {
+            s = esc;
+          }
           break;
 
         default:
@@ -4166,29 +4253,31 @@ int qnprintf(char *buffer, size_t size, const char *format, ...) {
             strcpy(n, "*");
           }
       }
+      /* %s arguments were escaped above, numbers need no escaping */
       while (*s != '\0') {
-        if (strchr(ESCAPE_CHARS, *s) != NULL) {
-          if (++printed < (int)size) *b++ = '\\';
-        }
         if (++printed < (int)size) *b++ = *s;
         s++;
       }
+      if (esc != NULL) free(esc);
     }
   }
 
   va_end(ap);
 
+  if (buffer == NULL) return printed;
+
   *b = '\0';
 
   /* If the query doesn't fit in the buffer, zero out the buffer.  An
    * incomplete query could be very dangerous (say if a WHERE clause
-   * got dropped from a DELETE).
+   * got dropped from a DELETE).  An argument we could not escape is treated
+   * the same way: emit nothing rather than a query we cannot vouch for.
    */
-  if (printed >= (int)size) {
+  if (failed || printed >= (int)size) {
     memset(buffer, '\0', size);
   }
 
-  return printed;
+  return failed ? -1 : printed;
 }
 
 /* Linked-list code for handling valias entries in SQL database (read
