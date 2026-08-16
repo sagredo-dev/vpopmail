@@ -252,15 +252,13 @@ domain VARCHAR(96) NOT NULL, \
 valias_line text NOT NULL, \
 copy tinyint(1) NOT NULL DEFAULT 0 COMMENT '0=redirect 1=copy&redirect', \
 INDEX (alias,domain,valias_type), \
-INDEX (alias, domain), \
-INDEX (timestamp)"
+INDEX (alias, domain)"
 #else
 #define VALIAS_TABLE_LAYOUT "id int(11) PRIMARY KEY AUTO_INCREMENT, \
 alias VARCHAR(32) NOT NULL, \
 domain VARCHAR(96) NOT NULL, \
 valias_line text NOT NULL, \
-INDEX (alias, domain), \
-INDEX (timestamp)"
+INDEX (alias, domain)"
 #endif
 
 #endif
@@ -273,7 +271,8 @@ INDEX (timestamp)"
       timestamp INT default 0 NOT NULL, error TINYINT(1), \
       INDEX user_idx (user), \
       INDEX domain_idx (domain), INDEX remoteip_idx (remoteip), \
-      INDEX error_idx (error), INDEX message_idx (message)"
+      INDEX error_idx (error), INDEX message_idx (message), \
+      INDEX (timestamp)"
 #endif
 
 #ifdef ENABLE_MYSQL_LIMITS
