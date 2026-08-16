@@ -7,6 +7,7 @@ unreleased
     to index.
   - fix SQL escaping in qnprintf() and valias_insert(), including proper handling of MySQL NO_BACKSLASH_ESCAPES
     and SQL injection via authentication data. (thanks to Yasuo Ohgaki)
+  - vusaged: rename internal list functions to vlist_* to avoid symbol collisions with MariaDB client library.
 
 5.6.13 - Feb 11, 2026
   - vlimits.c: avoids no file found exit when .qmailadmin-limits is not existent because no limits are defined yet
