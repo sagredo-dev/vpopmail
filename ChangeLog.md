@@ -3,7 +3,10 @@
 unreleased
   - storage.h: refactored 64-bit endian conversion handling, replacing non-portable GNU-specific byte-swap
     fallbacks with OpenBSD-compatible implementations.
-  - added a script to purge the vpopmail.vlog table in case mysql is enabled. 'timestamp' column promoted to index.
+  - added a script to purge the vpopmail.vlog table in case mysql is enabled. 'timestamp' column promoted
+    to index.
+  - fix SQL escaping in qnprintf() and valias_insert(), including proper handling of MySQL NO_BACKSLASH_ESCAPES
+    and SQL injection via authentication data. (thanks to Yasuo Ohgaki)
 
 5.6.13 - Feb 11, 2026
   - vlimits.c: avoids no file found exit when .qmailadmin-limits is not existent because no limits are defined yet
