@@ -113,7 +113,7 @@ userstore_t *userstore_load(const char *path)
 	  for (i = 0; i < items; i++)
 		 directory_free(dlist[i]);
 
-	  list_free((void **)dlist, &items);
+	  vlist_free((void **)dlist, &items);
 	  fprintf(stderr, "userstore_load: strdup failed\n");
 	  return NULL;
    }
@@ -258,7 +258,7 @@ int userstore_poll(userstore_t *u)
 #ifdef USERSTORE_DEBUG
 		 printf("userstore_poll: Lost folder: %s\n", u->directory[i]->directory);
 #endif
-		 u->directory = (directory_t **)list_remove((void **)(u->directory), &(u->num_directories), u->directory[i]);
+		 u->directory = (directory_t **)vlist_remove((void **)(u->directory), &(u->num_directories), u->directory[i]);
 		 continue;
 	  }
 
@@ -435,7 +435,7 @@ static int userstore_find_directories(userstore_t *u)
 	  */
 
 	  if (d)
-		 u->directory = (directory_t **)list_add((void **)u->directory, &(u->num_directories), d);
+		 u->directory = (directory_t **)vlist_add((void **)u->directory, &(u->num_directories), d);
 #ifdef USERSTORE_DEBUG
 	  else
 		 fprintf(stderr, "userstore_find_directories: directory_load(%s) failed\n", b);
@@ -470,7 +470,7 @@ static int userstore_find_directories(userstore_t *u)
 	  
 	  d = directory_load(b);
 	  if (d)
-		 u->directory = (directory_t **)list_add((void **)u->directory, &(u->num_directories), d);
+		 u->directory = (directory_t **)vlist_add((void **)u->directory, &(u->num_directories), d);
 #ifdef USERSTORE_DEBUG
 	  else
 		 fprintf(stderr, "userstore_find_directories: directory_load(%s) failed\n", b);
@@ -540,7 +540,7 @@ static void userstore_free_directory(userstore_t *u)
    for (i = 0; i < u->num_directories; i++)
 	  directory_free(u->directory[i]);
 
-   list_free((void **)u->directory, &u->num_directories);
+   vlist_free((void **)u->directory, &u->num_directories);
 
    u->directory = NULL;
    u->num_directories = 0;

@@ -30,7 +30,7 @@
    Also establishes a new list
 */
 
-void **list_add(void **list, int *items, const void *ptr)
+void **vlist_add(void **list, int *items, const void *ptr)
 {
 #ifdef ASSERT_DEBUG
    assert(items != NULL);
@@ -75,7 +75,7 @@ void **list_add(void **list, int *items, const void *ptr)
    Remove an item from a list
 */
 
-void **list_remove(void **list, int *items, const void *ptr)
+void **vlist_remove(void **list, int *items, const void *ptr)
 {
    void **nlist = NULL;
    int i = 0, k = 0, ki = 0;
@@ -145,7 +145,7 @@ void **list_remove(void **list, int *items, const void *ptr)
    Deallocate a list
 */
 
-void list_free(void **list, int *items)
+void vlist_free(void **list, int *items)
 {
 #ifdef ASSERT_DEBUG
    assert(items != NULL);

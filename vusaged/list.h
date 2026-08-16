@@ -21,9 +21,11 @@
 #ifndef __LIST_H_
    #define __LIST_H_
 
-void **list_alloc(void);
-void **list_add(void **, int *, const void *);
-void **list_remove(void **, int *, const void *);
-void list_free(void **, int *);
+/*
+   The v prefix avoids a symbol name collision with libmariadb.
+ */
+void **vlist_add(void **, int *, const void *);
+void **vlist_remove(void **, int *, const void *);
+void vlist_free(void **, int *);
 
 #endif
