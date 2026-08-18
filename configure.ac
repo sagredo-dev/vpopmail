@@ -41,9 +41,10 @@ AC_SEARCH_LIBS([strerror],[cposix])
 
 #----------------------------------------------------------------------
 
-AC_CHECK_LIB(crypt, crypt)
+AC_SEARCH_LIBS([crypt], [crypt])
 #AC_CHECK_LIB(nsl, gethostbyaddr)
 #AC_CHECK_LIB(socket, getsockname)
+AC_CHECK_FUNCS([bcrypt_gensalt bcrypt])
 
 #----------------------------------------------------------------------
 

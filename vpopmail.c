@@ -945,22 +945,54 @@ int mkpasswd3(char *clearpass, char *crypted, int ssize) {
 #endif
 
   tmpstr = crypt(clearpass, salt);
+
+#if defined(SHA512_PASSWORDS) || defined(MD5_PASSWORDS)
+  /*
+   * Make sure this host's crypt supports the requested password
+   * format. If it does not, use bcrypt when available.
+   */
+  if (tmpstr != NULL && tmpstr[0] == '$' &&
+      tmpstr[1] == salt[1] && tmpstr[2] == '$') {
+    strncpy(crypted, tmpstr, ssize);
+    crypted[ssize - 1] = '\0';
+    return (VA_SUCCESS);
+  }
+
+#ifdef HAVE_BCRYPT
+  {
+    char *bcrypt_salt;
+    char *bcrypt_hash;
+
+    bcrypt_salt = bcrypt_gensalt(12);
+    if (bcrypt_salt == NULL) return (VA_CRYPT_FAILED);
+
+    bcrypt_hash = bcrypt(clearpass, bcrypt_salt);
+    if (bcrypt_hash == NULL) return (VA_CRYPT_FAILED);
+
+    strncpy(crypted, bcrypt_hash, ssize);
+    crypted[ssize - 1] = '\0';
+
+    return (VA_SUCCESS);
+  }
+#else
   if (tmpstr == NULL) return (VA_CRYPT_FAILED);
 
-#if defined(MD5_PASSWORDS) || defined(SHA512_PASSWORDS)
-  /* Make sure this host's crypt supports MD5 passwords.  If not,
-   * fall back on old-style crypt
-   */
-  if (tmpstr[2] != '$') {
-    salt[0] = randltr();
-    salt[1] = randltr();
-    salt[2] = 0;
-    tmpstr = crypt(clearpass, salt);
-    if (tmpstr == NULL) return (VA_CRYPT_FAILED);
-  }
+  /* Fall back to old-style crypt. */
+  salt[0] = randltr();
+  salt[1] = randltr();
+  salt[2] = 0;
+
+  tmpstr = crypt(clearpass, salt);
+  if (tmpstr == NULL) return (VA_CRYPT_FAILED);
+#endif
+
+#else
+  if (tmpstr == NULL) return (VA_CRYPT_FAILED);
 #endif
 
   strncpy(crypted, tmpstr, ssize);
+  crypted[ssize - 1] = '\0';
+
   return (VA_SUCCESS);
 }
 
