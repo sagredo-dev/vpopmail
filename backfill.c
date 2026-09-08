@@ -133,7 +133,7 @@ remove_line(char *template, char *filename, mode_t mode, int once_only)
 }
 
 /* Find the last occurrence of the substring needle in the string haystack */
-char *strrstr(const char *haystack, const char *needle)
+char *strrstr(char *haystack, const char *needle)
 {
 	char *ptr = NULL;
 	char *last = NULL;
