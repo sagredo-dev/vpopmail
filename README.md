@@ -1,7 +1,9 @@
 # `vpopmail`
 
 Vpopmail is a set of programs for creating and managing multiple virtual domains on a qmail server,
-with full support for many POP/IMAP servers
+with full support for many POP/IMAP servers.
+
+This is a fork of [brunonymous/vpopmail](https://github.com/brunonymous/vpopmail) from version 5.6.1 onwards. It also merges all the commit history with proper git attribution from [DerDakon/vpopmail](https://github.com/DerDakon/vpopmail)
 
 ## Upgrading from version 5.4.33
 
