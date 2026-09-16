@@ -9,6 +9,8 @@ unreleased
     and SQL injection via authentication data. (thanks to Yasuo Ohgaki)
   - vusaged: rename internal list functions to vlist_* to avoid symbol collisions with MariaDB client library.
   - backfill.c: fix const qualifier warnings in strrstr()
+  - bug fix in vpalias.c: valias_select_next() was called with a 'valias' variable, while it is defined with
+    no arguments (tx Ulrich).
 
 5.6.13 - Feb 11, 2026
   - vlimits.c: avoids no file found exit when .qmailadmin-limits is not existent because no limits are defined yet
