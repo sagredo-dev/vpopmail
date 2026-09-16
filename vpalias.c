@@ -482,7 +482,7 @@ char *valias_select_all_next(char *alias)
     return( NULL );
   }
   
-  tmpstr=valias_select_next(alias);
+  tmpstr=valias_select_next();
 
   if (NULL == tmpstr) {
     tmpstr=valias_select_names_next();
