@@ -1,6 +1,6 @@
 # ChangeLog
 
-unreleased
+5.6.14 - Sep 16, 2026
   - storage.h: refactored 64-bit endian conversion handling, replacing non-portable GNU-specific byte-swap
     fallbacks with OpenBSD-compatible implementations.
   - added a script to purge the vpopmail.vlog table in case mysql is enabled. 'timestamp' column promoted
