@@ -77,12 +77,11 @@ Install zlib1g-dev to enable it.])])
 dnl curl_getdate() parses the RFC 2822 Date: header, so the GELF logs can carry a parsed
 dnl _date and _date_human. Optional: without it the raw header is emitted as _header_date
 dnl instead, so a missing libcurl degrades the logs rather than breaking the build.
-dnl Only parsedate.o and strcase.o from libcurl.a are pulled in by the linker.
 have_curl_getdate=no
 AC_CHECK_HEADER([curl/curl.h],
     [AC_CHECK_LIB([curl], [curl_getdate],
         [have_curl_getdate=yes
-         GELF_LIBS="$GELF_LIBS -Wl,-Bstatic -lcurl -Wl,-Bdynamic"])])
+         GELF_LIBS="$GELF_LIBS -lcurl"])])
 AS_IF([test "x$have_curl_getdate" = xyes],
     [AC_DEFINE([HAVE_CURL_GETDATE], [1],
         [Define to 1 if libcurl provides curl_getdate() for Date: header parsing.])],
