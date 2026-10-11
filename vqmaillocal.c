@@ -47,7 +47,6 @@ char TheDash[AUTH_SIZE];
 char TheExt[AUTH_SIZE];
 char TheSender[AUTH_SIZE];
 char TheDefaultDelivery[AUTH_SIZE];
-char TheUserFull[AUTH_SIZE];
 char TheDomain[AUTH_SIZE];
 char TheDir[AUTH_SIZE];
 char CurrentDir[AUTH_SIZE];
@@ -164,8 +163,7 @@ void get_arguments(int argc, char **argv)
     lowerit(TheUser);
     lowerit(TheDomain);
 
-    strncpy(TheUserFull, TheUser, AUTH_SIZE);
-#ifdef QMAIL_EXT 
+#ifdef QMAIL_EXT
     /* delete the '-' and following chars if any and store in TheUserExt */
     for(i = 0; TheUser[i] != 0; i++) {
         if (TheUser[i] == '-' ) {

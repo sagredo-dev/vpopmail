@@ -18,22 +18,10 @@
 #ifndef VPOPMAIL_VDELIVERMAIL_H
 #define VPOPMAIL_VDELIVERMAIL_H
 
-void delete_tmp();
-int failtemp(char *,...);
-int failperm(char *,...);
-struct vqpasswd* pop_user_exist(char *, char *, char *, char *);
-void sig_handler(int);
-void deliver_mail(char *, struct vqpasswd *);
-int is_bounce(char *);
-off_t check_quota();
-off_t count_dir(char *dir);
-off_t recalc_quota(char *dir_name);
-void update_quota(off_t new_size);
-int is_email_addr(char *);
-int email_it(char *address);
-int email_file(char *, char *);
-int check_forward_deliver(char *);
-int bounce_it_back(char *);
-int is_delete(char *);
+// Shared with gelf.c, which reports these same exit codes in its GELF payload.
+#define EXIT_OK 0
+#define EXIT_BOUNCE 100
+#define EXIT_DEFER 111
+#define EXIT_OK_STOP 99
 
 #endif

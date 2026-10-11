@@ -138,3 +138,21 @@ vusagec
 vuserinfo
 vverifypw
 vusaged/vusaged
+
+# macOS, editor and local test files
+.DS_Store
+._*
+.Trashes
+*.code-workspace
+test.eml
+
+# Log output: keep the directory, drop whatever lands in it.
+# Must be /logs/* and not /logs/ -- git does not descend into an ignored
+# directory, so the negation below could never be reached.
+/logs/*
+!/logs/.gitkeep
+
+# Test programs built by "make check-headers": track only their source
+/tests/*
+!/tests/*.c
+!/tests/*.h
