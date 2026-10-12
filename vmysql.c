@@ -609,15 +609,15 @@ struct vqpasswd *vauth_getpw(char *user, char *domain)
     vpw.pw_clear_passwd  = IClearPass;
 
     if((row = mysql_fetch_row(res_read))) {
-        strncpy(vpw.pw_name,row[0],SMALL_BUFF);
-        if ( row[1] != 0 )  strncpy(vpw.pw_passwd,row[1],SMALL_BUFF);
+        strncpy(vpw.pw_name,row[0],SMALL_BUFF - 1);
+        if ( row[1] != 0 )  strncpy(vpw.pw_passwd,row[1],SMALL_BUFF - 1);
         if ( row[2] != 0 ) vpw.pw_uid    = atoi(row[2]);
         if ( row[3] != 0 ) vpw.pw_gid    = atoi(row[3]);
-        if ( row[4] != 0 ) strncpy(vpw.pw_gecos,row[4],SMALL_BUFF);
-        if ( row[5] != 0 ) strncpy(vpw.pw_dir,row[5],SMALL_BUFF);
-        if ( row[6] != 0 ) strncpy(vpw.pw_shell, row[6],SMALL_BUFF);
+        if ( row[4] != 0 ) strncpy(vpw.pw_gecos,row[4],SMALL_BUFF - 1);
+        if ( row[5] != 0 ) strncpy(vpw.pw_dir,row[5],SMALL_BUFF - 1);
+        if ( row[6] != 0 ) strncpy(vpw.pw_shell, row[6],SMALL_BUFF - 1);
 #ifdef CLEAR_PASS
-        if ( row[7] != 0 )  strncpy(vpw.pw_clear_passwd, row[7],SMALL_BUFF);
+        if ( row[7] != 0 )  strncpy(vpw.pw_clear_passwd, row[7],SMALL_BUFF - 1);
 #endif
     } else {
         mysql_free_result(res_read);
@@ -846,18 +846,18 @@ struct vqpasswd *vauth_getall(char *domain, int first, int sortit)
     vpw.pw_clear_passwd  = IClearPass;
     
     if ((row_getall = mysql_fetch_row(res_read_getall)) != NULL) {
-        strncpy(vpw.pw_name,row_getall[0],SMALL_BUFF);
-        if (row_getall[1]!=0) strncpy(vpw.pw_passwd,row_getall[1],SMALL_BUFF);
+        strncpy(vpw.pw_name,row_getall[0],SMALL_BUFF - 1);
+        if (row_getall[1]!=0) strncpy(vpw.pw_passwd,row_getall[1],SMALL_BUFF - 1);
         if (row_getall[2]!=0) vpw.pw_uid = atoi(row_getall[2]);
         if (row_getall[3]!=0) vpw.pw_gid = atoi(row_getall[3]);
-        if (row_getall[4]!=0) strncpy(vpw.pw_gecos,row_getall[4],SMALL_BUFF);
-        if (row_getall[5]!=0) strncpy(vpw.pw_dir,row_getall[5],SMALL_BUFF);
+        if (row_getall[4]!=0) strncpy(vpw.pw_gecos,row_getall[4],SMALL_BUFF - 1);
+        if (row_getall[5]!=0) strncpy(vpw.pw_dir,row_getall[5],SMALL_BUFF - 1);
         if (row_getall[6]!=0) {
-            strncpy(vpw.pw_shell, row_getall[6],SMALL_BUFF);
+            strncpy(vpw.pw_shell, row_getall[6],SMALL_BUFF - 1);
         }
 #ifdef CLEAR_PASS
         if (row_getall[7]!=0) {
-            strncpy(vpw.pw_clear_passwd, row_getall[7],SMALL_BUFF);
+            strncpy(vpw.pw_clear_passwd, row_getall[7],SMALL_BUFF - 1);
         }
 #endif
         more = 1;

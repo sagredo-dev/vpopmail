@@ -46,10 +46,13 @@ static int statcurnew(const char *dir, time_t *maxtimestamp);
 static int statsubdir(const char *dir, const char *subdir, time_t *maxtime);
 static int doaddquota(const char *dir, int maildirsize_fd, const char *quota_type, 
                       storage_t maildirsize_size, storage_t maildirsize_cnt, int isnew);
-static int docheckquota(const char *dir, int *maildirsize_fdptr, const char *quota_type, 
-                        storage_t xtra_size, storage_t xtra_cnt, int *percentage);
+static int docheckquota(const char *dir, int *maildirsize_fdptr, const char *quota_type,
+                        storage_t xtra_size, storage_t xtra_cnt, int *percentage,
+                        storage_t *initial_bytesp, storage_t *initial_countp, int *initial_sourcep);
 static int docount(const char *dir, time_t *dirstamp, storage_t *sizep, storage_t *cntp);
-static int maildir_checkquota(const char *dir, int *maildirsize_fdptr, const char *quota_type, storage_t xtra_size, storage_t xtra_cnt);
+static int parent_is_maildir(const char *dir, char *buf);
+static int maildir_checkquota(const char *dir, int *maildirsize_fdptr, const char *quota_type, storage_t xtra_size, storage_t xtra_cnt,
+                        storage_t *initial_bytesp, storage_t *initial_countp, int *initial_sourcep);
 /*  moved into maildirquota.h as non-static
 static int maildir_addquota(const char *dir, int maildirsize_fd,
 	const char *quota_type, long maildirsize_size, int maildirsize_cnt);
@@ -69,11 +72,14 @@ int quota_mtos(const char *, storage_t *, storage_t *);
 int quota_user_usage(const char *, storage_t *, storage_t *);
 
 /* bk: add domain limits functionality */
-int domain_over_maildirquota(const char *userdir)
+/* domain_name - the domain to check. Callers used to pass a maildir path and let this
+   function derive the domain from it; that derivation now happens in the caller, which
+   knows whether the destination is the recipient's own maildir (where the domain is
+   known exactly) or some other path (where it can only be inferred). The local copy
+   below exists because vget_assign() rewrites the domain it is given. */
+int domain_over_maildirquota(const char *domain_name, storage_t message_bytes)
 {
-struct  stat    stat_buf;
 char	domdir[MAX_PW_DIR];
-char	*p;
 char	domain[256], qb[256] = { 0 };
 storage_t size = 0;
 storage_t maxsize = 0;
@@ -83,18 +89,13 @@ storage_t maxcnt = 0;
 struct vlimits limits;
    storage_t susage = 0, cusage = 0;
 
-        if (fstat(0, &stat_buf) == 0 && S_ISREG(stat_buf.st_mode) &&
-                stat_buf.st_size > 0)
+        if (message_bytes > 0)
         {
 
-		/* locate the domain directory */
-		p = maildir_to_email(userdir);
-		if (p == NULL) return -1;
+		if (domain_name == NULL || *domain_name == 0) return -1;
 
-		p = strchr (p, '@');
-		if (p == NULL) return -1;
-
-		strcpy(domain, p + 1);
+		/* snprintf, not strcpy: the old path-derived domain was copied unbounded */
+		snprintf(domain, sizeof(domain), "%s", domain_name);
 
 		/* get the domain quota */
 		if (vget_limits(domain, &limits)) return 0;
@@ -119,7 +120,7 @@ struct vlimits limits;
 
 			ret = client_query_quick(qb, &susage, &cusage);
 			if (ret) {
-			   if ((susage + stat_buf.st_size) > maxsize)
+			   if ((susage + message_bytes) > maxsize)
 				  return 1;
 
 			   if ((maxcnt) && (cusage >= maxcnt))
@@ -132,7 +133,7 @@ struct vlimits limits;
 		 if (readdomainquota(domdir, &size, &cnt)) return -1;
 
 		/* check if either quota (size/count) would be exceeded */
-		if (maxsize > 0 && (size + stat_buf.st_size) > maxsize) return 1;
+		if (maxsize > 0 && (size + message_bytes) > maxsize) return 1;
 		else if (maxcnt > 0 && cnt >= maxcnt) return 1;
         }
 
@@ -285,26 +286,36 @@ int readuserquota(const char* dir, storage_t *sizep, storage_t *cntp)
 	return retval;
 }
 
-int user_over_maildirquota( const char *dir, const char *q)
+/* Checks whether delivering message_bytes/1 message to this maildir would exceed
+   quota q. *over_quota_out (must not be NULL) is the answer (1 = over), and is only meaningful
+   when 0 is returned; it is 0 when the check is skipped entirely (no quota set,
+   or message_bytes is 0). Return value:
+     0  - the check completed.
+    -2  - couldn't determine (I/O error, out of memory, etc.)
+    -3  - the maildir changed while maildirsize was being rebuilt, so the new
+          figures may be slightly off. The rebuilt maildirsize was still written,
+          so an immediate retry will usually answer from it without rebuilding.
+          initial_bytesp/initial_countp/initial_sourcep still report those figures.
+   initial_bytesp/initial_countp/initial_sourcep, if non-NULL, report the
+   maildir's consumption as measured during this check (before message_bytes is
+   added). See maildir_get_consumption() for the same figures without making an
+   over-quota decision. */
+// Note: If the vusage daemon is consulted, it doesn't enforce the message count limit.
+int user_over_maildirquota( const char *dir, const char *q, storage_t message_bytes,
+	int *over_quota_out, storage_t *initial_bytesp, storage_t *initial_countp, int *initial_sourcep)
 {
-struct  stat    stat_buf;
 int     quotafd = -1;
 int     ret_value = 0;
 
-        //   stat file              is regular file                size > 0               what is q?
-        if (fstat(0, &stat_buf) == 0 && S_ISREG(stat_buf.st_mode) && stat_buf.st_size > 0 && *q)
-        {       //   check the quota, and not again error
-                if (maildir_checkquota(dir, &quotafd, q, stat_buf.st_size, 1) && errno != EAGAIN)
-                {
-                        if (quotafd >= 0)       close(quotafd);
-                        ret_value = 1;
-                } else {
-                        //maildir_addquota(dir, quotafd, q, stat_buf.st_size, 1);
-                        if (quotafd >= 0)       close(quotafd);
+        *over_quota_out = 0;
+        if (message_bytes > 0 && *q)
+        {
+                ret_value = maildir_checkquota(dir, &quotafd, q, message_bytes, 1, initial_bytesp, initial_countp, initial_sourcep);
+                if (quotafd >= 0)       close(quotafd);
+                if (ret_value == -1) {  /* internally, -1 means over quota */
+                        *over_quota_out = 1;
                         ret_value = 0;
                 }
-        } else {
-                ret_value = 0;
         }
 
         return(ret_value);
@@ -321,9 +332,9 @@ char    quotawarnmsg[500];
         if (stat(quotawarnmsg, &stat_buf) == 0 && S_ISREG(stat_buf.st_mode) &&
                 stat_buf.st_size > 0 && *q)
         {
-                maildir_checkquota(dir, &quotafd, q, stat_buf.st_size, 1);
+                maildir_checkquota(dir, &quotafd, q, stat_buf.st_size, 1, NULL, NULL, NULL);
                 if (quotafd >= 0)       close(quotafd);
-                maildir_addquota(dir, quotafd, q, 
+                maildir_addquota(dir, quotafd, q,
                     stat_buf.st_size, 1);
                 if (quotafd >= 0)       close(quotafd);
         }
@@ -481,7 +492,10 @@ static int maildir_checkquota(const char *dir,
 	int *maildirsize_fdptr,
 	const char *quota_type,
 	storage_t xtra_size,
-	storage_t xtra_cnt)
+	storage_t xtra_cnt,
+	storage_t *initial_bytesp,
+	storage_t *initial_countp,
+	int *initial_sourcep)
 {
 int	dummy, ret = 0;
 
@@ -494,11 +508,31 @@ int	dummy, ret = 0;
 
    ret = client_query_quick(" ", NULL, NULL);
    if (ret) {
-      ret = vmaildir_readquota(dir, quota_type);
-	  if (ret >= 100)
-		 return -1;
+      /* Single query gets both the percentage (via the same math
+         vmaildir_readquota() uses) and the raw usage bytes, instead of
+         querying the daemon a second time for data we already have. */
+      storage_t uusage = 0, dusage = 0, usquota = 0, ucquota = 0;
+      char *email = maildir_to_email(dir);
 
-	  return 0;
+      if (client_query_quick(email, &uusage, &dusage) && uusage != -1) {
+         int pct;
+
+         quota_mtos(quota_type, &usquota, &ucquota);
+         pct = (int)((long double)((long double)uusage/(long double)usquota) * (long double)100.0);
+         if (pct > 100) pct = 100;
+         if (pct < 0) pct = 0;
+
+         if (initial_bytesp) *initial_bytesp = uusage;
+         if (initial_countp) *initial_countp = dusage;
+         if (initial_sourcep) *initial_sourcep = QUOTA_CALC_DAEMON;
+
+         if (pct >= 100)
+            return -1;
+         return 0;
+      }
+      /* Daemon answered the ping but not this query (race/flake) -- fall
+         through to the file-based path below rather than trust a partial
+         answer. */
    }
 
    /*
@@ -506,7 +540,45 @@ int	dummy, ret = 0;
    */
 
 	return (docheckquota(dir, maildirsize_fdptr, quota_type,
-		xtra_size, xtra_cnt, &dummy));
+		xtra_size, xtra_cnt, &dummy, initial_bytesp, initial_countp, initial_sourcep));
+}
+
+/* Reports current maildir consumption (bytes and message count), without
+   deciding over-quota and without needing the size of any pending message.
+   Caller compares against its own allocated-quota figure. */
+/* Return value: 0 - consumption information obtained (usage_bytesp/message_countp/
+   sourcep are set, subject to the usual NULL-check-before-write; message_countp is
+   left untouched if the caller passed NULL, same as the other two).
+   -2 - something unusual happened and nothing could be measured. */
+// For sourcep:
+// QUOTA_CALC_UNKNOWN = 0,
+// QUOTA_CALC_DAEMON =1 
+// QUOTA_CALC_MAILDIRSIZE_CACHED =2
+// QUOTA_CALC_MAILDIRSIZE_RECALC =3
+int maildir_get_consumption(const char *dir, const char *quota_type,
+	storage_t *usage_bytesp, storage_t *message_countp, int *sourcep)
+{
+	storage_t uusage = 0, dusage = 0;
+	char *email = maildir_to_email(dir);
+
+	if (client_query_quick(email, &uusage, &dusage) && uusage != -1) {
+		if (usage_bytesp) *usage_bytesp = uusage;
+		if (message_countp) *message_countp = dusage;
+		if (sourcep) *sourcep = QUOTA_CALC_DAEMON;
+		return 0;
+	}
+
+	{
+		int fd = -1;
+		int percentage = 0; /* unused by caller; docheckquota just needs somewhere to write it */
+		int ret = docheckquota(dir, &fd, quota_type, 0, 0, &percentage, usage_bytesp, message_countp, sourcep);
+
+		if (fd >= 0) close(fd);
+		/* docheckquota may return -1 here (this account is already over its own
+		   quota, independent of any pending message) -- that's still a successful
+		   measurement for our purposes, since we don't report over/under at all. */
+		return (ret == -2 || ret == -3) ? -2 : 0;
+	}
 }
 
 int vmaildir_readquota(const char *dir, const char *quota_type)
@@ -552,10 +624,36 @@ int vmaildir_readquota(const char *dir, const char *quota_type)
 	  If usage daemon is not running, fall back on old methods
    */
 
-	(void)docheckquota(dir, &fd, quota_type, 0, 0, &percentage);
+	(void)docheckquota(dir, &fd, quota_type, 0, 0, &percentage, NULL, NULL, NULL);
 	if (fd >= 0)
 		close(fd);
 	return (percentage);
+}
+
+/* Maildir++ says a folder's quota belongs to its parent, and the maildirfolder
+ * file is how a folder announces itself.  But vpopmail creates that file
+ * nowhere, and other software has been known to write one into a ROOT Maildir
+ * by mistake -- Exim's documentation warns that "a maildirfolder file at top
+ * level would completely break quota calculations".  Here such a file sends the
+ * walk into the user's home directory, where the rebuild finds no cur/new,
+ * totals zero, and then either disables the account's quota silently, or, if
+ * the home directory has no tmp/ for makenewmaildirsizename() to write through,
+ * fails every delivery with "unable to determine quota".
+ *
+ * So climb only when the parent really is a maildir.  Probe cur/ alone: new/
+ * and tmp/ are ordinary directory names that occur all over a filesystem --
+ * a home directory holding a stray tmp/ and no cur/ is precisely the case this
+ * guards -- whereas cur/ essentially only occurs in a maildir.
+ *
+ * buf is caller scratch and must hold strlen(dir)+sizeof("/../cur"); both call
+ * sites allocate strlen(dir)+sizeof("/maildirfolder"), which is larger.
+ */
+static int parent_is_maildir(const char *dir, char *buf)
+{
+struct	stat	st;
+
+	strcat(strcpy(buf, dir), "/../cur");
+	return (stat(buf, &st) == 0 && S_ISDIR(st.st_mode));
 }
 
 static int docheckquota(const char *dir,
@@ -563,7 +661,10 @@ static int docheckquota(const char *dir,
 	const char *quota_type,
 	storage_t xtra_size,
 	storage_t xtra_cnt,
-	int *percentage)
+	int *percentage,
+	storage_t *initial_bytesp,
+	storage_t *initial_countp,
+	int *initial_sourcep)
 {
 char	*checkfolder=(char *)malloc(strlen(dir)+sizeof("/maildirfolder"));
 char	*newmaildirsizename;
@@ -578,14 +679,15 @@ time_t	maxtime;
 DIR	*dirp;
 struct dirent *de;
 
-	if (checkfolder == 0)	return (-1);
+	if (checkfolder == 0)	return (-2);
 	*maildirsize_fdptr= -1;
 	strcat(strcpy(checkfolder, dir), "/maildirfolder");
-	if (stat(checkfolder, &stat_buf) == 0)	/* Go to parent */
+	if (stat(checkfolder, &stat_buf) == 0 &&
+		parent_is_maildir(dir, checkfolder))	/* Go to parent */
 	{
 		strcat(strcpy(checkfolder, dir), "/..");
 		n=docheckquota(checkfolder, maildirsize_fdptr,
-			quota_type, xtra_size, xtra_cnt, percentage);
+			quota_type, xtra_size, xtra_cnt, percentage, initial_bytesp, initial_countp, initial_sourcep);
 		free(checkfolder);
 		return (n);
 	}
@@ -597,6 +699,10 @@ struct dirent *de;
 		&maildirsize_size, &maildirsize_cnt,
 		&maildirsize_nlines, &stat_buf) == 0)
 	{
+		if (initial_bytesp) *initial_bytesp = maildirsize_size;
+		if (initial_countp) *initial_countp = maildirsize_cnt;
+		if (initial_sourcep) *initial_sourcep = QUOTA_CALC_MAILDIRSIZE_CACHED;
+
 		n=qcalc(maildirsize_size+xtra_size, maildirsize_cnt+xtra_cnt,
 			quota_type, percentage);
 
@@ -621,7 +727,7 @@ struct dirent *de;
 	if (countcurnew(dir, &maxtime, &maildirsize_size, &maildirsize_cnt))
 	{
 		free(checkfolder);
-		return (-1);
+		return (-2);
 	}
 
 	dirp=opendir(dir);
@@ -632,7 +738,7 @@ struct dirent *de;
 		{
 			free(checkfolder);
 			closedir(dirp);
-			return (-1);
+			return (-2);
 		}
 	}
 	if (dirp)
@@ -643,7 +749,7 @@ struct dirent *de;
 		if (closedir(dirp))
 		{
 			free(checkfolder);
-			return (-1);
+			return (-2);
 		}
 #endif
 	}
@@ -652,7 +758,7 @@ struct dirent *de;
 	if (!newmaildirsizename)
 	{
 		free(checkfolder);
-		return (-1);
+		return (-2);
 	}
 
 	chown(newmaildirsizename, VPOPMAILUID, VPOPMAILGID);
@@ -666,7 +772,7 @@ struct dirent *de;
 		*maildirsize_fdptr= -1;
 		free(newmaildirsizename);
 		free(checkfolder);
-		return (-1);
+		return (-2);
 	}
 
 	strcat(strcpy(checkfolder, dir), "/maildirsize");
@@ -686,7 +792,7 @@ struct dirent *de;
 	{
 		close(maildirsize_fd);
 		*maildirsize_fdptr= -1;
-		return (-1);
+		return (-2);
 	}
 
 	dirp=opendir(dir);
@@ -697,7 +803,7 @@ struct dirent *de;
 			close(maildirsize_fd);
 			*maildirsize_fdptr= -1;
 			closedir(dirp);
-			return (-1);
+			return (-2);
 		}
 	}
 	if (dirp)
@@ -709,15 +815,18 @@ struct dirent *de;
 		{
 			close(maildirsize_fd);
 			*maildirsize_fdptr= -1;
-			return (-1);
+			return (-2);
 		}
 #endif
 	}
 
+	if (initial_bytesp) *initial_bytesp = maildirsize_size;
+	if (initial_countp) *initial_countp = maildirsize_cnt;
+	if (initial_sourcep) *initial_sourcep = QUOTA_CALC_MAILDIRSIZE_RECALC;
+
 	if (tm != maxtime)	/* Race condition, someone changed something */
 	{
-		errno=EAGAIN;
-		return (-1);
+		return (-3);
 	}
 
 	return (qcalc(maildirsize_size+xtra_size, maildirsize_cnt+xtra_cnt,
@@ -768,7 +877,8 @@ int	n;
 		newname2=(char *)malloc(strlen(dir)+sizeof("/maildirfolder"));
 		if (!newname2)	return (-1);
 		strcat(strcpy(newname2, dir), "/maildirfolder");
-		if (stat(newname2, &u.stat_buf) == 0)
+		if (stat(newname2, &u.stat_buf) == 0 &&
+			parent_is_maildir(dir, newname2))
 		{
 			strcat(strcpy(newname2, dir), "/..");
 			n=doaddquota(newname2, maildirsize_fd, quota_type,

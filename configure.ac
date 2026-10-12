@@ -45,8 +45,49 @@ AC_SEARCH_LIBS([strerror],[cposix])
 #----------------------------------------------------------------------
 
 AC_CHECK_LIB(crypt, crypt)
+dnl libm is required on all platforms; where it lives in libc (macOS, musl) -lm is a harmless stub.
+LIBS="-lm $LIBS"
 #AC_CHECK_LIB(nsl, gethostbyaddr)
 #AC_CHECK_LIB(socket, getsockname)
+
+#----------------------------------------------------------------------
+
+dnl gelf logging support (vdelivermail) needs inih and cJSON; zlib and curl are optional.
+dnl Linked only into vdelivermail via GELF_LIBS; gelf.c is the sole C user.
+AC_CHECK_HEADER([ini.h], [],
+    [AC_MSG_ERROR([ini.h not found. Install the inih development package (e.g. "apt install libinih-dev").])])
+AC_CHECK_LIB([inih], [ini_parse], [GELF_LIBS="-linih"],
+    [AC_MSG_ERROR([libinih not found. Install the inih development package (e.g. "apt install libinih-dev").])])
+AC_CHECK_HEADER([cjson/cJSON.h], [],
+    [AC_MSG_ERROR([cjson/cJSON.h not found. Install the cJSON development package (e.g. "apt install libcjson-dev").])])
+AC_CHECK_LIB([cjson], [cJSON_Parse], [GELF_LIBS="$GELF_LIBS -lcjson"],
+    [AC_MSG_ERROR([libcjson not found. Install the cJSON development package (e.g. "apt install libcjson-dev").])])
+dnl zlib only gzips GELF/UDP datagrams (compression = gzip in vdelivermail.ini). Without it,
+dnl that setting is a configuration error when UDP logging is enabled, rather than silently ignored.
+have_zlib=no
+AC_CHECK_HEADER([zlib.h],
+    [AC_CHECK_LIB([z], [deflate],
+        [have_zlib=yes
+         GELF_LIBS="$GELF_LIBS -lz"])])
+AS_IF([test "x$have_zlib" = xyes],
+    [AC_DEFINE([HAVE_ZLIB], [1],
+        [Define to 1 if zlib is available to gzip GELF/UDP datagrams.])],
+    [AC_MSG_WARN([zlib not found: vdelivermail will reject compression = gzip when GELF/UDP logging is enabled.
+Install zlib1g-dev to enable it.])])
+dnl curl_getdate() parses the RFC 2822 Date: header, so the GELF logs can carry a parsed
+dnl _date and _date_human. Optional: without it the raw header is emitted as _header_date
+dnl instead, so a missing libcurl degrades the logs rather than breaking the build.
+have_curl_getdate=no
+AC_CHECK_HEADER([curl/curl.h],
+    [AC_CHECK_LIB([curl], [curl_getdate],
+        [have_curl_getdate=yes
+         GELF_LIBS="$GELF_LIBS -lcurl"])])
+AS_IF([test "x$have_curl_getdate" = xyes],
+    [AC_DEFINE([HAVE_CURL_GETDATE], [1],
+        [Define to 1 if libcurl provides curl_getdate() for Date: header parsing.])],
+    [AC_MSG_WARN([libcurl not found: GELF logs will carry the raw Date: header as _header_date
+rather than a parsed _date. Install libcurl4-openssl-dev for parsed timestamps.])])
+AC_SUBST(GELF_LIBS)
 
 #----------------------------------------------------------------------
 
@@ -94,6 +135,7 @@ AC_DEFINE_UNQUOTED([RETSIGTYPE],[$ac_cv_type_signal],[Define as the return type 
 #AC_FUNC_STAT
 AC_FUNC_UTIME_NULL
 AC_CHECK_FUNCS([htonll ntohll bzero dup2 fdatasync getcwd gethostname getpass getspnam memset mkdir putenv rmdir socket strchr strdup strerror strncasecmp strrchr strspn strstr utime warn])
+AC_CHECK_DECLS([optreset], [], [], [[#include <unistd.h>]])
 AC_MSG_CHECKING(for bswap64)
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
         #ifdef HAVE_SYS_ENDIAN_H
