@@ -1423,6 +1423,13 @@ case $AUTH_MODULE in
 
 esac
 
+dnl throw an error if TINYCDB is enabled while the auth-module is not cdb
+AS_IF([test "$TINYCDB" = 1], [
+    case $AUTH_MODULE in
+        cdb|CdB|CDB) ;;
+        *) AC_MSG_ERROR([--enable-tinycdb requires --enable-auth-module=cdb]) ;;
+    esac
+])
 
 #----------------------------------------------------------------------
 
