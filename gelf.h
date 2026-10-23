@@ -2,42 +2,22 @@
 #define GELF_H
 
 #include <stdbool.h>
-#include <stdint.h>
 #include <sys/types.h>
-#include <netinet/in.h>
 
 #define STANDARD_DEFER_MESSAGE "Temporary system error. (#4.3.0)"
 #define STANDARD_BOUNCE_MESSAGE "Permanent failure. (#5.3.0)"
 
-/* [gelf_log] compression, as accepted by the "compression" key. */
-#define GELF_COMPRESSION_NONE 0
-#define GELF_COMPRESSION_GZIP 1
+/* Maximum size of the full message stored in the exit log. */
+#define FULL_MESSAGE_MAX 4096
 
 /* [file_log] layouts. Same fields either way -- this only chooses the serialisation. */
 #define GELF_FORMAT_PRETTY 0
 #define GELF_FORMAT_GELF   1
 
 /*
- * [gelf_log] - GELF JSON over UDP.
- * min_severity is an RFC 5424 severity (0=emerg .. 7=debug); a record is sent
- * when its level is that severity or more severe, i.e. level <= min_severity.
- */
-typedef struct {
-  int enabled;                   /* default 0 */
-  const char* address;           /* raw INI value, kept for diagnostics; NULL if unset */
-  int port;                      /* host byte order; default 12201 */
-  struct sockaddr_in addr;       /* ready for sendto(); sin_family 0 until a valid address is set */
-  int compression;               /* GELF_COMPRESSION_*; default NONE */
-  int min_severity;              /* default LOG_INFO (6) */
-} gelf_target_t;
-
-/*
- * [file_log] - the same GELF records as the [gelf_log] target, written to a local file.
- * format=pretty (the default) indents them so they can be read without jq;
- * format=gelf puts one object per line, byte-identical to what the [gelf_log] target
- * would send, for grep, jq and log shippers.
- * There is no format key on [gelf_log]: a datagram is capped at GELF_UDP_MAX and nobody
- * reads one by eye, so the wire always gets the compact form.
+ * [file_log] - GELF records written to a local file.
+ * format=pretty (the default) indents them for readability;
+ * format=gelf writes one compact JSON object per line.
  */
 typedef struct {
   int enabled;                   /* default 0 */
@@ -55,7 +35,6 @@ typedef struct {
   int execute_dotqmail;             /* default 1 */
   int ensure_homedir_is_set_in_db;  /* default 1 */
   int ensure_homedir_exists_on_disk; /* default 1 */
-  gelf_target_t gelf;
   file_target_t file;
   char parse_error[256];            /* why the handler rejected a key; "" if it did not */
 } config_t;
@@ -294,12 +273,6 @@ typedef struct {
   bool has_signal;
 } delivery_log_t;
 
-/* Half of the 8192-byte GELF/UDP datagram budget (measured after gzip). Sized
- * for loop diagnostics: the full chain of Delivered-To values. Only loop
- * bounces fill it, so it is rarely large at the same time as
- * valias_instructions below. */
-#define FULL_MESSAGE_MAX 4096
-
 /* Size in bytes (including the NUL) of the exit log's copy of the valias
  * lines. This limits only what is logged: the number of valias lines is
  * unlimited, and all of them are processed. Sized for about 20-30 Maildir
@@ -336,7 +309,6 @@ typedef struct {
  */
 typedef struct {
   config_t config;
-  int sock;
   int log_fd;                    /* [file_log] target; -1 until opened by gelf_setup */
   char vdm_id[HEADER_VALUE_MAX]; /* "{unixtime}.{pid}.{box}", set by set_vdm_id */
   gelf_context_t context;

@@ -34,7 +34,6 @@
 /* config.h first: it defines _GNU_SOURCE, which only takes effect ahead of any system
  * header, and HAVE_CURL_GETDATE, which decides whether curl/curl.h is included at all. */
 #include "config.h"
-#include <arpa/inet.h>
 #include <cjson/cJSON.h>
 
 #ifdef HAVE_CURL_GETDATE
@@ -51,16 +50,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
-
-#ifdef HAVE_ZLIB
-#include <zlib.h>
-#endif
-
 #include <ini.h>
 #include "vpopmail.h"
 #include "gelf.h"
@@ -69,8 +62,6 @@
 #include "vdelivermail.h" // for EXIT_BOUNCE/EXIT_DEFER/EXIT_OK
 
 #define GELF_CONFIG_ENV "VPOPMAIL_VDELIVERMAIL_CONFIG"
-/* Graylog's usual single-datagram limit for GELF/UDP (incl. gzip payload). */
-#define GELF_UDP_MAX 8192
 
 
 /*
@@ -236,46 +227,6 @@ static int gelf_ini_handler(void* user, const char* section, const char* name, c
       return config_error(pconfig, section, name, "expected 1 or 0");
     }
   }
-  else if (MATCH("gelf_log", "enabled")) {
-    if (parse_bool(value, &pconfig->gelf.enabled) != 0) {
-      return config_error(pconfig, section, name, "expected 1 or 0");
-    }
-  }
-  else if (MATCH("gelf_log", "address")) {
-    /* Numeric IPv4 only, no DNS: a resolver call here would sit in the
-     * delivery path. Keep the raw value for diagnostics. */
-    free((void*)pconfig->gelf.address);
-    pconfig->gelf.address = strdup(value);
-    if (inet_pton(AF_INET, value, &pconfig->gelf.addr.sin_addr) != 1) {
-      return config_error(pconfig, section, name,
-                          "expected a dotted IPv4 address, e.g. 127.0.0.1");
-    }
-    pconfig->gelf.addr.sin_family = AF_INET;
-  }
-  else if (MATCH("gelf_log", "port")) {
-    char* end;
-    long port = strtol(value, &end, 10);
-
-    if (*value == '\0' || *end != '\0' || port < 1 || port > 65535) {
-      return config_error(pconfig, section, name, "expected a port number 1-65535");
-    }
-    pconfig->gelf.port = (int)port;
-    pconfig->gelf.addr.sin_port = htons((uint16_t)port);
-  }
-  else if (MATCH("gelf_log", "compression")) {
-    if (strcasecmp(value, "gzip") == 0) {
-      pconfig->gelf.compression = GELF_COMPRESSION_GZIP;
-    } else if (strcasecmp(value, "none") == 0) {
-      pconfig->gelf.compression = GELF_COMPRESSION_NONE;
-    } else {
-      return config_error(pconfig, section, name, "expected gzip or none");
-    }
-  }
-  else if (MATCH("gelf_log", "min_severity")) {
-    if (parse_severity(value, &pconfig->gelf.min_severity) != 0) {
-      return config_error(pconfig, section, name, "expected one of: " SEVERITY_NAME_LIST);
-    }
-  }
   else if (MATCH("file_log", "enabled")) {
     if (parse_bool(value, &pconfig->file.enabled) != 0) {
       return config_error(pconfig, section, name, "expected 1 or 0");
@@ -338,8 +289,8 @@ static int gelf_ini_handler(void* user, const char* section, const char* name, c
  * (alongside vpopmail's other config files), overridable via the
  * VPOPMAIL_VDELIVERMAIL_CONFIG environment variable.
  *
- * Any malformed value is an error whether or not its target is enabled, so
- * that -t catches a typo before it matters. Callers defer the delivery rather
+ * Any malformed value is an error whether or not its target is enabled.
+ * Callers defer the delivery rather
  * than dropping it, so a bad config file queues mail; it does not lose it.
  *
  * Return: 0 on success, non-zero on error (file open failure, parse error,
@@ -371,11 +322,6 @@ int gelf_load_config(config_t *config, int check_mode) {
   config->ensure_homedir_is_set_in_db = 1;
   config->ensure_homedir_exists_on_disk = 1;
 
-  config->gelf.port = 12201;
-  config->gelf.addr.sin_port = htons(12201);
-  config->gelf.compression = GELF_COMPRESSION_NONE;
-  config->gelf.min_severity = LOG_INFO;
-
   /* Under VPOPMAILDIR rather than /var/log/qmail: a site's logs then live
    * beside everything else vpopmail owns, and a relocated install takes its
    * logs with it. Compile-time concatenation, so there is nothing to truncate. */
@@ -397,24 +343,6 @@ int gelf_load_config(config_t *config, int check_mode) {
     return 1;
   }
 
-  if (config->gelf.enabled && config->gelf.addr.sin_family != AF_INET) {
-    if (check_mode) {
-      printf("ERROR: [gelf_log] is enabled but no address is set\n");
-    }
-    return 1;
-  }
-
-#ifndef HAVE_ZLIB
-  /* Checked after parsing, since enabled may come after compression. A
-   * disabled section may say gzip, e.g. the shipped sample. */
-  if (config->gelf.enabled && config->gelf.compression == GELF_COMPRESSION_GZIP) {
-    if (check_mode) {
-      printf("ERROR: [gelf_log] is enabled with compression = gzip, but vdelivermail was built without zlib\n");
-    }
-    return 1;
-  }
-#endif
-
   /*
    * The tracking header is logged under a field named after the header
    * itself, so that every _header_* field means the header it is named for.
@@ -435,8 +363,8 @@ int gelf_load_config(config_t *config, int check_mode) {
   }
 
   /*
-   * Deliberately not opened here: -t is often run as root, and a root-owned
-   * log file would then be unwritable by the delivery user. Check the
+   * Deliberately not opened here: a root-owned
+   * log file is unwritable by the delivery user. Check the
    * directory the file must live in instead. gelf_setup does the real open.
    */
   if (check_mode && config->file.enabled) {
@@ -459,10 +387,8 @@ int gelf_load_config(config_t *config, int check_mode) {
       return 1;
     }
 
-    /* AT_EACCESS tests the effective uid, which is the one that will do the
-     * open: under systemd, ExecStartPre runs as User=, so -t there answers
-     * the question that matters. Note that running -t as root proves
-     * nothing, since root passes regardless of the mode bits. */
+    /* AT_EACCESS checks permissions using the effective uid, which is
+     * the uid that will open or create the log file. */
     if (faccessat(AT_FDCWD, config->file.path, F_OK, AT_EACCESS) == 0) {
       if (faccessat(AT_FDCWD, config->file.path, W_OK, AT_EACCESS) != 0) {
         printf("ERROR: [file_log] %s is not writable by uid %d\n",
@@ -587,59 +513,6 @@ static void file_write(gelf_t *gelf, const char* json, size_t json_len) {
 };
 
 
-#ifdef HAVE_ZLIB
-/* Gzip-wrap `in` via zlib (windowBits = 15+16). Caller frees *out on success. */
-static int gelf_gzip(const unsigned char* in, size_t in_len,
-                     unsigned char** out, size_t* out_len) {
-  z_stream strm;
-  unsigned char* buf;
-  uLong bound;
-  int ret;
-
-  memset(&strm, 0, sizeof(strm));
-  if (deflateInit2(&strm, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
-                   15 + 16, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
-    return -1;
-  }
-
-  bound = deflateBound(&strm, (uLong)in_len);
-  buf = malloc(bound);
-  if (buf == NULL) {
-    deflateEnd(&strm);
-    return -1;
-  }
-
-  strm.next_in = (Bytef*)in;
-  strm.avail_in = (uInt)in_len;
-  strm.next_out = buf;
-  strm.avail_out = (uInt)bound;
-
-  ret = deflate(&strm, Z_FINISH);
-  if (ret != Z_STREAM_END) {
-    free(buf);
-    deflateEnd(&strm);
-    return -1;
-  }
-
-  *out_len = (size_t)strm.total_out;
-  *out = buf;
-  deflateEnd(&strm);
-  return 0;
-}
-#endif /* HAVE_ZLIB */
-
-
-static int gelf_ensure_socket(gelf_t *gelf) {
-  if (gelf->sock >= 0) {
-    return 0;
-  }
-  gelf->sock = socket(AF_INET, SOCK_DGRAM, 0);
-  return (gelf->sock < 0) ? -1 : 0;
-}
-
-
-
-
 /*
  * Render t as RFC 3339 local time into buf, e.g. "2025-12-31T15:23:48+08:00".
  *
@@ -697,7 +570,7 @@ static void format_rfc3339_local(char* buf, size_t len, time_t t) {
  * calls add_common_fields() just before gelf_send().
  */
 static cJSON *gelf_begin(gelf_t *gelf) {
-  if (gelf == NULL || !(gelf->config.gelf.enabled || gelf->config.file.enabled))
+  if (gelf == NULL || !gelf->config.file.enabled)
     return NULL;
 
   return cJSON_CreateObject();
@@ -921,10 +794,8 @@ static void gelf_send(gelf_t *gelf, cJSON *root) {
   size_t json_len;
   cJSON *level;
   cJSON *event;
-  char event_name[32] = "";
   int severity = LOG_INFO;
-  int want_file, want_gelf;
-  static int reporting_drop;
+  int want_file;
 
   /* Every caller sets "level" before we get here; a record without one is
    * treated as info rather than silently discarded. Lower is more severe, so
@@ -935,7 +806,6 @@ static void gelf_send(gelf_t *gelf, cJSON *root) {
   }
 
   want_file = gelf->config.file.enabled && severity <= gelf->config.file.min_severity;
-  want_gelf = gelf->config.gelf.enabled && severity <= gelf->config.gelf.min_severity;
 
   /* Pretty output is the file's alone, so it gets its own rendering. Everything else shares
    * the compact one: the wire has a size cap, and a file asking for format=gelf wants exactly what
@@ -981,17 +851,9 @@ static void gelf_send(gelf_t *gelf, cJSON *root) {
     want_file = 0;
   }
 
-  if (!want_file && !want_gelf) {
+  if (!want_file) {
     cJSON_Delete(root);
     return;
-  }
-
-  /* No field is dropped here: every target gets the same fields, which is what keeps
-   * format=gelf byte-identical to the datagram, which is what the name promises.
-   * Only format=pretty differs, by removing omit_from_pretty[] from its own copy above. */
-  event = cJSON_GetObjectItemCaseSensitive(root, "_event");
-  if (cJSON_IsString(event)) {
-    snprintf(event_name, sizeof(event_name), "%s", event->valuestring);
   }
 
   json = cJSON_PrintUnformatted(root);
@@ -999,71 +861,8 @@ static void gelf_send(gelf_t *gelf, cJSON *root) {
   if (json == NULL)
     return;
 
-  json_len = strlen(json);
-
-  if (want_file) {
-    file_write(gelf, json, json_len);
-  }
-
-  if (!want_gelf) {
-    cJSON_free(json);
-    return;
-  }
-
-#ifdef HAVE_ZLIB
-  /* Without zlib, config loading rejects an enabled [gelf_log] with
-   * compression = gzip, so this is the only branch that ever needs it. */
-  if (gelf->config.gelf.compression == GELF_COMPRESSION_GZIP) {
-    /* Probably out of memory on failure, but there's no safe place to log. */
-    if (gelf_gzip((const unsigned char*)json, json_len, &gz, &gz_len) != 0) {
-      cJSON_free(json);
-      return;
-    }
-    cJSON_free(json);
-    json = NULL; /* ownership transferred to gz (malloc) */
-  } else
-#endif
-  {
-    gz = (unsigned char*)json;
-    gz_len = json_len;
-  }
-
-  if (gz_len > GELF_UDP_MAX) {
-    if (json != NULL)
-      cJSON_free(json);
-    else
-      free(gz);
-    /* The warning is a small record, so it fits. The guard stops a warning
-     * that somehow didn't fit from recursing. */
-    if (!reporting_drop) {
-      char msg[160];
-      reporting_drop = 1;
-      snprintf(msg, sizeof(msg),
-               "GELF %s record dropped: %zu bytes exceeds the %d-byte UDP limit",
-               event_name[0] ? event_name : "(unknown)", gz_len, GELF_UDP_MAX);
-      gelf_log(gelf, LOG_WARNING, msg, NULL);
-      reporting_drop = 0;
-    }
-    return;
-  }
-
-  if (gelf_ensure_socket(gelf) != 0) {
-    if (json != NULL)
-      cJSON_free(json);
-    else
-      free(gz);
-    return;
-  }
-
-  /* gelf.addr already has family, address, and port from config load */
-  (void)sendto(gelf->sock, gz, gz_len, 0,
-               (struct sockaddr*)&gelf->config.gelf.addr,
-               sizeof(gelf->config.gelf.addr));
-
-  if (json != NULL)
-    cJSON_free(json);
-  else
-    free(gz);
+  file_write(gelf, json, strlen(json));
+  cJSON_free(json);
 }
 
 
@@ -1409,7 +1208,6 @@ void set_vdm_id(gelf_t *gelf) {
  */
 int gelf_setup(gelf_t *gelf, char *reason_out, size_t reason_size) {
   memset(gelf, 0, sizeof(*gelf));
-  gelf->sock = -1;
   gelf->log_fd = -1;
   reason_out[0] = '\0';
 
