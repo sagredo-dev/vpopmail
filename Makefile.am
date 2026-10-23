@@ -31,6 +31,7 @@ VUSAGECCONF=$(DESTDIR)@vpopmaildir@/etc/vusagec.conf
 DOVECOT_SQL=$(DESTDIR)@vpopmaildir@/etc/disable-many-domains_procedures.sql
 PWD_STRENGTH=$(DESTDIR)@vpopmaildir@/etc/password_strength.conf
 VDEFAULTDELIVERY=$(DESTDIR)@vpopmaildir@/etc/vdefaultdelivery
+VDELIVERMAILINI=$(DESTDIR)@vpopmaildir@/etc/vdelivermail.ini
 PURGE_VLOG=$(DESTDIR)@vpopmaildir@/bin/purge_vlog
 
 noinst_LIBRARIES=libvpopmail.a
@@ -206,6 +207,9 @@ install-data-local:
 	$(INSTALL) -d -g @vpopgroup@ -m 0700 -o @vpopuser@ \
 	  $(DESTDIR)@vpopmaildir@/@domains_dir@
 
+	$(INSTALL) -d -g @vpopgroup@ -m 0750 -o @vpopuser@ \
+	  $(DESTDIR)@vpopmaildir@/log
+
 	echo "-I@vpopmaildir@/include" > \
 	 $(DESTDIR)@vpopmaildir@/etc/inc_deps
 	echo "-L@vpopmaildir@/lib -lvpopmail @auth_libs@ @LIBS@" > \
@@ -230,13 +234,17 @@ install-data-local:
 
 	if test "@DEFAULT_DELIVERY@" = "1"; then \
 	  if test ! -r $(VDEFAULTDELIVERY); then \
-	    $(INSTALL) -o @vpopuser@ -m 0644 -g @vpopgroup@ \
-	      vdefaultdelivery $(VDEFAULTDELIVERY); \
+	    $(INSTALL) -m 0644 vdefaultdelivery $(VDEFAULTDELIVERY); \
 	  fi \
 	fi
 
+	if test ! -r $(VDELIVERMAILINI); then \
+	  $(INSTALL) -m 0644 vdelivermail.ini $(VDELIVERMAILINI); \
+	fi
+
 	if test ! -r $(PWD_STRENGTH); then \
-	  $(INSTALL) -m 644 password_strength.conf $(PWD_STRENGTH); \
+	  $(INSTALL) -o @vpopuser@ -m 0644 -g @vpopgroup@ \
+	    password_strength.conf $(PWD_STRENGTH); \
 	fi
 
 	if test "@USE_MYSQL@" = "1"; then \
