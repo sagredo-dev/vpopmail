@@ -1422,7 +1422,7 @@ int run_command(char *prog, const char *log_source) {
 
   memset(d, 0, sizeof *d);
   d->in_progress = true;
-  snprintf(d->instruction, sizeof d->instruction, "|%s", prog);
+  snprintf(d->instruction, sizeof d->instruction, "%s", prog);
   d->source = log_source;
   d->method = "program";
   snprintf(d->message, sizeof d->message, "Running shell command, recipient is %s", OriginalRecipient); // refine later
