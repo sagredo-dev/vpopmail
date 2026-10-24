@@ -1,5 +1,3 @@
-# vdelivermail
-
 # `vdelivermail`
 
 `vdelivermail` is the key to the proper operation of your `vpopmail` installation.
