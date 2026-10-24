@@ -52,7 +52,7 @@ LIBS="-lm $LIBS"
 
 #----------------------------------------------------------------------
 
-dnl gelf logging support (vdelivermail) needs inih and cJSON; zlib and curl are optional.
+dnl gelf logging support (vdelivermail) needs inih and cJSON; curl is optional.
 dnl Linked only into vdelivermail via GELF_LIBS; gelf.c is the sole C user.
 AC_CHECK_HEADER([ini.h], [],
     [AC_MSG_ERROR([ini.h not found. Install the inih development package (e.g. "apt install libinih-dev").])])
@@ -62,18 +62,6 @@ AC_CHECK_HEADER([cjson/cJSON.h], [],
     [AC_MSG_ERROR([cjson/cJSON.h not found. Install the cJSON development package (e.g. "apt install libcjson-dev").])])
 AC_CHECK_LIB([cjson], [cJSON_Parse], [GELF_LIBS="$GELF_LIBS -lcjson"],
     [AC_MSG_ERROR([libcjson not found. Install the cJSON development package (e.g. "apt install libcjson-dev").])])
-dnl zlib only gzips GELF/UDP datagrams (compression = gzip in vdelivermail.ini). Without it,
-dnl that setting is a configuration error when UDP logging is enabled, rather than silently ignored.
-have_zlib=no
-AC_CHECK_HEADER([zlib.h],
-    [AC_CHECK_LIB([z], [deflate],
-        [have_zlib=yes
-         GELF_LIBS="$GELF_LIBS -lz"])])
-AS_IF([test "x$have_zlib" = xyes],
-    [AC_DEFINE([HAVE_ZLIB], [1],
-        [Define to 1 if zlib is available to gzip GELF/UDP datagrams.])],
-    [AC_MSG_WARN([zlib not found: vdelivermail will reject compression = gzip when GELF/UDP logging is enabled.
-Install zlib1g-dev to enable it.])])
 dnl curl_getdate() parses the RFC 2822 Date: header, so the GELF logs can carry a parsed
 dnl _date and _date_human. Optional: without it the raw header is emitted as _header_date
 dnl instead, so a missing libcurl degrades the logs rather than breaking the build.
