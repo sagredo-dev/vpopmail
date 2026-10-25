@@ -4,11 +4,11 @@
 # in the valias table.
 # It uses the same syntax as .qmail files, as does valias database table.
 # Multiple lines are possible.
-# https://manpages.debian.org/buster/qmail/dot-qmail.5.en.html
+# https://notes.sagredo.eu/files/qmail/man/qmail/dot-qmail.5.html
 # 
 # Note that pipe commands below are forked and passed to /bin/sh, so you can utilise
 # environment variables provided by qmail-local. Put quotes around them all.
-# See https://manpages.debian.org/buster/qmail/qmail-command.8.en.html
+# See https://notes.sagredo.eu/files/qmail/man/qmail/qmail-command.8.html
 #   $PATH - whatever was given to qmail-start
 #   $EXT - local part of the recipient address
 #   $HOST - the domain name from the recipient address

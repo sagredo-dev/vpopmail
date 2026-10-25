@@ -185,7 +185,8 @@ instruction - e.g. "|autoresponder". Omitted for the most straightforward case, 
     omit for quotawarning. 
 source - where the instruction came from: valias, .qmail, catchall, defaultdelivery. 
     Omit for the most straightforward path. Omit for quotawarning.
-method - man page calls this "type" of instruction. program, forward, maildir  https://manpages.debian.org/buster/qmail/dot-qmail.5.en.html . 
+method - man page calls this "type" of instruction. program, forward, maildir
+ https://notes.sagredo.eu/files/qmail/man/qmail/dot-qmail.5.html . 
     But we never log directives or comments.
     Q. do we omit for the most straightforward path? No, we use maildir.
 success - It is worth recording unsuccessful. We don't want to clutter the exit log with, say, quota info.
