@@ -232,10 +232,8 @@ install-data-local:
 	    vlimits.default $(VLIMITS); \
 	fi
 
-	if test "@DEFAULT_DELIVERY@" = "1"; then \
-	  if test ! -r $(VDEFAULTDELIVERY); then \
-	    $(INSTALL) -m 0644 vdefaultdelivery $(VDEFAULTDELIVERY); \
-	  fi \
+	if test ! -r $(VDEFAULTDELIVERY); then \
+	  $(INSTALL) -m 0644 vdefaultdelivery $(VDEFAULTDELIVERY); \
 	fi
 
 	if test ! -r $(VDELIVERMAILINI); then \

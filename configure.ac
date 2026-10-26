@@ -801,27 +801,6 @@ esac
 
 #----------------------------------------------------------------------
 
-AC_MSG_CHECKING(whether make-seekable is enabled)
-AC_ARG_ENABLE(make-seekable,
-        [  --disable-make-seekable    Don't try to make input to vdelivermail seekable.],
-        MAKE_SEEKABLE=$enableval,
-                [
-                        MAKE_SEEKABLE=y
-                ]
-)
-
-case $MAKE_SEEKABLE in
-  1*|y*|Y*)
-      AC_MSG_RESULT(yes)
-      MAKE_SEEKABLE=1
-      AC_DEFINE_UNQUOTED(MAKE_SEEKABLE,$MAKE_SEEKABLE,"")
-      ;;
-  *)
-      AC_MSG_RESULT(no)
-      ;;
-esac
-
-#----------------------------------------------------------------------
 
 AC_MSG_CHECKING(whether clear-passwd is enabled)
 AC_ARG_ENABLE(clear-passwd,
@@ -1714,30 +1693,6 @@ esac
 
 #----------------------------------------------------------------------
 
-AC_MSG_CHECKING(whether defaultdelivery is enabled)
-AC_ARG_ENABLE(defaultdelivery,
-        [  --enable-defaultdelivery   Copy the content of control/defaultdelivery to ~mailbox/.qmail on user creation.],
-        DEFAULT_DELIVERY=$enableval,
-                [
-                        DEFAULT_DELIVERY=n
-                ]
-)
-
-case $DEFAULT_DELIVERY in
-  1*|y*|Y*)
-        AC_MSG_RESULT(yes)
-        DEFAULT_DELIVERY=1
-        AC_SUBST(DEFAULT_DELIVERY)
-        AC_DEFINE_UNQUOTED(DEFAULT_DELIVERY,$DEFAULT_DELIVERY,"")
-        ;;
-  *)
-        AC_MSG_RESULT(no)
-        ;;
-esac
-
-
-#----------------------------------------------------------------------
-
 AC_MSG_CHECKING(whether many-domains is enabled)
 AC_ARG_ENABLE(many-domains,
         [  --disable-many-domains     Creates a table for each virtual domain instead of storing all users in a single table. Only valid for MySQL and PostgreSQL],
@@ -2032,16 +1987,6 @@ case $FILE_SYNC in
 esac
 
 
-case $MAKE_SEEKABLE in
-  1*|y*|Y*)
-    echo "     make seekable = ON  --enable-make-seekable (default)"
-    ;;
-  *)
-    echo "     make seekable = OFF --disable-make-seekable"
-    ;;
-esac
-
-
 case $CLEAR_PASS in
   1*|y*|Y*)
     echo "      clear passwd = ON  --enable-clear-passwd"
@@ -2262,16 +2207,6 @@ case $ENABLE_LOGGER_SQLITE in
     ;;
   *)
     echo "     logger sqlite = OFF --disable-logger-sqlite (default)"
-    ;;
-esac
-
-
-case $DEFAULT_DELIVERY in
-  1*|y*|Y*)
-    echo "   defaultdelivery = ON  --enable-defaultdelivery"
-    ;;
-  *)
-    echo "   defaultdelivery = OFF --disable-defaultdelivery (default)"
     ;;
 esac
 
