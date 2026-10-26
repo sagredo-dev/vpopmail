@@ -3968,6 +3968,14 @@ char *maildir_to_email(const char *maildir) {
     strcpy(mdcopy, maildir);
   }
 
+  /* Too short to hold "/Maildir". The searches below would read outside mdcopy:
+   * strstr(pnt + 1) past the end of an empty string, and strcmp(pnt - 8) before
+   * the start of one shorter than 8. */
+  if (strlen(mdcopy) < 8) {
+    free(mdcopy);
+    return "";
+  }
+
   /* find the last occurrence of /Maildir/ */
   pnt = mdcopy;
   do {

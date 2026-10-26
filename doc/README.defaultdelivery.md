@@ -1,21 +1,14 @@
 # README.defaultdelivery
 
-by Roberto Puzzanghera  
-More info [here](https://notes.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html)
+`vdelivermail` is installed by default in _.qmail-default_ of newly created domains with option 'delete'.  
 
-==============================================================================================================
+If no user's `valiases` and no _.qmail_ files are found, then the message is sent to the 
+_~vpopmail/etc/vdefaultdelivery_ file, so that `dovecot-lda` (or whatelse) can store the mail into inbox
+and execute the sieve rules.  
 
-When `vpopmail` is installed with `--enable-defaultdelivery` then `vdelivermail` is installed by default in
-_.qmail-default_ of newly created domains with option 'delete'.  
-If no user's valiases and no _.qmail_ are found, then the message is sent to the _control/defaultdelivery_ file,
-so that `dovecot-lda` (or whatelse) can store the mail into inbox and execute the sieve rules.  
-If vdelivermail is found in _control/defaultdelivery,_ then it is ignored to avoid loops. The delivery remains
-in charge to _.qmail-default,_  i.e. `vdelivermail`.
+If the recipient user has a `valias` this is executed first. If a `valias` is like `:default`, then the
+content of _~vpopmail/etc/vdefaultdelivery_ is executed.  
+This allows the user to use forwards and then send a copy of the message to the Maildir.
 
-## Settings
-
-Configure as follows:
-
-```
-./configure --enable-defaultdelivery (default OFF)
-```
+NB: `vpopmail` versions before 6.7.x used to save `vdelivermail` in _QMAILDIR/control/defaultdelivery_ instead of
+_~vpopmail/etc/vdefaultdelivery_. _QMAILDIR/control/defaultdelivery_ is not executed anymore by `vdelivermail`.

@@ -279,8 +279,8 @@ int is_domain_valid(char *domain);
 char *maildir_to_email(const char *maildir);
 
 /*  Operational Overhead  */
-int vexit(int err);
-int vexiterror(FILE *f, char *comment);
+int vexit(int err) __attribute__((noreturn));
+int vexiterror(FILE *f, char *comment) __attribute__((noreturn));
 
 /*  Utility Functions  */
 /*  Low Level File System Management  */

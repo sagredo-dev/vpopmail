@@ -7,9 +7,19 @@
    -Bill Shupp
  */
 
+#ifndef MAILDIRQUOTA_H
+#define MAILDIRQUOTA_H
+
 #include "storage.h"
 
 #define QUOTA_WARN_PERCENT 90
+
+/* How the maildir consumption figure returned via user_over_maildirquota()'s
+   initial_bytesp was obtained. */
+#define QUOTA_CALC_UNKNOWN 0
+#define QUOTA_CALC_DAEMON 1
+#define QUOTA_CALC_MAILDIRSIZE_CACHED 2
+#define QUOTA_CALC_MAILDIRSIZE_RECALC 3
 
 /* I've removed pretty much the whole file execept for
    some public functions so as to not conflict with courier.
@@ -18,8 +28,11 @@
 */
 int readdomainquota(const char *dir, storage_t *sizep, storage_t *cntp);
 int readuserquota(const char* dir, storage_t *sizep, storage_t *cntp);
-int domain_over_maildirquota(const char *userdir);
-int user_over_maildirquota(const char *dir, const char *quota);
+int domain_over_maildirquota(const char *domain_name, storage_t message_bytes);
+int user_over_maildirquota(const char *dir, const char *quota, storage_t message_bytes,
+	int *over_quota_out, storage_t *initial_bytesp, storage_t *initial_countp, int *initial_sourcep);
+int maildir_get_consumption(const char *dir, const char *quota,
+	storage_t *usage_bytesp, storage_t *message_countp, int *sourcep);
 int vmaildir_readquota(const char *dir,	const char *quota);
 
 int maildir_addquota(const char *,	/* Pointer to the maildir */
@@ -27,6 +40,8 @@ int maildir_addquota(const char *,	/* Pointer to the maildir */
 	const char *,	/* The quota */
 	storage_t,	/* +/- bytes */
 	storage_t);	/* +/- files */
+
+int quota_mtos(const char *quota, storage_t *size, storage_t *count);
 
 /* skip the rest... */
 #if 0
@@ -265,4 +280,6 @@ char	*strh_ino_t(ino_t, char *);
 }
 #endif
 #endif
+
+#endif /* MAILDIRQUOTA_H */
 #endif

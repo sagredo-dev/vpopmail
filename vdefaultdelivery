@@ -1,0 +1,26 @@
+# vdefaultdelivery file for vpopmail
+#
+# This file is interpreted by vdelvermail whenever an address has no lines defined
+# in the valias table.
+# It uses the same syntax as .qmail files, as does valias database table.
+# Multiple lines are possible.
+# https://notes.sagredo.eu/files/qmail/man/qmail/dot-qmail.5.html
+# 
+# Note that pipe commands below are forked and passed to /bin/sh, so you can utilise
+# environment variables provided by qmail-local. Put quotes around them all.
+# See https://notes.sagredo.eu/files/qmail/man/qmail/qmail-command.8.html
+#   $PATH - whatever was given to qmail-start
+#   $EXT - local part of the recipient address
+#   $HOST - the domain name from the recipient address
+#   $USER - the dealiased domain name of the recipient address. It's dealised using users/assign.
+#   $SENDER - obtained from the mail queue via queue/intd/<inode> , which is different to the message file itself.
+# Some aspects of that man page don't apply here, e.g. the current directory is actually
+# the recipient's mailbox directory from vpopmail.pw_dir in the db.
+# Your pipe commands should add "Delivered-To" and "Return-Path" whenever they do final
+# delivery, or even forwarding via qmail-inject.
+# It's OK that some maildir files will contain more than one Delivered-To and Return-Path header.
+
+# deliver with dovecot-lda
+# |/var/qmail/bin/preline -f /usr/local/dovecot/libexec/dovecot/deliver -d $EXT@$USER 
+
+./Maildir/
