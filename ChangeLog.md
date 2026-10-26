@@ -1,5 +1,10 @@
 # ChangeLog
 
+5.7.0 - Oct 27, 2026
+  - vdelivermail: structured logging, quota enforcement, :default and vdefaultdelivery by @rohan-bb69 in https://github.com/sagredo-dev/vpopmail/pull/16
+  - Remove --enable-make-seekable feature and --enable-defaultdelivery option in https://github.com/sagredo-dev/vpopmail/pull/18
+  - configure.ac: throw an error if tinycdb is enabled while the auth-module is not cdb by @sagredo-dev in https://github.com/sagredo-dev/vpopmail/pull/17
+
 5.6.14 - Sep 16, 2026
   - storage.h: refactored 64-bit endian conversion handling, replacing non-portable GNU-specific byte-swap
     fallbacks with OpenBSD-compatible implementations.
