@@ -1,9 +1,11 @@
 # `vpopmail`
 
-Vpopmail is a set of programs for creating and managing multiple virtual domains on a qmail server,
+`Vpopmail` is a set of programs for creating and managing multiple virtual domains on a qmail server,
 with full support for many POP/IMAP servers.
 
-This is a fork of [brunonymous/vpopmail](https://github.com/brunonymous/vpopmail) from version 5.6.1 onwards. It also merges all the commit history with proper git attribution from [DerDakon/vpopmail](https://github.com/DerDakon/vpopmail)
+This is a fork of [brunonymous/vpopmail](https://github.com/brunonymous/vpopmail) from version 5.6.1 onwards, which already included my patches for `Vpopmail`. It also merges all the commit history with proper git attribution from [DerDakon/vpopmail](https://github.com/DerDakon/vpopmail)
+
+Latest 5.7 version of `Vpopmail` requires `inih` (to read _vdelivermail.ini_). `libcurl` (to read the Date: header in the logs) is an optional dependence.
 
 ## Upgrading from version 5.4.33
 
