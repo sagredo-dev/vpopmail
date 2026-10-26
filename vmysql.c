@@ -1500,10 +1500,7 @@ char *valias_select_next()
 int valias_insert( char *alias, char *domain, char *alias_line)
 {
  int err;
-
-#ifdef DEFAULT_DELIVERY
-int valias_type = 1;
-#endif
+ int valias_type = 1;
 
 #ifdef USE_ONCHANGE
  char user_domain[MAX_BUFF];
@@ -1517,11 +1514,10 @@ int valias_type = 1;
 #endif
 
     while(*alias_line==' ' && *alias_line!=0) ++alias_line;
-#ifdef DEFAULT_DELIVERY
 /*
   Roberto Puzzanghera Dec 26, 2023
 
-  If one has the vpopmail.valias table modified by --enable-defaultdelivery,
+  If one has the vpopmail.valias table modified,
   creating an autoresponder with the default query will cause the silent
   rejection of a new row with same alias/domain, due to the multiple column
   PRIMARY KEY (`valias_type`, `alias`, `domain`).
@@ -1533,11 +1529,6 @@ int valias_type = 1;
      ( alias, domain, valias_line, valias_type) values ( '%s', '%s', '%s', '%d')",
        alias, domain,  alias_line, valias_type);
 /* end patch */
-#else
-    qnprintf( SqlBufUpdate, SQL_BUF_SIZE, "insert into valias \
-     ( alias, domain, valias_line ) values ( '%s', '%s', '%s')",
-       alias, domain,  alias_line );
-#endif
 
     if (mysql_query(&mysql_update,SqlBufUpdate)) {
         vcreate_valias_table();

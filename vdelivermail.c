@@ -44,9 +44,6 @@
 #include "maildirquota.h"
 #include "vauth.h"
 #include "vpopmail.h"
-#ifdef MAKE_SEEKABLE
-#include "seek.h"
-#endif
 #include "vlimits.h"
 #include "gelf.h"
 #include "vdelivermail.h"
@@ -1007,8 +1004,7 @@ int validate_directive(char* line) {
 
 /*
  * Get the size of the email message. Stdin must already be a regular
- * file (a pipe's st_size is 0). The caller guarantees that by calling
- * MakeSeekable first. Does not move the file position; each stdin
+ * file (a pipe's st_size is 0). Does not move the file position; each stdin
  * consumer rewind_stdin()s before it reads.
  */
 ssize_t get_message_size() {
@@ -4117,9 +4113,8 @@ int check_default_delivery(const vqpasswd_copy_t *recipient) {
 /*
  * check for locked account
  * deliver to .qmail file if any
- * else deliver to etc/vdefaultdelivery if DEFAULT_DELIVERY is defined and
- *              that file isn't empty (a vdelivermail line there means ./Maildir/)
- * else deliver to user if no .qmail file and DEFAULT_DELIVERY is not defined
+ * else deliver to etc/vdefaultdelivery if that file isn't empty
+ *                  (a vdelivermail line there means ./Maildir/)
  *
  * recipient - the user record found for the envelope recipient address. Must not be NULL.
  */
@@ -4154,14 +4149,12 @@ void checkuser(vqpasswd_copy_t *recipient) {
     return;
   }
 
-#ifdef DEFAULT_DELIVERY
   // fatal on error. Returns 0 to tell us to fallback to ordinary delivery.
   if (check_default_delivery(recipient)) {
     Fchdir(call_dir);
     close(call_dir);
     return;
   };
-#endif
 
   snprintf(maildir, sizeof(maildir), "%s/Maildir/", recipient->dir);
   manage_deliver_to_maildir(maildir, recipient, "");
@@ -4537,21 +4530,6 @@ int main(int argc, char **argv) {
 
   log_process_start(&gelf);
 
-#ifdef MAKE_SEEKABLE
-  // Drain stdin first, to avoid preline or maildrop from receiving EPIPE and missing out on our carefully chosen exit codes.
-  if (!isatty(0) && !Seekable(0)) {
-    if (MakeSeekable(stdin) == -1) {
-      if (! failed) {
-        vexiterr(EXIT_DEFER, ERROR, "", "Stdin is a pipe, failed to create temp file");
-      }
-      else {
-        // Appears out-of-order, but it's better before the exit log.
-        log_event(ERROR, "Stdin is a pipe, failed to create temp file");
-      }
-    }
-  }
-#endif
-
   if (failed) {
     vexiterr_report(&pending);
     vexit(pending.exit_code);
@@ -4559,18 +4537,6 @@ int main(int argc, char **argv) {
 
   // Parse command-line args. Bad input will log a failure.
   get_arguments(argc, argv);
-
-#ifdef MAKE_SEEKABLE
-  message_size = get_message_size();
-  gelf.context.size_bytes = message_size;
-  gelf.context.size_known = true;
-  if (message_size == 0) {
-    log_exit(&gelf,EXIT_OK,false,ERROR,NULL,"mail is empty"); // avoiding vexiterr so we can set success=0
-    vexit(EXIT_OK);
-    // Nothing to stdout. In v5.6 each deliver_mail fn call just returned silently,
-    // unless there were valias lines, in which case it reported "vdelivermail: valiases processed".
-  };
-#endif
 
   extract_headers(&gelf.context.headers, gelf.config.tracking_header);
   gelf.context.headers_extracted = true;
