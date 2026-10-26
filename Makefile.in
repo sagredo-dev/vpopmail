@@ -177,8 +177,12 @@ vconvert_DEPENDENCIES = libvpopmail.a
 am_vdeldomain_OBJECTS = vdeldomain.$(OBJEXT)
 vdeldomain_OBJECTS = $(am_vdeldomain_OBJECTS)
 vdeldomain_DEPENDENCIES = libvpopmail.a
-am_vdelivermail_OBJECTS = vdelivermail.$(OBJEXT) \
-	maildirquota.$(OBJEXT)
+am__dirstamp = $(am__leading_dot)dirstamp
+am_vdelivermail_OBJECTS = vdelivermail-vdelivermail.$(OBJEXT) \
+	vdelivermail-maildirquota.$(OBJEXT) \
+	vdelivermail-gelf.$(OBJEXT) vdelivermail-header_text.$(OBJEXT) \
+	nmh/vdelivermail-fmt_rfc2047.$(OBJEXT) \
+	nmh/shim/vdelivermail-check_charset.$(OBJEXT)
 vdelivermail_OBJECTS = $(am_vdelivermail_OBJECTS)
 vdelivermail_DEPENDENCIES = libvpopmail.a
 am_vdeloldusers_OBJECTS = vdeloldusers.$(OBJEXT)
@@ -398,7 +402,6 @@ CFLAGS = @CFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
-DEFAULT_DELIVERY = @DEFAULT_DELIVERY@
 DEFS = -I. @auth_inc@ 
 DEPDIR = @DEPDIR@
 ECHO_C = @ECHO_C@
@@ -407,6 +410,7 @@ ECHO_T = @ECHO_T@
 EGREP = @EGREP@
 ENABLE_SQL_LOGGING = @ENABLE_SQL_LOGGING@
 EXEEXT = @EXEEXT@
+GELF_LIBS = @GELF_LIBS@
 GREP = @GREP@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -496,9 +500,17 @@ vpopgroup = @vpopgroup@
 vpopmaildir = @vpopmaildir@
 vpopuser = @vpopuser@
 @BUILD_CDB_TRUE@SUBDIRS = cdb
-@BUILD_CDB_FALSE@EXTRA_DIST = README.* vcdb.c vldap.c vmysql.c voracle.pc vpgsql.c vsybase.c
-@BUILD_CDB_TRUE@EXTRA_DIST = README.* cdb/* vcdb.c vldap.c vmysql.c voracle.pc vpgsql.c vsybase.c
-noinst_HEADERS = md5.h vpopmail.h file_lock.h vauth.h vlimits.h maildirquota.h vcdb.h vldap.h vmysql.h voracle.h vpgsql.h vsybase.h vlog.h global.h hmac_md5.h seek.h vutil.h vlogger.h pwstr.h
+@BUILD_CDB_FALSE@EXTRA_DIST = README.* vcdb.c vldap.c vmysql.c \
+@BUILD_CDB_FALSE@	voracle.pc vpgsql.c vsybase.c nmh/COPYRIGHT \
+@BUILD_CDB_FALSE@	nmh/README.md vdefaultdelivery
+@BUILD_CDB_TRUE@EXTRA_DIST = README.* cdb/* vcdb.c vldap.c vmysql.c \
+@BUILD_CDB_TRUE@	voracle.pc vpgsql.c vsybase.c nmh/COPYRIGHT \
+@BUILD_CDB_TRUE@	nmh/README.md vdefaultdelivery
+noinst_HEADERS = md5.h vpopmail.h file_lock.h vauth.h vlimits.h \
+	maildirquota.h vcdb.h vldap.h vmysql.h voracle.h vpgsql.h \
+	vsybase.h vlog.h global.h hmac_md5.h seek.h vutil.h vlogger.h \
+	pwstr.h gelf.h header_text.h nmh/fmt_rfc2047.h nmh/shim/h/mh.h \
+	nmh/shim/check_charset.h nmh/shim/utils.h
 COMMONSOURCES = vpopmail.c md5.c bigdir.c vauth.c file_lock.c vpalias.c seek.c vlimits.c maildirquota.c vutil.c vlistlib.c backfill.c client.c conf.c ippp.c vlogger.c pwstr.c
 CONFIG_CLEAN_FILES = vauth.c $(am__append_1)
 MYSQLCONF = $(DESTDIR)@vpopmaildir@/etc/vpopmail.mysql
@@ -506,7 +518,8 @@ VLIMITS = $(DESTDIR)@vpopmaildir@/etc/vlimits.default
 VUSAGECCONF = $(DESTDIR)@vpopmaildir@/etc/vusagec.conf
 DOVECOT_SQL = $(DESTDIR)@vpopmaildir@/etc/disable-many-domains_procedures.sql
 PWD_STRENGTH = $(DESTDIR)@vpopmaildir@/etc/password_strength.conf
-DEFAULTDELIVERY = @qmaildir@/control/defaultdelivery
+VDEFAULTDELIVERY = $(DESTDIR)@vpopmaildir@/etc/vdefaultdelivery
+VDELIVERMAILINI = $(DESTDIR)@vpopmaildir@/etc/vdelivermail.ini
 PURGE_VLOG = $(DESTDIR)@vpopmaildir@/bin/purge_vlog
 noinst_LIBRARIES = libvpopmail.a
 libvpopmail_a_SOURCES = $(COMMONSOURCES)
@@ -532,8 +545,11 @@ vchangepw_SOURCES = vchangepw.c
 vchangepw_LDADD = libvpopmail.a @auth_libs@
 dotqmail2valias_SOURCES = dotqmail2valias.c
 dotqmail2valias_LDADD = libvpopmail.a @auth_libs@
-vdelivermail_SOURCES = vdelivermail.c maildirquota.c
-vdelivermail_LDADD = libvpopmail.a @auth_libs@
+vdelivermail_SOURCES = vdelivermail.c maildirquota.c gelf.c header_text.c \
+	nmh/fmt_rfc2047.c nmh/shim/check_charset.c
+
+vdelivermail_CPPFLAGS = $(AM_CPPFLAGS) -I$(srcdir)/nmh/shim
+vdelivermail_LDADD = libvpopmail.a @auth_libs@ @GELF_LIBS@
 vkill_SOURCES = vkill.c 
 vkill_LDADD = libvpopmail.a @auth_libs@
 clearopensmtp_SOURCES = clearopensmtp.c
@@ -724,6 +740,15 @@ vconvert$(EXEEXT): $(vconvert_OBJECTS) $(vconvert_DEPENDENCIES) $(EXTRA_vconvert
 vdeldomain$(EXEEXT): $(vdeldomain_OBJECTS) $(vdeldomain_DEPENDENCIES) $(EXTRA_vdeldomain_DEPENDENCIES) 
 	@rm -f vdeldomain$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(vdeldomain_OBJECTS) $(vdeldomain_LDADD) $(LIBS)
+nmh/$(am__dirstamp):
+	@$(MKDIR_P) nmh
+	@: > nmh/$(am__dirstamp)
+nmh/vdelivermail-fmt_rfc2047.$(OBJEXT): nmh/$(am__dirstamp)
+nmh/shim/$(am__dirstamp):
+	@$(MKDIR_P) nmh/shim
+	@: > nmh/shim/$(am__dirstamp)
+nmh/shim/vdelivermail-check_charset.$(OBJEXT):  \
+	nmh/shim/$(am__dirstamp)
 
 vdelivermail$(EXEEXT): $(vdelivermail_OBJECTS) $(vdelivermail_DEPENDENCIES) $(EXTRA_vdelivermail_DEPENDENCIES) 
 	@rm -f vdelivermail$(EXEEXT)
@@ -807,6 +832,8 @@ vverifypw$(EXEEXT): $(vverifypw_OBJECTS) $(vverifypw_DEPENDENCIES) $(EXTRA_vveri
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
+	-rm -f nmh/*.$(OBJEXT)
+	-rm -f nmh/shim/*.$(OBJEXT)
 
 distclean-compile:
 	-rm -f *.tab.c
@@ -918,6 +945,42 @@ libvpopmail_a-pwstr.o: pwstr.c
 
 libvpopmail_a-pwstr.obj: pwstr.c
 	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libvpopmail_a_CFLAGS) $(CFLAGS) -c -o libvpopmail_a-pwstr.obj `if test -f 'pwstr.c'; then $(CYGPATH_W) 'pwstr.c'; else $(CYGPATH_W) '$(srcdir)/pwstr.c'; fi`
+
+vdelivermail-vdelivermail.o: vdelivermail.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vdelivermail_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o vdelivermail-vdelivermail.o `test -f 'vdelivermail.c' || echo '$(srcdir)/'`vdelivermail.c
+
+vdelivermail-vdelivermail.obj: vdelivermail.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vdelivermail_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o vdelivermail-vdelivermail.obj `if test -f 'vdelivermail.c'; then $(CYGPATH_W) 'vdelivermail.c'; else $(CYGPATH_W) '$(srcdir)/vdelivermail.c'; fi`
+
+vdelivermail-maildirquota.o: maildirquota.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vdelivermail_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o vdelivermail-maildirquota.o `test -f 'maildirquota.c' || echo '$(srcdir)/'`maildirquota.c
+
+vdelivermail-maildirquota.obj: maildirquota.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vdelivermail_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o vdelivermail-maildirquota.obj `if test -f 'maildirquota.c'; then $(CYGPATH_W) 'maildirquota.c'; else $(CYGPATH_W) '$(srcdir)/maildirquota.c'; fi`
+
+vdelivermail-gelf.o: gelf.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vdelivermail_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o vdelivermail-gelf.o `test -f 'gelf.c' || echo '$(srcdir)/'`gelf.c
+
+vdelivermail-gelf.obj: gelf.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vdelivermail_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o vdelivermail-gelf.obj `if test -f 'gelf.c'; then $(CYGPATH_W) 'gelf.c'; else $(CYGPATH_W) '$(srcdir)/gelf.c'; fi`
+
+vdelivermail-header_text.o: header_text.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vdelivermail_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o vdelivermail-header_text.o `test -f 'header_text.c' || echo '$(srcdir)/'`header_text.c
+
+vdelivermail-header_text.obj: header_text.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vdelivermail_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o vdelivermail-header_text.obj `if test -f 'header_text.c'; then $(CYGPATH_W) 'header_text.c'; else $(CYGPATH_W) '$(srcdir)/header_text.c'; fi`
+
+nmh/vdelivermail-fmt_rfc2047.o: nmh/fmt_rfc2047.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vdelivermail_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o nmh/vdelivermail-fmt_rfc2047.o `test -f 'nmh/fmt_rfc2047.c' || echo '$(srcdir)/'`nmh/fmt_rfc2047.c
+
+nmh/vdelivermail-fmt_rfc2047.obj: nmh/fmt_rfc2047.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vdelivermail_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o nmh/vdelivermail-fmt_rfc2047.obj `if test -f 'nmh/fmt_rfc2047.c'; then $(CYGPATH_W) 'nmh/fmt_rfc2047.c'; else $(CYGPATH_W) '$(srcdir)/nmh/fmt_rfc2047.c'; fi`
+
+nmh/shim/vdelivermail-check_charset.o: nmh/shim/check_charset.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vdelivermail_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o nmh/shim/vdelivermail-check_charset.o `test -f 'nmh/shim/check_charset.c' || echo '$(srcdir)/'`nmh/shim/check_charset.c
+
+nmh/shim/vdelivermail-check_charset.obj: nmh/shim/check_charset.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vdelivermail_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o nmh/shim/vdelivermail-check_charset.obj `if test -f 'nmh/shim/check_charset.c'; then $(CYGPATH_W) 'nmh/shim/check_charset.c'; else $(CYGPATH_W) '$(srcdir)/nmh/shim/check_charset.c'; fi`
 
 # This directory's subdirectories are mostly independent; you can cd
 # into them and run 'make' without going through this Makefile.
@@ -1258,6 +1321,8 @@ clean-generic:
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
+	-rm -f nmh/$(am__dirstamp)
+	-rm -f nmh/shim/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -1357,6 +1422,30 @@ uninstall-am: uninstall-vpopmailbinPROGRAMS
 
 @SET_MAKE@
 
+check-headers: tests/test_headers tests/test_extract_headers
+	./tests/test_headers
+	./tests/test_extract_headers
+
+tests/test_headers: tests/test_headers.c header_text.c nmh/fmt_rfc2047.c \
+		nmh/shim/check_charset.c
+	$(CC) -Wall -Wextra -Werror -I$(srcdir) -I$(srcdir)/nmh/shim \
+	    -o $@ $(srcdir)/tests/test_headers.c $(srcdir)/header_text.c \
+	    $(srcdir)/nmh/fmt_rfc2047.c $(srcdir)/nmh/shim/check_charset.c
+
+# Links vdelivermail.c itself, recompiled with its main() renamed so the
+# test's is used, plus the other objects the vdelivermail build produced.
+tests/test_extract_headers: tests/test_extract_headers.c vdelivermail.c vdelivermail
+	$(CC) -Wall $(DEFS) $(DEFAULT_INCLUDES) $(CPPFLAGS) \
+	    -I$(srcdir) -I$(srcdir)/nmh/shim -Dmain=vdelivermail_main \
+	    -c -o tests/vdelivermail_for_test.o $(srcdir)/vdelivermail.c
+	$(CC) -Wall -Wextra -Werror $(DEFS) $(DEFAULT_INCLUDES) $(CPPFLAGS) \
+	    -I$(srcdir) -I$(srcdir)/nmh/shim \
+	    -o $@ $(srcdir)/tests/test_extract_headers.c \
+	    tests/vdelivermail_for_test.o vdelivermail-maildirquota.o \
+	    vdelivermail-gelf.o vdelivermail-header_text.o \
+	    nmh/vdelivermail-fmt_rfc2047.o nmh/shim/vdelivermail-check_charset.o \
+	    libvpopmail.a $(auth_libs) $(GELF_LIBS) $(LIBS)
+
 install: install-recursive vusage-msg
 
 vusage-msg:
@@ -1388,6 +1477,9 @@ install-data-local:
 	$(INSTALL) -d -g @vpopgroup@ -m 0700 -o @vpopuser@ \
 	  $(DESTDIR)@vpopmaildir@/@domains_dir@
 
+	$(INSTALL) -d -g @vpopgroup@ -m 0750 -o @vpopuser@ \
+	  $(DESTDIR)@vpopmaildir@/log
+
 	echo "-I@vpopmaildir@/include" > \
 	 $(DESTDIR)@vpopmaildir@/etc/inc_deps
 	echo "-L@vpopmaildir@/lib -lvpopmail @auth_libs@ @LIBS@" > \
@@ -1410,14 +1502,17 @@ install-data-local:
 	    vlimits.default $(VLIMITS); \
 	fi
 
-	if test "@DEFAULT_DELIVERY@" = "1"; then \
-	  if test ! -r $(DEFAULTDELIVERY); then \
-	    echo "| @vpopmaildir@/bin/vdelivermail '' delete" > $(DEFAULTDELIVERY); \
-	  fi \
+	if test ! -r $(VDEFAULTDELIVERY); then \
+	  $(INSTALL) -m 0644 vdefaultdelivery $(VDEFAULTDELIVERY); \
+	fi
+
+	if test ! -r $(VDELIVERMAILINI); then \
+	  $(INSTALL) -m 0644 vdelivermail.ini $(VDELIVERMAILINI); \
 	fi
 
 	if test ! -r $(PWD_STRENGTH); then \
-	  $(INSTALL) -m 644 password_strength.conf $(PWD_STRENGTH); \
+	  $(INSTALL) -o @vpopuser@ -m 0644 -g @vpopgroup@ \
+	    password_strength.conf $(PWD_STRENGTH); \
 	fi
 
 	if test "@USE_MYSQL@" = "1"; then \

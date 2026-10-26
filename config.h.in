@@ -7,9 +7,6 @@
 #undef CLOSEDIR_VOID
 
 /* "" */
-#undef DEFAULT_DELIVERY
-
-/* "" */
 #undef DOMAINS_DIR
 
 /* "" */
@@ -68,6 +65,13 @@
 
 /* Define to 1 if you have the <crypt.h> header file. */
 #undef HAVE_CRYPT_H
+
+/* Define to 1 if libcurl provides curl_getdate() for Date: header parsing. */
+#undef HAVE_CURL_GETDATE
+
+/* Define to 1 if you have the declaration of `optreset', and to 0 if you
+   don't. */
+#undef HAVE_DECL_OPTRESET
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
@@ -254,9 +258,6 @@
 
 /* "" */
 #undef MAILDROP_PROG
-
-/* "" */
-#undef MAKE_SEEKABLE
 
 /* "" */
 #undef MANY_DOMAINS
