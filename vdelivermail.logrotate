@@ -1,0 +1,17 @@
+# To test changes, use  logrotate -dv /etc/logrotate.d/vdelivermail 2>&1  | less
+
+@vdelivermail_log_dir@/vdelivermail.log {
+    su @vpopuser@ @vpopgroup@
+        # rotate as the log directory's owner, not root
+    create 660 @vpopuser@ @vpopgroup@
+        # vdelivermail automatically recreates it
+    compress
+    delaycompress
+        # needed with compress: a delivery in progress at rotation
+        # time writes its last record to the moved logfile, so don't
+        # compress it until the next rotation
+    notifempty
+    size 120M
+    rotate 7
+        # without this the rotated logs are immediately deleted
+}

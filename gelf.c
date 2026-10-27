@@ -23,12 +23,6 @@
     HOST=example.com EXT=admin SENDER=sender@example.net RPLINE=$'Return-Path: <sender@example.net>\n' ./vdelivermail -d '' delete <test.eml
     ./vdelivermail -t
     ./vdelivermail -v
-
-    To test GELF logging with compression=none:
-    socat -u UDP-RECVFROM:12201,fork SYSTEM:'tee | jq .'
-
-    With compression=gzip:
-    socat -u UDP-RECVFROM:12201,fork SYSTEM:'gzip -cdf | jq .'
 */
 
 /* config.h first: it defines _GNU_SOURCE, which only takes effect ahead of any system
@@ -196,8 +190,10 @@ static int gelf_ini_handler(void* user, const char* section, const char* name, c
 
 #define MATCH(s, n) (strcmp(section, s) == 0 && strcmp(name, n) == 0)
   if (MATCH("logging", "log_source_hostname")) {
-    strncpy(pconfig->log_source_hostname, value, sizeof(pconfig->log_source_hostname) - 1);
-    pconfig->log_source_hostname[sizeof(pconfig->log_source_hostname) - 1] = '\0';
+    if (value[0] != '\0') {           /* empty keeps the gethostname() default */
+      strncpy(pconfig->log_source_hostname, value, sizeof(pconfig->log_source_hostname) - 1);
+      pconfig->log_source_hostname[sizeof(pconfig->log_source_hostname) - 1] = '\0';
+    }
   }
   else if (MATCH("logging", "verbose")) {
     if (parse_bool(value, &pconfig->verbose) != 0) {
@@ -229,6 +225,11 @@ static int gelf_ini_handler(void* user, const char* section, const char* name, c
   }
   else if (MATCH("file_log", "enabled")) {
     if (parse_bool(value, &pconfig->file.enabled) != 0) {
+      return config_error(pconfig, section, name, "expected 1 or 0");
+    }
+  }
+  else if (MATCH("file_log", "mandatory")) {
+    if (parse_bool(value, &pconfig->file.mandatory) != 0) {
       return config_error(pconfig, section, name, "expected 1 or 0");
     }
   }
@@ -276,13 +277,9 @@ static int gelf_ini_handler(void* user, const char* section, const char* name, c
 // The file must exist.
 // caller must free the strings in config. Returns 0 on success.
 /*
- * Load the [main], [gelf_log] and [file_log] sections into 'config'.
+ * Load the [main], [logging] and [file_log] sections into 'config'.
  * Zeroes *config first, then applies the documented defaults, so every field
  * is usable whether or not its key appeared. Does not touch any gelf_t fields.
- *
- * [gelf_log] address and port hold the plain human-readable values (handy for
- * logging), while addr is fully populated and ready to hand straight to
- * sendto() (family, address, and port already in network byte order).
  * Wraps inih and libcjson so callers don't need to know about either.
  *
  * The config file defaults to VPOPMAILDIR/etc/vdelivermail.ini
@@ -294,7 +291,7 @@ static int gelf_ini_handler(void* user, const char* section, const char* name, c
  * than dropping it, so a bad config file queues mail; it does not lose it.
  *
  * Return: 0 on success, non-zero on error (file open failure, parse error,
- * or [gelf_log] enabled with no address).
+ * or an unusable tracking_header or [file_log] directory).
  */
 int gelf_load_config(config_t *config, int check_mode) {
   char default_path[MAX_BUFF];
@@ -308,7 +305,7 @@ int gelf_load_config(config_t *config, int check_mode) {
 
   memset(config, 0, sizeof(*config));
 
-  /* Defaults, matching the commented values shipped in vdelivermail.ini. */
+  /* Defaults, matching the values shipped in vdelivermail.ini. */
   if (gethostname(config->log_source_hostname, sizeof(config->log_source_hostname)) != 0) {
     strcpy(config->log_source_hostname, "unknown");
   }
@@ -322,10 +319,9 @@ int gelf_load_config(config_t *config, int check_mode) {
   config->ensure_homedir_is_set_in_db = 1;
   config->ensure_homedir_exists_on_disk = 1;
 
-  /* Under VPOPMAILDIR rather than /var/log/qmail: a site's logs then live
-   * beside everything else vpopmail owns, and a relocated install takes its
-   * logs with it. Compile-time concatenation, so there is nothing to truncate. */
-  config->file.path = strdup(VPOPMAILDIR "/log/vdelivermail.log");
+  /* make install creates VDELIVERMAIL_LOG_DIR, owned by the vpopmail user. */
+  config->file.path = strdup(VDELIVERMAIL_LOG_DIR "/vdelivermail.log");
+  config->file.mandatory = 1;
   config->file.min_severity = LOG_INFO;
   config->file.format = GELF_FORMAT_PRETTY;
 
@@ -364,40 +360,14 @@ int gelf_load_config(config_t *config, int check_mode) {
 
   /*
    * Deliberately not opened here: a root-owned
-   * log file is unwritable by the delivery user. Check the
-   * directory the file must live in instead. gelf_setup does the real open.
+   * log file would then be unwritable by the delivery user. test_log_file
+   * checks the permissions instead. start_logging does the real open.
    */
   if (check_mode && config->file.enabled) {
-    char dir[MAX_BUFF];
-    char* slash;
-    struct stat st;
+    char reason[2 * MAX_BUFF];
 
-    snprintf(dir, sizeof(dir), "%s", config->file.path);
-    slash = strrchr(dir, '/');
-    if (slash == dir) {
-      dir[1] = '\0';       /* "/vdelivermail.log" -> "/" */
-    } else if (slash != NULL) {
-      *slash = '\0';
-    } else {
-      snprintf(dir, sizeof(dir), ".");
-    }
-
-    if (stat(dir, &st) != 0 || !S_ISDIR(st.st_mode)) {
-      printf("ERROR: [file_log] directory %s does not exist; it is not created for you\n", dir);
-      return 1;
-    }
-
-    /* AT_EACCESS checks permissions using the effective uid, which is
-     * the uid that will open or create the log file. */
-    if (faccessat(AT_FDCWD, config->file.path, F_OK, AT_EACCESS) == 0) {
-      if (faccessat(AT_FDCWD, config->file.path, W_OK, AT_EACCESS) != 0) {
-        printf("ERROR: [file_log] %s is not writable by uid %d\n",
-               config->file.path, (int)geteuid());
-        return 1;
-      }
-    } else if (faccessat(AT_FDCWD, dir, W_OK | X_OK, AT_EACCESS) != 0) {
-      printf("ERROR: [file_log] %s does not exist and uid %d cannot create it in %s\n",
-             config->file.path, (int)geteuid(), dir);
+    if (test_log_file(config->file.path, reason, sizeof(reason)) != 0) {
+      printf("ERROR: [file_log] cannot open %s: %s\n", config->file.path, reason);
       return 1;
     }
   }
@@ -407,9 +377,73 @@ int gelf_load_config(config_t *config, int check_mode) {
 
 
 /*
+ * Work out why the effective uid can't open path for append, without opening it.
+ * Probes with stat() and faccessat(), so it overwrites errno: a caller that needs
+ * open()'s errno must save it first. Returns 1 with a reason (no trailing full stop,
+ * worded to follow "cannot open PATH: ") in reason_out, or 0 if nothing is found to
+ * be wrong, e.g. because the problem was fixed in the meantime.
+ *
+ * AT_EACCESS tests the effective uid, which is the one that does the open: under
+ * systemd, ExecStartPre runs as User=, so -t there answers the question that
+ * matters. Running -t as root proves nothing, since root passes regardless of
+ * the mode bits.
+ */
+int test_log_file(const char *path, char *reason_out, size_t reason_size) {
+  char dir[MAX_BUFF];
+  char* slash;
+  struct stat st;
+  int uid = (int)geteuid();
+
+  reason_out[0] = '\0';
+
+  snprintf(dir, sizeof(dir), "%s", path);
+  slash = strrchr(dir, '/');
+  if (slash == dir) {
+    dir[1] = '\0';       /* "/vdelivermail.log" -> "/" */
+  } else if (slash != NULL) {
+    *slash = '\0';
+  } else {
+    snprintf(dir, sizeof(dir), ".");
+  }
+
+  if (stat(dir, &st) != 0) {
+    if (errno == ENOENT) {
+      snprintf(reason_out, reason_size, "directory %s does not exist; it is not created for you", dir);
+    } else if (errno == EACCES) {
+      snprintf(reason_out, reason_size, "directory %s is not reachable by uid %d", dir, uid);
+    } else {
+      snprintf(reason_out, reason_size, "directory %s: %s", dir, strerror(errno));
+    }
+    return 1;
+  }
+  if (!S_ISDIR(st.st_mode)) {
+    snprintf(reason_out, reason_size, "%s is not a directory", dir);
+    return 1;
+  }
+  /* Without search permission on dir we can't even tell whether the file exists. */
+  if (faccessat(AT_FDCWD, dir, X_OK, AT_EACCESS) != 0) {
+    snprintf(reason_out, reason_size, "directory %s is not reachable by uid %d", dir, uid);
+    return 1;
+  }
+
+  if (faccessat(AT_FDCWD, path, F_OK, AT_EACCESS) == 0) {
+    if (faccessat(AT_FDCWD, path, W_OK, AT_EACCESS) != 0) {
+      snprintf(reason_out, reason_size, "not writable by uid %d", uid);
+      return 1;
+    }
+  } else if (faccessat(AT_FDCWD, dir, W_OK, AT_EACCESS) != 0) {
+    snprintf(reason_out, reason_size, "uid %d cannot create it in %s", uid, dir);
+    return 1;
+  }
+
+  return 0;
+}
+
+
+/*
  * Open the [file_log] target for append, creating it 0660 if it does not exist.
  * A missing parent directory is not created: that is a configuration error,
- * and gelf_setup's caller defers the delivery rather than losing the record.
+ * and start_logging's caller decides whether the delivery defers.
  * Returns 0 on success, -1 on failure with errno from open() (umask() doesn't touch it).
  */
 static int file_open(gelf_t *gelf) {
@@ -428,11 +462,6 @@ static int file_open(gelf_t *gelf) {
 }
 
 
-/*
- * Append one format=gelf record: the same GELF document sent over UDP, on a line
- * of its own. Silent on failure - a full disk must not cost us the delivery,
- * exactly as a failed sendto() does not.
- */
 /*
  * cJSON's pretty printer indents with tabs and puts a tab after every colon, and offers no
  * way to change either. Rewrite the structural whitespace as two spaces per level and one
@@ -466,7 +495,7 @@ static char *respace(const char *in) {
 
 
 /*
- * Dropped from format=pretty: fields that exist for the wire, constants, and numbers that a
+ * Dropped from format=pretty: fields that exist for GELF consumers, constants, and numbers that a
  * person would rather read as words. Each one either says nothing to a human or is already
  * said better by a neighbour -- _time for timestamp, _severity for level. _vdm_id
  * stays: it is the only thing tying a run's start, delivery and exit together.
@@ -480,6 +509,10 @@ static const char *const omit_from_pretty[] = {
 };
 
 
+/*
+ * Append one record, followed by a newline. Silent on failure - a full disk
+ * must not cost us the delivery.
+ */
 static void file_write(gelf_t *gelf, const char* json, size_t json_len) {
   char* line;
   size_t len = json_len + 1;
@@ -680,7 +713,8 @@ static int calc_timestamp(const char *date, time_t *timestamp_out) {
  * on _time_sent never has to reason about deliveries where it happens to be
  * missing. _header_date is the unparsed header and exists only as the
  * fallback for builds without libcurl; where _time_sent is available it is not
- * emitted, so nobody is tempted to query the string instead of the number.
+ * emitted, so nobody is tempted to query the raw string instead of
+ * _date, which is the proper, sanitized, local timezone version.
  */
 /*
  * The date at the tail of qmail-queue's Received line:
@@ -783,84 +817,71 @@ static void gelf_add_headers(cJSON *root, const message_headers_t *h) {
 
 
 /*
- * Serialize root to JSON once and hand it to every enabled target that wants
- * a record of this severity: [file_log] as one line, [gelf_log] gzipped or not
- * over UDP. Frees root either way.
+ * Serialize root and append it to the [file_log] target, if that wants a
+ * record of this severity. Frees root either way.
  */
 static void gelf_send(gelf_t *gelf, cJSON *root) {
   char *json;
-  unsigned char *gz;
-  size_t gz_len;
-  size_t json_len;
   cJSON *level;
-  cJSON *event;
   int severity = LOG_INFO;
-  int want_file;
+
+  if (root == NULL) {
+    return;
+  }
 
   /* Every caller sets "level" before we get here; a record without one is
    * treated as info rather than silently discarded. Lower is more severe, so
-   * a target drops a record whose level is numerically above its threshold. */
+   * a record whose level is numerically above the threshold is dropped. */
   level = cJSON_GetObjectItemCaseSensitive(root, "level");
   if (cJSON_IsNumber(level)) {
     severity = level->valueint;
   }
 
-  want_file = gelf->config.file.enabled && severity <= gelf->config.file.min_severity;
+  if (!gelf->config.file.enabled || severity > gelf->config.file.min_severity) {
+    cJSON_Delete(root);
+    return;
+  }
 
-  /* Pretty output is the file's alone, so it gets its own rendering. Everything else shares
-   * the compact one: the wire has a size cap, and a file asking for format=gelf wants exactly what
-   * the wire wants. */
-  /* format=pretty is for a person reading the file, so strip what only the wire needs. The
-   * duplicate is because root still has to reach the [gelf_log] target intact. format=gelf keeps
-   * everything, on the grounds that a file in that shape exists to be shipped somewhere. */
-  if (want_file && gelf->config.file.format == GELF_FORMAT_PRETTY) {
-    cJSON *readable = cJSON_Duplicate(root, 1);
+  /* format=pretty is for a person reading the file, so strip what only a GELF consumer
+   * needs. format=gelf keeps everything, on the grounds that a file in that shape exists
+   * to be shipped somewhere. */
+  if (gelf->config.file.format == GELF_FORMAT_PRETTY) {
     cJSON *item;
-    char *pretty;
     size_t f;
 
-    if (readable == NULL) {
-      cJSON_Delete(root);
-      return;
-    }
     for (f = 0; f < sizeof omit_from_pretty / sizeof *omit_from_pretty; f++) {
-      cJSON_DeleteItemFromObjectCaseSensitive(readable, omit_from_pretty[f]);
+      cJSON_DeleteItemFromObjectCaseSensitive(root, omit_from_pretty[f]);
     }
     /* GELF requires the leading underscore on every custom field; a person reading a file
      * does not. Shift each key left over its own '_' -- in place, because the name only ever
      * gets shorter, so there is no allocation and nothing to free. Safe from collisions while
      * no unprefixed key shares a name with a stripped one (today: short_message, full_message
      * and level, none of which has an _-prefixed twin). */
-    for (item = readable->child; item != NULL; item = item->next) {
+    for (item = root->child; item != NULL; item = item->next) {
       if (item->string != NULL && item->string[0] == '_' && item->string[1] != '\0') {
         memmove(item->string, item->string + 1, strlen(item->string));
       }
     }
-    pretty = cJSON_Print(readable);
-    cJSON_Delete(readable);
+    json = cJSON_Print(root);
+    cJSON_Delete(root);
 
-    if (pretty != NULL) {
-      char *spaced = respace(pretty);
+    if (json != NULL) {
+      char *spaced = respace(json);
 
       if (spaced != NULL) {
         file_write(gelf, spaced, strlen(spaced));
         free(spaced);
       }
-      cJSON_free(pretty);
+      cJSON_free(json);
     }
-    want_file = 0;
-  }
-
-  if (!want_file) {
-    cJSON_Delete(root);
     return;
   }
 
   json = cJSON_PrintUnformatted(root);
   cJSON_Delete(root);
-  if (json == NULL)
+  if (json == NULL) {
     return;
-
+  }
   file_write(gelf, json, strlen(json));
   cJSON_free(json);
 }
@@ -1008,8 +1029,12 @@ void log_delivery(gelf_t *gelf,delivery_log_t* d) {
     cJSON_AddStringToObject(root, "_user", gelf->context.user);
   }
 
-  cJSON_AddStringToObject(root, "_instruction", d->instruction);
-  cJSON_AddStringToObject(root, "_source", d->source);
+  if (d->instruction[0]) {
+    cJSON_AddStringToObject(root, "_instruction", d->instruction);
+  }
+  if (d->source && d->source[0]) {
+    cJSON_AddStringToObject(root, "_source", d->source);
+  }
   cJSON_AddStringToObject(root, "_method", d->method);
   cJSON_AddNumberToObject(root, "_success", d->success ? 1 : 0); // GELF doesn't have bools
   if (d->has_exit_status) {
@@ -1197,9 +1222,11 @@ void set_vdm_id(gelf_t *gelf) {
 
 
 /*
- * Loads the logging configuration and opens the [file_log] target.
- * Returns 0 on success, 1 on failure with a one-line reason (no trailing newline or full
- * stop) written to reason_out; reason_out is "" on success.
+ * Loads the logging configuration and sets the delivery ID. Doesn't open the log file:
+ * start_logging does that, once the caller has the config it needs to decide whether
+ * an unopenable log defers.
+ * Returns 0 on success, or -1 if the configuration can't be loaded, with a one-line
+ * reason (no trailing newline or full stop) in reason_out; reason_out is "" on success.
  *
  * Under qmail the caller defers, and is expected to print the reason to stdout so that it
  * reaches qmail-send's log -- the only place an admin will see it when our own log is what's
@@ -1213,18 +1240,43 @@ int gelf_setup(gelf_t *gelf, char *reason_out, size_t reason_size) {
 
   if (gelf_load_config(&gelf->config, 0) != 0) {
     snprintf(reason_out, reason_size, "Logging system failed to start"); // TODO: indicate filename
-    return 1;
+    return -1;
   }
 
-  /* A log file we cannot open at startup is a configuration error, and the
-   * caller defers. A write that fails later is ignored: see file_write. */
+  set_vdm_id(gelf); // Needs log_source_hostname
+  return 0;
+}
+
+
+/*
+ * Opens the [file_log] target, if it is enabled. Call after gelf_setup.
+ * Returns 0 on success, or -1 if the file can't be opened, with a one-line reason
+ * (no trailing newline or full stop) in reason_out; reason_out is "" on success.
+ * The reason names the path, and a directory, uid or errno, so it is as safe to
+ * print as gelf_setup's.
+ *
+ * Whether a failure defers the delivery is the caller's decision. One that carries
+ * on still logs nothing: log_fd stays -1, and file_write drops every record. A
+ * write that fails after a successful open is ignored the same way.
+ */
+int start_logging(gelf_t *gelf, char *reason_out, size_t reason_size) {
+  reason_out[0] = '\0';
+
   if (gelf->config.file.enabled && file_open(gelf) != 0) {
-    snprintf(reason_out, reason_size, "Unable to open log file %s: %s",
-             gelf->config.file.path, strerror(errno));
-    return 1;
-  }
+    int saved = errno;   /* test_log_file overwrites it */
+    char detail[2 * MAX_BUFF];
 
-  set_vdm_id(gelf);
+    if (test_log_file(gelf->config.file.path, detail, sizeof(detail)) == 0) {
+      /* Nothing found wrong: the cause wasn't a permission test_log_file knows
+       * about, or the problem healed since the open. Either way we can't say
+       * which, so only open()'s own errno is reported. */
+      snprintf(detail, sizeof(detail), "unknown (open: %s)", strerror(saved));
+    }
+
+    snprintf(reason_out, reason_size, "Unable to open log file %s: %s",
+             gelf->config.file.path, detail);
+    return -1;
+  }
 
   return 0;
 }
