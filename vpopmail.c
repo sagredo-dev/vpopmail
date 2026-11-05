@@ -3924,7 +3924,7 @@ char *get_remote_ip() {
 
   ipenv = getenv("TCPREMOTEIP"); /* tcpserver from daemontools */
   if (ipenv == NULL) ipenv = getenv("REMOTE_HOST"); /* xinetd */
-  if ((ipenv == NULL) || (strlen(ipenv) > sizeof(ipbuf))) return ipenv;
+  if ((ipenv == NULL) || (strlen(ipenv) >= sizeof(ipbuf))) return ipenv;
 
   strcpy(ipbuf, ipenv);
   ipaddr = ipbuf;
