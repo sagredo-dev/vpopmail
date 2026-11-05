@@ -44,6 +44,7 @@
 #include "maildirquota.h"
 #include "vauth.h"
 #include "vpopmail.h"
+#include "seek.h"
 #include "vlimits.h"
 #include "gelf.h"
 #include "vdelivermail.h"
@@ -128,6 +129,7 @@ char msgbuf[MSG_BUF_SIZE];
 #define INFO  6
 #define WARN  4
 #define ERROR 3
+#define FATAL 2 // 2=LOG_CRIT, 1=LOG_ALERT, 0=LOG_EMERG
 
 
 /* A vexiterr() that has been formatted but not yet acted upon. Strings are
@@ -224,6 +226,7 @@ void format_log_text(char *buf, size_t size, const char *fmt, ...) {
   vsnprintf(buf, size, fmt, ap);
   va_end(ap);
 }
+
 
 // Like log_event, with a full_message the caller has already formatted, e.g. with snprintf().
 __attribute__((format(printf, 3, 4)))
@@ -433,8 +436,8 @@ struct vqpasswd *Vauth_getpw(char *user, char *domain) {
   struct vqpasswd *pw;
 
   pw = vauth_getpw(user, domain);
-  if (pw == NULL && verrori != 0) { // e.g. VA_NO_AUTH_CONNECTION
-    vexiterr(EXIT_DEFER, ERROR, "vdelivermail: deferred, database down", "can't lookup vpopmail user, verrori=%d",verrori); // same message as v5.6
+  if (pw == NULL && verrori != 0) { // anything other than not found, e.g. -23=VA_NO_AUTH_CONNECTION
+    vexiterr(EXIT_DEFER, FATAL, "vdelivermail: deferred, database down", "can't lookup vpopmail user, verrori=%d",verrori); // same message as v5.6
   }
   return pw;
 }
@@ -508,6 +511,46 @@ int lowercase_copy(char *dst, size_t dst_size, const char *src) {
   }
   dst[i] = '\0';
   return 0;
+}
+
+/* The normalise_*_instruction functions spell a user-supplied delivery instruction one way, for the
+ * _instruction log field, so log searches needn't guess at incidental whitespace or slashes.
+ * They never change meaning: relative paths stay relative. */
+
+// raw - the command, without the leading '|'. "  cmd  " becomes "|cmd".
+void normalise_program_instruction(char *buf, size_t size, const char *raw) {
+  while (isspace((unsigned char)*raw)) raw++;
+  size_t n = strlen(raw);
+  while (n > 0 && isspace((unsigned char)raw[n - 1])) n--;
+  format_log_text(buf, size, "|%.*s", (int)n, raw);
+}
+
+// raw - path starting with '.' or '/', with or without trailing slashes or whitespace.
+// Ends with exactly one '/'. No leading trim: callers dispatch on raw[0].
+void normalise_maildir_instruction(char *buf, size_t size, const char *raw) {
+  size_t n = strlen(raw);
+  while (n > 1 && isspace((unsigned char)raw[n - 1])) n--;
+  while (n > 0 && raw[n - 1] == '/') n--;
+  format_log_text(buf, size, "%.*s/", (int)n, raw);
+}
+
+// raw - homedir path starting with '.' or '/'. Trailing slashes and whitespace removed,
+// the usual spelling of a homedir catch-all (see detect_homedir), so it isn't mistaken for a Maildir.
+void normalise_homedir_instruction(char *buf, size_t size, const char *raw) {
+  size_t n = strlen(raw);
+  while (n > 1 && isspace((unsigned char)raw[n - 1])) n--;
+  while (n > 1 && raw[n - 1] == '/') n--;
+  format_log_text(buf, size, "%.*s", (int)n, raw);
+}
+
+// raw - address, without the leading '&'. " Addr " becomes "&addr".
+// Lowercased (ASCII only) for searching; the log message keeps the address as written.
+void normalise_forward_instruction(char *buf, size_t size, const char *raw) {
+  while (isspace((unsigned char)*raw)) raw++;
+  size_t n = strlen(raw);
+  while (n > 0 && isspace((unsigned char)raw[n - 1])) n--;
+  format_log_text(buf, size, "&%.*s", (int)n, raw);
+  lowercase_copy(buf, size, buf);
 }
 
 
@@ -832,111 +875,42 @@ int load_text_file(const char *filename, char*** lines_out) {
 };
 
 
+// Counts lines that are neither comments ('#' in column 1) nor blank (empty or whitespace only).
+// An indented comment ("  # note") counts as an instruction, matching clean_instructions and
+// qmail-local, which both treat it as a forward to an address.
 int count_non_comment_instructions(char** instructions) {
   int count=0;
   for (int i=1; instructions[i-1] != NULL; i++) {
-    if (instructions[i-1][0] != '#') {
-      count++;
-    }
+    const char *line = instructions[i-1];
+    if (line[0] == '#') continue;
+    while (isspace((unsigned char)*line)) line++;
+    if (*line != '\0') count++;
   }
   return count;
 }
 
 
-// Remove comments and empty lines. Makes it easier to detect when there's a mixture of success and failure while executing the delivery instructions.
+// Remove comments and empty lines. Trailing whitespace trimmed.
+// Makes it easier to detect when there's a mixture of success and failure
+// while executing the delivery instructions.
+// qmail-local trims only trailing spaces and tabs, so we're slightly more lenient.
+// For .qmail files, warn_dotqmail_differences reports where that matters.
 void clean_instructions(char*** lines_out, char** instructions) {
-  int rows=0;
-  char** tmp;
   char line[MAX_BUFF];
-  char* tmp2;
-  char* p;
-  
-  if (! (*lines_out = malloc(sizeof(char*) * 2))) {
+
+  if (! (*lines_out = malloc(sizeof(char*)))) {
     vexiterr(EXIT_DEFER, ERROR, "", "Error allocating memory");
   };
   (*lines_out)[0] = NULL;
 
-  for (int i=1; instructions[i-1] != NULL; i++) {
-    snprintf(line, sizeof(line), "%s", instructions[i-1]);
-
-    p=line;
-    if (*p == '\0') { continue; }; // discard empty lines
-    if (*p == '#') { continue; }; // discard comment lines
-
-    // Now we have at least one character. Remove trailing whitespace including newline characters.
-    p = line + strlen(line) - 1;
-    while (isspace(*p)) p--;
-    p++;
-    *p = '\0';
-    if (strlen(line) == 0) { continue; }; // if the line was only whitespace, discard it.
-
-    /*
-    // Note: the v5.6 default .qmail-default file has "| " 
-    // Philosophy: If we are more generous that qmail-local, mention the more aggregious issues as a WARN in my validate routine.
-
-    // Remove spaces after &, |, :
-    if (line[0] == '&' || line[0] == '|' || line[0] == ':') {
-      p = line + 1;
-      while (isspace(*p)) p++;
-      if (*p == '\0') { continue; }; // invalid, but not this functions's job to fix it.
-      memmove(line+1,p,strlen(p)+1); // moves everything (including the \0) from the third position onwards, to the second position.
-    }
-    else { // Assume email address and remove leading spaces. If we hit a stray "|" or similar, that will be caught elsewhere.
-      p=line;
-      while (isspace(*p)) p++;
-      // The tests ensure we don't cause illegally indented lines to be accepted:
-      if (*p != '#' && *p != '|' && *p != '.' && *p != '/' && *p != ':' && *p != '&') {
-        memmove(line,p,strlen(p)+1); // remove those leading spaces
-      }
-    }
-    */
-
-    rows++;
-    tmp = realloc(*lines_out, sizeof(char*) * (rows + 1));
-    if (tmp == NULL) {
-      vexiterr(EXIT_DEFER, ERROR, "", "Error allocating memory");
-    };
-    *lines_out = tmp;
-
-    tmp2 = malloc(sizeof(char) * (strlen(line) + 1));
-    if (tmp2 == NULL) {
-      vexiterr(EXIT_DEFER, ERROR, "", "Error allocating memory");
-    };
-    (*lines_out)[rows-1] = tmp2;
-    strcpy((*lines_out)[rows-1], line);
+  for (int i = 0; instructions[i] != NULL; i++) {
+    if (instructions[i][0] == '#') continue;
+    size_t n = strlen(instructions[i]);
+    while (n > 0 && isspace((unsigned char)instructions[i][n - 1])) n--;
+    if (n == 0) continue;
+    snprintf(line, sizeof line, "%.*s", (int)n, instructions[i]); // can't truncate: lines are < MAX_BUFF
+    array_push(lines_out, line);
   }
-
-  (*lines_out)[rows] = NULL;
-}
-
-
-int validate_shell_command(char* line) {
-  if (strstr(line, "vdelivermail") != NULL) {
-    printf("ERROR Calling vdelivermail from vpopmail's defaultdelivery file is deprecated.\n");
-    return 0; // fatal in test mode, accepted in production for backward compatability
-  }
-  return 1;
-}
-
-
-int validate_path_to_maildir(char* line) {
-  // Detect programming error
-  // if (line[0] != '.' && line[0] != '/') {
-  //   printf("ERROR: unexepcted first character for path to Maildir");
-  //   return 0;
-  // };
-
-  // TODO: disallow newlines.
-
-  // Unlike qmail-local, we only allow Maildirs, not mbox files.
-  if (line[strlen(line) - 1] != '/') {
-    printf("ERROR: can't handle mbox delivery for %s", line);
-    return 0;
-  }
-
-  // No internal spaces? No quotes?
-
-  return 1;
 }
 
 
@@ -990,21 +964,10 @@ int validate_forwarding_address(char* line, int check_mode) {
 }
 
 
-// in a defaultdelivery file, we reject everything
-int validate_directive(char* line) {
-  if (strcmp(line,":default") == 0) {
-    printf("ERROR: :default is only valid in the valias table\n");
-    return 0;
-  }
-
-  printf("Invalid delivery instruction: %s", line);
-  return 0; // sic
-}
-
-
 /*
  * Get the size of the email message. Stdin must already be a regular
- * file (a pipe's st_size is 0). Does not move the file position; each stdin
+ * file (a pipe's st_size is 0). The caller guarantees that by calling
+ * MakeSeekable first. Does not move the file position; each stdin
  * consumer rewind_stdin()s before it reads.
  */
 ssize_t get_message_size() {
@@ -1017,22 +980,6 @@ ssize_t get_message_size() {
 }
 
 
-/*
- * Get the command line arguments and the environment variables.
- * Force addresses to be lower case and set the default domain.
- *
- * Options (GNU getopt: may appear anywhere on the command line):
- *   -v  print version and exit
- *   -V  verbose
- *   -h  help
- *   -d  dump message to stdout instead of Maildir (also: DELIVER_TO_STDOUT=1)
- *
- * Positionals after options:
- *   vdelivermail              → bounce = "default"
- *   vdelivermail ""           → bounce = "default"
- *   vdelivermail "" <bounce>  → bounce as given (compat arg must be "")
- *   vdelivermail <bounce>     → invalid (compat "" required when bounce given)
- */
 void print_version(void) {
   printf("vdelivermail version %s\n", VERSION);
 }
@@ -1048,7 +995,8 @@ void usage(void) {
   printf("  delete | bounce-no-mailbox | <email> | <Maildir>\n"); // the documented Maildir form is incorrect
   printf("\nExamples:\n");
   printf("  vdelivermail \"\" delete\n");
-  printf("  EXT=user HOST=example.com ./vdelivermail -d \"\" delete < test.eml\n");
+  printf("  EXT=user HOST=example.com RPLINE=$'Return-Path: <sender@example.net>\\n' \\\n");
+  printf("    ./vdelivermail -d \"\" delete < test.eml\n");
 }
 
 
@@ -1069,7 +1017,7 @@ void process_interactive_mode_switches(int argc, char **argv) {
 
   // For -h, -v we assume being run from command line, rather than from within .qmail-default
   // If we needed additional safety, we could always EXIT_DEFER when getenv("DEFAULT") != NULL.
-  while ((c = getopt(argc, argv, "tvdVh")) != -1) {
+  while ((c = getopt(argc, argv, "vdVh")) != -1) {
     switch (c) {
       case 'h':
         usage();
@@ -1252,10 +1200,9 @@ void get_arguments(int argc, char **argv) {
 #if HAVE_DECL_OPTRESET
   optreset = 1;
 #endif
-  while ((c = getopt(argc, argv, "tvdVh")) != -1) {
+  while ((c = getopt(argc, argv, "vdVh")) != -1) {
     switch (c) {
       case 'h':
-      case 't':
       case 'v':
         // -h/-v already exited, if DEFAULT was not set.
         vexiterr(EXIT_DEFER, ERROR,"","%c not accepted when DEFAULT environment variable is set",c);
@@ -1405,6 +1352,7 @@ void sig_catch(int sig, void (*f)(int))
 }
 
 
+// prog - the command, without the leading '|'. Passed to /bin/sh -c as is, like qmail-local.
 // RETURN VALUE: -1 mean stop processing remaining delivery instructions
 int run_command(char *prog, const char *log_source) { 
   int child_pid;
@@ -1418,14 +1366,12 @@ int run_command(char *prog, const char *log_source) {
 
   memset(d, 0, sizeof *d);
   d->in_progress = true;
-  snprintf(d->instruction, sizeof d->instruction, "%s", prog);
+  normalise_program_instruction(d->instruction, sizeof d->instruction, prog);
   d->source = log_source;
   d->method = "program";
   snprintf(d->message, sizeof d->message, "Running shell command, recipient is %s", OriginalRecipient); // refine later
 
   rewind_stdin();
-
-  while ((*prog == ' ') || (*prog == '|')) ++prog;
 
   // OriginalRecipient accords with EXT and USER, as inherited by the command.
   //
@@ -1433,7 +1379,7 @@ int run_command(char *prog, const char *log_source) {
   // So just sniff for the handful of commands that dominate in practice, the way vutil.c's
   // isExistingAlias() already does for valias rows containing ezmlm and autorespond. 
   // qmail-start(8) documents putting QMAILHOME/bin on PATH for the whole delivery tree, so don't insist on a leading '/'.
-  // A wrong guess costs nothing: d->instruction carries the verbatim command in the same log record.
+  // A wrong guess costs nothing: d->instruction carries the command in the same log record.
   if (strstr(prog, "autorespond"))
     snprintf(d->message, sizeof d->message, "Running autorespond command, recipient is %s", OriginalRecipient);
   else if (strstr(prog, "lmtp"))
@@ -2445,11 +2391,11 @@ void inject_mail(char *address, const char *log_source) {
 
   memset(d, 0, sizeof *d);
   d->in_progress = true;
-  snprintf(d->instruction, sizeof d->instruction, "&%s", address);
+  normalise_forward_instruction(d->instruction, sizeof d->instruction, address);
   d->source = log_source;
   d->method = "forward";
 
-  if (strcmp(log_source,"catchall")==0) {
+  if (log_source && strcmp(log_source,"catchall")==0) {
     snprintf(d->message, sizeof d->message, "Forwarding to catch-all address %s", address);
   }
   else {
@@ -2582,17 +2528,6 @@ void inject_mail(char *address, const char *log_source) {
 }
 
 
-// resolves the destination purely from qmail's envelope environment
-//1:6:maildrop/maildroprc.v2
-// import EXT
-// import HOST
-// VPOPMAILDIR="/home/vpopmail"
-// VHOME=`$VPOPMAILDIR/bin/vuserinfo -d $EXT@$HOST`
-// DOMDIR=`$VPOPMAILDIR/bin/vdominfo -d $HOST`
-// NOEXT=`echo $EXT | awk -F- '{ print $1}'`
-// and ends with `to $VHOME/Maildir/`
-
-
 // Returns true if the warning was sent in the last 24 hours.
 // exception handling: does not exit. returns true and logs. The warning probably wouldn't succeed anyway.
 bool quota_warning_sent_recently(const char *dir) {
@@ -2660,7 +2595,7 @@ int deliver_quota_warning(const char *dir, const char *template_path, const char
   char extra_headers[HEADERS_SIZE] = "";
   const char *date;
 
-  // We use a local delivery_log here, as our caller, manage_deliver_to_mail, is using the 
+  // We use a local delivery_log here, as our caller, manage_deliver_to_maildir, is using the 
   // gelf.context.delivery to track its own in-progress delivery.
   // vexiterr are only possible during deliver_to_maildir within its maildrop delivery path,
   // but at least those will trigger a delivery log describing the outcome of our caller's primary delivery attempt.
@@ -3163,7 +3098,7 @@ void calc_other_maildir_constraints(maildir_constraints_t *c, const char *addres
     *  - none of the ancestor directories have a dot in their name
     *  - the path doesn't end in /Maildir
     *  - the path is too shallow: e.g. /bob/Maildir
-    *  - the path is relative but doesn't start with ./
+    *  - the path is relative but doesn't start with ./ [but that violates the valias/.qmail/defaultdelivery spec]
     *  - the only dotted ancestor is the first path component: e.g. /example.com/bob/Maildir
     */ 
     format_constraints_detail(c, abs_maildir, detail, sizeof detail);
@@ -3626,7 +3561,10 @@ void enforce_maildir_domain_quota(delivery_log_t *d, const char *quota_root, con
 // For valias lines we expect this to be the domain dir. For defaultdelivery, its the homedir.
 // INPUT: recipient - the user record found for the envelope recipient address.
 //   Pass NULL when the db lookup found no matching rows.
-void manage_deliver_to_maildir(const char *address_in, const vqpasswd_copy_t *recipient, const char *log_source) {
+// INPUT: log_source, log_instruction - where the user-supplied instruction came from, and that
+//   instruction already normalised (normalise_maildir_instruction etc). Pass NULL for both when the delivery
+//   wasn't directly caused by an instruction ("" is tolerated).
+void manage_deliver_to_maildir(const char *address_in, const vqpasswd_copy_t *recipient, const char *log_source, const char *log_instruction) {
   char address[PATH_MAX]; // address_in without trailing '/', so paths and logs are spelled one way
   size_t address_len = strlen(address_in);
   while (address_len > 1 && address_in[address_len - 1] == '/') address_len--;
@@ -3642,7 +3580,9 @@ void manage_deliver_to_maildir(const char *address_in, const vqpasswd_copy_t *re
 
   memset(d, 0, sizeof *d);
   d->in_progress = true;
-  format_log_text(d->instruction, sizeof d->instruction, "%s/", address);
+  if (log_instruction) {
+    format_log_text(d->instruction, sizeof d->instruction, "%s", log_instruction);
+  }
   d->source = log_source;
   d->method = "maildir";
 
@@ -3683,9 +3623,11 @@ void manage_deliver_to_maildir(const char *address_in, const vqpasswd_copy_t *re
 
   calc_maildir_constraints(&c, recipient, address, abs_maildir);
   
-  char constraint_detail[FULL_MESSAGE_MAX];
-  format_constraints_detail(&c, abs_maildir, constraint_detail, sizeof constraint_detail);
-  log_detailed_event(DEBUG, constraint_detail, "Maildir constraints"); // TODO: verbose mode only
+  if (gelf.config.verbose) {
+    char constraint_detail[FULL_MESSAGE_MAX];
+    format_constraints_detail(&c, abs_maildir, constraint_detail, sizeof constraint_detail);
+    log_detailed_event(DEBUG, constraint_detail, "Maildir constraints");
+  }
 
   snprintf(d->message, sizeof d->message, "%s", c.summary);
   snprintf(d->maildir_owner, sizeof d->maildir_owner, "%s", c.maildir_owner);
@@ -3775,15 +3717,16 @@ void manage_deliver_to_maildir(const char *address_in, const vqpasswd_copy_t *re
  *
  * recipient - the user record found for the envelope recipient address.
  *   Pass NULL when the db lookup found no matching rows.
+ * log_source - where address came from, e.g. "valias", ".qmail", or NULL.
  */
  // return value: -1 means the caller should stop processing remaining delivery instructions
 int deliver_mail(char *address, const vqpasswd_copy_t *recipient, const char *log_source) {
   /* This is a comment, ignore it */
   if (*address == '#') return 0;
 
-  /* This is an command */
+  /* This is a command */
   if (*address == '|') {
-    /* run the command */
+    if (*address == '|') ++address;
     return run_command(address,log_source); // 0=success; -1 means skip remaining instructions
   }
 
@@ -3794,7 +3737,9 @@ int deliver_mail(char *address, const vqpasswd_copy_t *recipient, const char *lo
       vexiterr(EXIT_DEFER, ERROR,"","can't handle mbox delivery for %s", address);
     }
 
-    manage_deliver_to_maildir(address, recipient, log_source);
+    char instruction[HEADER_VALUE_MAX];
+    normalise_maildir_instruction(instruction, sizeof instruction, address);
+    manage_deliver_to_maildir(address, recipient, log_source, instruction);
 
     /* must be an email address */
   } 
@@ -3808,6 +3753,31 @@ int deliver_mail(char *address, const vqpasswd_copy_t *recipient, const char *lo
 }
 
 
+/* We're more lenient than qmail-local in places. Warn about .qmail contents that work here but
+ * that qmail-local itself would treat differently, so a file doesn't quietly become one that
+ * only vdelivermail can process. One warning per problem line.
+ * Not detectable: CRLF line endings, because load_text_file strips the \r before we see it. */
+void warn_dotqmail_differences(char **instructions, const char *log_dotqmail_file) {
+  bool seen_list = false;
+
+  for (int i = 0; instructions[i] != NULL; i++) {
+    const char *l = instructions[i];
+    if (l[0] == '#') continue;
+
+    size_t n = strlen(l);
+    while (n > 0 && (l[n - 1] == ' ' || l[n - 1] == '\t')) n--; // what qmail-local trims
+
+    if (n == 5 && strncmp(l, "+list", 5) == 0) {
+      seen_list = true;
+    }
+    else if (seen_list && (l[0] == '.' || l[0] == '/' || l[0] == '|')) {
+      log_event(WARN, "%s line %d is a file or program delivery after +list."
+        " Delivering anyway, but qmail-local would defer", log_dotqmail_file, i + 1);
+    }
+  }
+}
+
+
 /* Check if the vpopmail user has a .qmail file in their directory
  * and foward to each email address, Maildir or program
  *  that is found there in that file
@@ -3815,80 +3785,116 @@ int deliver_mail(char *address, const vqpasswd_copy_t *recipient, const char *lo
  * recipient - the user record found for the envelope recipient address.
  *   Pass NULL when the db lookup found no matching rows.
  *
- * Return: 1 if we found and delivered email
- *       : OLD: 0 if not found
- *       : -1 if no user .qmail file
- *
+ * Returns  1 if .qmail processing finished. Also covers the discarding mail scenario.
+ * Returns -1 if no user .qmail file
  */
 int check_forward_deliver(const vqpasswd_copy_t *recipient) {
   char **instructions = NULL;
-  int found = -1; // load_text_file(): 0 found, -1 absent, -2 unreadable (logged), treated as absent like 5.6
-  int i;
+  bool found = false; // load_text_file() returning -2 (unreadable, logged) counts as absent, like 5.6
+
+  // Absolute, so every log message, including load_text_file's own logs, name the file unambiguously.
+  // The current directory is the homedir, so opening by this path is the same as opening ".qmail".
+  char cwd[PATH_MAX];
+  if (getcwd(cwd, sizeof cwd) == NULL) snprintf(cwd, sizeof cwd, ".");
+  char dotqmail[sizeof cwd - 1 + sizeof("/.qmail-") - 1 + sizeof(TheExt) - 1 + sizeof("default")]; // longest: <cwd>/.qmail-<ext>default
 
 #ifdef QMAIL_EXT
-  char tmpbuf[500];
-
   /* format the file name */
   if (strlen(TheExt)) {
-    strcpy(tmpbuf, ".qmail-");
-    strcat(tmpbuf, TheExt);
-    if ((found = load_text_file(tmpbuf, &instructions)) != 0) {
-      for (i = strlen(TheExt); i >= 0; --i) {
-        if (!i || TheExt[i - 1] == '-') {
-          strcpy(tmpbuf, ".qmail-");
-          strncat(tmpbuf, TheExt, i);
-          strcat(tmpbuf, "default");
-          if ((found = load_text_file(tmpbuf, &instructions)) == 0) {
-            break;
-          }
-        }
+    snprintf(dotqmail, sizeof dotqmail, "%s/.qmail-%s", cwd, TheExt);
+    found = load_text_file(dotqmail, &instructions) == 0;
+    for (int j = strlen(TheExt); !found && j >= 0; --j) {
+      if (!j || TheExt[j - 1] == '-') {
+        snprintf(dotqmail, sizeof dotqmail, "%s/.qmail-%.*sdefault", cwd, j, TheExt);
+        found = load_text_file(dotqmail, &instructions) == 0;
       }
     }
   }
 #endif
 
-  if (found != 0) found = load_text_file(".qmail", &instructions);
+  if (!found) {
+    snprintf(dotqmail, sizeof dotqmail, "%s/.qmail", cwd);
+    found = load_text_file(dotqmail, &instructions) == 0;
+  }
 
   /* no usable .qmail file at all */
-  if (found != 0) {
-    return (-1);
+  if (!found) {
+    return -1;
   }
 
-  // Treat a 0-bytes file the same as .qmail, that is, the same as if there is no file.
+  // Like qmail-local, a 0-bytes file is treated as absent, resulting in an ordinary delivery.
+  // Regrettably qmail-local treats a comments-only file differently to an empty file.
+  // vmakedotqmail leaves behind an empty .qmail when control/defaultdelivery is missing.
+  // qmailadmin modusergo exits early with an empty file if control/defaultdelivery can't be read.
   if (instructions[0] == NULL) {
-    free_array(instructions);
-    return (-1);
-  }
-
-  // Defer when first line is blank, like qmail-local 4.2.1 error.
-  // TODO: Q. Does this add value? Should I check for extra whitespace?
-  if (instructions[0][0] == '\0') {
-    vexiterr(EXIT_DEFER, ERROR, "", ".qmail first line is blank");
-  }
-
-  for (i = 0; instructions[i] != NULL; i++) {
-    if (*instructions[i] == '#') {
-      continue;
+    if (recipient != NULL) {
+      log_event(DEBUG, "%s file, belonging to %s@%s, is 0 bytes. Delivering as if it were absent,"
+       " like qmail-local", dotqmail, recipient->name, recipient->domain);
     }
+    else {
+      log_event(DEBUG, "%s file has 0 bytes, delivering as if it were absent, like qmail-local",dotqmail);
+    }
+    free_array(instructions);
+    return -1;
+  }
+
+  // Defer when first line is blank after trimming trailing spaces and tabs.
+  // qmail-local emits ""Uh-oh: first line of .qmail file is blank. (#4.2.1)"
+  // Qmail's motivation is unclear. Perhaps a blank first line suggests a damaged file so it doesn't follow the remaining instructions.
+  // I'm tempted to drop this rule, but that could allow the empty-file rule to trigger, leading to lost mail.
+  if (instructions[0][strspn(instructions[0], " \t")] == '\0') {
+    if (recipient != NULL) {
+      vexiterr(EXIT_DEFER, ERROR, "", "Deferring mail for %s@%s, %s first line is blank",recipient->name, recipient->domain, dotqmail);
+    }
+    else {
+      // Only occurs when the user-not-found instruction is a homedir.
+      vexiterr(EXIT_DEFER, ERROR, "", "Deferring mail, %s first line is blank",dotqmail);
+    }
+  }
+
+  if (count_non_comment_instructions(instructions)==0) {
+    if (recipient != NULL) {
+      log_event(WARN,"Discarding mail for %s@%s, %s is only comments or blank lines", recipient->name, recipient->domain, dotqmail);
+    }
+    else {
+      // Only occurs when the user-not-found instruction is a homedir.
+      log_event(INFO,"Discarding mail. %s is only comments or blank lines.",dotqmail);
+    }
+    free_array(instructions);
+    return 1; // sic
+  }
+
+  // Positioned here, rather than logging unimportant points before the more serious issues handled above.
+  warn_dotqmail_differences(instructions,dotqmail);
+
+  // Like qmail-local: trailing whitespace trimmed, blank lines skipped.
+  char **cleaned;
+  clean_instructions(&cleaned, instructions);
+  free_array(instructions);
+
+  for (int i = 0; cleaned[i] != NULL; i++) {
+    // qmail-local treats every line starting with '+' as a directive: "+list" makes the rest of
+    // the file forward-only (a later file or program line defers, after earlier lines have
+    // delivered), and any other '+' line is silently ignored.
+    // We skip "+list" but don't enforce forward-only; warn_dotqmail_differences warns instead.
+    // Other '+' lines still reach deliver_mail as forwards.
+    if (strcmp(cleaned[i], "+list") == 0) continue;
 
     // It's safe to pass the user record data (recipient) because check_forward_deliver is never called by deliver_mail itself.
-    if (deliver_mail(instructions[i],recipient,".qmail") == -1) { // e.g. from child process exit code 99, if we enable that feature
+    if (deliver_mail(cleaned[i],recipient,".qmail") == -1) { // e.g. from child process exit code 99, if we enable that feature
       break;
     }
   }
 
-  free_array(instructions);
+  free_array(cleaned);
 
-  // TODO: warn when there were only comments and blank lines
-
-  return (1);
+  return 1;
 }
 
 
 /*
  * Returns true if the supplied path is deemed to be a homedir.
- * This supports a longstanding, but undocumented feature where
- * the second argument to vdelivermail can be a path to a homedir.
+ * The second argument to vdelivermail can be a path to a homedir.
  *
  * These tests allow for the possibility that the user could specify a Maildir
  * called something other than "Maildir".
@@ -3977,7 +3983,7 @@ void usernotfound() {
     if (fs == NULL) {
       vexiterr(EXIT_BOUNCE,INFO,"Sorry, no mailbox here by that name. (#5.1.1)","Bouncing, %s not found", DealiasedRecipient); // sent basic message
     };
-    // Sadly qmail-send will log up to 3000 bytes of our custom message to its log stream, replacing newlines with "/".
+    // Sadly qmail-send will log up to 3000 bytes of our custom message to its log stream! It replaces newlines with "/".
     while (fgets(tmp_file, sizeof(tmp_file), fs) != NULL) {
       if (++line_num == 1) {
         snprintf(first_line, sizeof first_line, "%.50s", tmp_file);
@@ -3999,8 +4005,9 @@ void usernotfound() {
   // for valias lines, relative paths are relative to is DomainDir
   if (bounce[0] == '/' || bounce[0] == '.') { 
     if (detect_homedir(bounce)) {
-      // Undocumented homedir form, used by things like vadddomain -e postmaster,
-      // which writes domain_dir/postmaster. Valias lines do not support this form.
+      // Homedir form: documented in the vdelivermail man page but not in README.vdelivermail,
+      // and written by vadddomain -e postmaster as domain_dir/postmaster. Valias lines do not
+      // support this form.
 
       // Remove the trailing "/"
       if (bounce[strlen(bounce) - 1] == '/' && strlen(bounce) > 1) {
@@ -4011,6 +4018,10 @@ void usernotfound() {
       if (gelf.config.execute_dotqmail) {
         call_dir = open_current_directory();
         Chdir(bounce);
+        // It would be nice to infer user identity and pass a recipient data structure to check_forward_deliver
+        // but that would involve calling something like maildir_to_email or calc_other_maildir_constraints.
+        // It's not worth it because those functions are called by manage_deliver_to_maildir anyway.
+        // The only benefit is slightly better logging for .qmail parsing edge cases.
         dot_qmail_executed = check_forward_deliver(NULL) != -1;
         if (dot_qmail_executed) {
           log_event(DEBUG, "finished executing .qmail file within catch-all homedir");
@@ -4025,7 +4036,9 @@ void usernotfound() {
       }
       char maildir[PATH_MAX]; // bounce is at most AUTH_SIZE - 1 bytes, so this fits
       snprintf(maildir, sizeof maildir, "%s/Maildir/", bounce);
-      manage_deliver_to_maildir(maildir, NULL, "catchall");
+      char instruction[HEADER_VALUE_MAX];
+      normalise_homedir_instruction(instruction, sizeof instruction, bounce);
+      manage_deliver_to_maildir(maildir, NULL, "catchall", instruction);
       return;
     } 
     else {
@@ -4035,7 +4048,9 @@ void usernotfound() {
       }
       // Not using vexiterr to log at INFO level. 
       log_event(INFO, "Routing to catch-all instruction, %s not found", DealiasedRecipient);
-      manage_deliver_to_maildir(bounce, NULL, "catchall");
+      char instruction[HEADER_VALUE_MAX];
+      normalise_maildir_instruction(instruction, sizeof instruction, bounce);
+      manage_deliver_to_maildir(bounce, NULL, "catchall", instruction);
       return;
     }
   }
@@ -4060,9 +4075,12 @@ void action_default_delivery(char** instructions, const vqpasswd_copy_t *recipie
       DeprecationWarning = 1;
       log_event(WARN,"Shell command containing 'vdelivermail' within defaultdelivery is deprecated. Delivering to ./Maildir/ instead.");
       // Preserve vpopmail 5.6 behaviour:
-      manage_deliver_to_maildir("./Maildir/",recipient,"defaultdelivery");
+      char instruction[HEADER_VALUE_MAX];
+      normalise_program_instruction(instruction, sizeof instruction, line + 1);
+      manage_deliver_to_maildir("./Maildir/",recipient,"defaultdelivery",instruction);
       if (i != count) {
-        log_event(ERROR,"defauldelivery contained 'vdelivermail' and fall-back delivery succeeded. Skipping remaining instructions to preserve legacy behaviour.");
+        log_event(ERROR,"defauldelivery contained 'vdelivermail' and fall-back delivery succeeded."
+         " Skipping remaining instructions to preserve legacy behaviour.");
       };
       return;
     }
@@ -4085,18 +4103,20 @@ int check_default_delivery(const vqpasswd_copy_t *recipient) {
     return 0;
   }
   if (loaded == -2) {
-    // Falling back to ordinary delivery could put mail where the real delivery agent never looks.
+    // Safer to defer, than fallback to ordinary delivery. Crucial when the file was intended to pipe to a delivery agent.
     vexiterr(EXIT_DEFER, ERROR, "", "defaultdelivery file %s can't be used", DefaultDeliveryFile);
   }
+  // Unlike qmail-local's .qmail handling, 0 bytes means no instructions, the same as comments only.
   if (instructions[0] == NULL) {
-    log_event(WARN,"defaultdelivery file has 0 bytes, falling back to ordinary delivery");
+    log_event(WARN,"defaultdelivery file has 0 bytes, mail discarded");
     free_array(instructions);
-    return 0;
+    return 1;
   };
   //validate_default_delivery(instructions, 0); // fatal on error, won't pickup issues with individual instructions
 
   if (count_non_comment_instructions(instructions) == 0) {
-    log_event(WARN,"defaultdelivery exists, is larger than 0 bytes, but has no delivery instructions. Technically valid, but mail silently discarded!"); 
+    log_event(WARN,"defaultdelivery exists, is larger than 0 bytes, but has no delivery"
+     " instructions. Technically valid, but mail silently discarded!"); 
     return 1;
   }
 
@@ -4157,7 +4177,7 @@ void checkuser(vqpasswd_copy_t *recipient) {
   };
 
   snprintf(maildir, sizeof(maildir), "%s/Maildir/", recipient->dir);
-  manage_deliver_to_maildir(maildir, recipient, "");
+  manage_deliver_to_maildir(maildir, recipient, NULL, NULL);
 
   Fchdir(call_dir);
   close(call_dir);
@@ -4170,7 +4190,7 @@ void load_aliases(char*** lines, char* user, char* domain) {
     
   if (tmpstr == NULL && verrori != 0) {
     // v5.6 message from main()
-    vexiterr(EXIT_DEFER, ERROR,"vdelivermail: deferred, database down","can't load valias rows, verrori=%d", verrori);
+    vexiterr(EXIT_DEFER, FATAL, "vdelivermail: deferred, database down","can't load valias rows, verrori=%d", verrori);
   }
 
   while (tmpstr != NULL) {
@@ -4344,7 +4364,8 @@ int process_valias(void) {
   // Detect when valias lines are all comments. Check after load_user so we can log the user, when known.
   if (limit_count == 0) {
     if (!found) {
-      log_event(INFO,"Discarding mail, valias lines for %s@%s are only comments, user does not exist",matched_local_part, TheDomain);
+      log_event(INFO,"Discarding mail, valias lines for %s@%s are only comments, "
+       "user does not exist", matched_local_part, TheDomain);
     }
     else {
       // This is the most straight-forward way to silently disable normal delivery for a user.
@@ -4428,7 +4449,7 @@ int process_valias(void) {
 
       // We don't have access to qmail-start's aliasempty arg, so we assume ./Maildir/
       snprintf(maildir, sizeof(maildir), "%s/Maildir/", recipient.dir);
-      manage_deliver_to_maildir(maildir, &recipient, "valias");
+      manage_deliver_to_maildir(maildir, &recipient, NULL, NULL);
       gelf.context.valias_completed++;
       Fchdir(call_dir);
     }
@@ -4490,13 +4511,14 @@ void check_for_mail_loop(char *recipient) {
  */
 int main(int argc, char **argv) {
   bool within_qmail_default = check_qmail_default() == 0;
+  char reason[1024];
   
   // Switches like -v need to work, even when configuration files are invalid.
   if (! within_qmail_default) {
     process_interactive_mode_switches(argc, argv);
   }
 
-  // Avoid creating root-owned log files, message files, maildirsize etc.!
+  // Avoid creating root-owned log files, message files, maildirsize etc!
   if (getuid() == 0 || geteuid() == 0) {
     if (within_qmail_default) {
         printf(STANDARD_DEFER_MESSAGE "\n");
@@ -4507,13 +4529,24 @@ int main(int argc, char **argv) {
   }
 
   // Enable logging early, so we can report on incorrect command-line options.
-  char reason[1024];
   if (gelf_setup(&gelf, reason, sizeof(reason)) != 0) {
     if (within_qmail_default) {
-        printf("%s. (#4.3.0)\n", reason);
-        vexit(EXIT_DEFER); // if we are called by maildrop, it receives EPIPE before it can see our exit code.
+      printf("%s. (#4.3.0)\n", reason);
+      vexit(EXIT_DEFER); // if we are called by maildrop, it receives EPIPE before it can see our exit code.
     }
     exit(1);
+  }
+
+  if (start_logging(&gelf, reason, sizeof(reason)) != 0) {
+    // With mandatory=0, the failure is silent!
+    if (gelf.config.file.mandatory) {
+      if (within_qmail_default) {
+        printf("%s. (#4.3.0)\n", reason);
+        vexit(EXIT_DEFER); // if we are called by maildrop, it receives EPIPE before it can see our exit code.
+      }
+      printf("%s. Aborting.\n", reason);
+      exit(1);
+    }
   }
 
   // Any failure here is held over, so that the start event is logged first and
@@ -4530,6 +4563,19 @@ int main(int argc, char **argv) {
 
   log_process_start(&gelf);
 
+  // Drain stdin first, to avoid preline or maildrop from receiving EPIPE and missing out on our carefully chosen exit codes.
+  if (!isatty(0) && !Seekable(0)) {
+    if (MakeSeekable(stdin) == -1) {
+      if (! failed) {
+        vexiterr(EXIT_DEFER, ERROR, "", "Stdin is a pipe, failed to create temp file");
+      }
+      else {
+        // Appears out-of-order, but it's better before the exit log.
+        log_event(ERROR, "Stdin is a pipe, failed to create temp file");
+      }
+    }
+  }
+
   if (failed) {
     vexiterr_report(&pending);
     vexit(pending.exit_code);
@@ -4537,6 +4583,16 @@ int main(int argc, char **argv) {
 
   // Parse command-line args. Bad input will log a failure.
   get_arguments(argc, argv);
+
+  message_size = get_message_size();
+  gelf.context.size_bytes = message_size;
+  gelf.context.size_known = true;
+  if (message_size == 0) {
+    log_exit(&gelf,EXIT_OK,false,ERROR,NULL,"mail is empty"); // avoiding vexiterr so we can set success=0
+    vexit(EXIT_OK);
+    // Nothing to stdout. In v5.6 each deliver_mail fn call just returned silently,
+    // unless there were valias lines, in which case it reported "vdelivermail: valiases processed".
+  };
 
   extract_headers(&gelf.context.headers, gelf.config.tracking_header);
   gelf.context.headers_extracted = true;

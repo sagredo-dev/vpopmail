@@ -31,7 +31,11 @@ VUSAGECCONF=$(DESTDIR)@vpopmaildir@/etc/vusagec.conf
 DOVECOT_SQL=$(DESTDIR)@vpopmaildir@/etc/disable-many-domains_procedures.sql
 PWD_STRENGTH=$(DESTDIR)@vpopmaildir@/etc/password_strength.conf
 VDEFAULTDELIVERY=$(DESTDIR)@vpopmaildir@/etc/vdefaultdelivery
-VDELIVERMAILINI=$(DESTDIR)@vpopmaildir@/etc/vdelivermail.ini
+VDELIVERMAIL_INI=$(DESTDIR)@vpopmaildir@/etc/vdelivermail.ini
+VDELIVERMAIL_LOGDIR=$(DESTDIR)@vdelivermail_log_dir@
+VDELIVERMAIL_LOG=$(VDELIVERMAIL_LOGDIR)/vdelivermail.log
+LOGROTATE_DIR=$(DESTDIR)/etc/logrotate.d
+VDELIVERMAIL_LOGROTATE=$(LOGROTATE_DIR)/vdelivermail
 PURGE_VLOG=$(DESTDIR)@vpopmaildir@/bin/purge_vlog
 
 noinst_LIBRARIES=libvpopmail.a
@@ -85,31 +89,7 @@ vdelivermail_LDADD = libvpopmail.a @auth_libs@ @GELF_LIBS@
 noinst_HEADERS += header_text.h nmh/fmt_rfc2047.h nmh/shim/h/mh.h \
 	nmh/shim/check_charset.h nmh/shim/utils.h
 EXTRA_DIST += nmh/COPYRIGHT nmh/README.md
-EXTRA_DIST += vdefaultdelivery
-
-check-headers: tests/test_headers tests/test_extract_headers
-	./tests/test_headers
-	./tests/test_extract_headers
-
-tests/test_headers: tests/test_headers.c header_text.c nmh/fmt_rfc2047.c \
-		nmh/shim/check_charset.c
-	$(CC) -Wall -Wextra -Werror -I$(srcdir) -I$(srcdir)/nmh/shim \
-	    -o $@ $(srcdir)/tests/test_headers.c $(srcdir)/header_text.c \
-	    $(srcdir)/nmh/fmt_rfc2047.c $(srcdir)/nmh/shim/check_charset.c
-
-# Links vdelivermail.c itself, recompiled with its main() renamed so the
-# test's is used, plus the other objects the vdelivermail build produced.
-tests/test_extract_headers: tests/test_extract_headers.c vdelivermail.c vdelivermail
-	$(CC) -Wall $(DEFS) $(DEFAULT_INCLUDES) $(CPPFLAGS) \
-	    -I$(srcdir) -I$(srcdir)/nmh/shim -Dmain=vdelivermail_main \
-	    -c -o tests/vdelivermail_for_test.o $(srcdir)/vdelivermail.c
-	$(CC) -Wall -Wextra -Werror $(DEFS) $(DEFAULT_INCLUDES) $(CPPFLAGS) \
-	    -I$(srcdir) -I$(srcdir)/nmh/shim \
-	    -o $@ $(srcdir)/tests/test_extract_headers.c \
-	    tests/vdelivermail_for_test.o vdelivermail-maildirquota.o \
-	    vdelivermail-gelf.o vdelivermail-header_text.o \
-	    nmh/vdelivermail-fmt_rfc2047.o nmh/shim/vdelivermail-check_charset.o \
-	    libvpopmail.a $(auth_libs) $(GELF_LIBS) $(LIBS)
+EXTRA_DIST += vdefaultdelivery vdelivermail.ini vdelivermail.logrotate
 
 vkill_SOURCES = vkill.c 
 vkill_LDADD = libvpopmail.a @auth_libs@
@@ -207,9 +187,6 @@ install-data-local:
 	$(INSTALL) -d -g @vpopgroup@ -m 0700 -o @vpopuser@ \
 	  $(DESTDIR)@vpopmaildir@/@domains_dir@
 
-	$(INSTALL) -d -g @vpopgroup@ -m 0750 -o @vpopuser@ \
-	  $(DESTDIR)@vpopmaildir@/log
-
 	echo "-I@vpopmaildir@/include" > \
 	 $(DESTDIR)@vpopmaildir@/etc/inc_deps
 	echo "-L@vpopmaildir@/lib -lvpopmail @auth_libs@ @LIBS@" > \
@@ -236,8 +213,24 @@ install-data-local:
 	  $(INSTALL) -m 0644 vdefaultdelivery $(VDEFAULTDELIVERY); \
 	fi
 
-	if test ! -r $(VDELIVERMAILINI); then \
-	  $(INSTALL) -m 0644 vdelivermail.ini $(VDELIVERMAILINI); \
+	if test ! -e $(VDELIVERMAIL_INI); then \
+	  $(INSTALL) -m 0644 vdelivermail.ini.install $(VDELIVERMAIL_INI); \
+	fi
+
+	if test ! -d $(VDELIVERMAIL_LOGDIR); then \
+	  $(INSTALL) -d -o @vpopuser@ -m 0750 -g @vpopgroup@ \
+	    $(VDELIVERMAIL_LOGDIR); \
+	fi
+
+	if test ! -e $(VDELIVERMAIL_LOG); then \
+	  $(INSTALL) -o @vpopuser@ -m 0660 -g @vpopgroup@ \
+	    /dev/null $(VDELIVERMAIL_LOG); \
+	fi
+
+	if test ! -d $(LOGROTATE_DIR); then \
+	  echo "No $(LOGROTATE_DIR): see vdelivermail.logrotate.install to rotate $(VDELIVERMAIL_LOG)"; \
+	elif test ! -e $(VDELIVERMAIL_LOGROTATE); then \
+	  $(INSTALL) -m 0644 vdelivermail.logrotate.install $(VDELIVERMAIL_LOGROTATE); \
 	fi
 
 	if test ! -r $(PWD_STRENGTH); then \

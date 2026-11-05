@@ -1201,6 +1201,24 @@ AC_SUBST(domains_dir)
 
 #----------------------------------------------------------------------
 
+vdelivermail_log_dir="$vpopmaildir/log"
+
+AC_ARG_ENABLE(vdelivermail-log-dir,
+    [  --enable-vdelivermail-log-dir=DIR  Directory for vdelivermail.log (default=VPOPMAILDIR/log). Only used when vdelivermail.ini and the logrotate file are first installed.],
+    vdelivermail_log_dir="$enableval",
+)
+
+case "$vdelivermail_log_dir" in
+  yes|no) AC_MSG_ERROR([--enable-vdelivermail-log-dir needs a directory]) ;;
+  /*)     ;;
+  *)      AC_MSG_ERROR([--enable-vdelivermail-log-dir must be an absolute path]) ;;
+esac
+
+AC_DEFINE_UNQUOTED(VDELIVERMAIL_LOG_DIR,"$vdelivermail_log_dir","")
+AC_SUBST(vdelivermail_log_dir)
+
+#----------------------------------------------------------------------
+
 # cant contain this following block in the mysql section, as it is also used by oracle
 incdir=""
 for f in /usr/include/mariadb /usr/local/mariadb/include/mysql /usr/local/mariadb/include /usr/local/include/mariadb /usr/include/mysql /usr/local/mysql/include/mysql /usr/local/mysql/include /usr/local/include/mysql
@@ -1897,7 +1915,9 @@ AC_MSG_RESULT(no)
 
 #----------------------------------------------------------------------
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile
+                 vdelivermail.ini.install:vdelivermail.ini
+                 vdelivermail.logrotate.install:vdelivermail.logrotate])
 AC_OUTPUT
 
 #----------------------------------------------------------------------
