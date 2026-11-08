@@ -168,15 +168,46 @@ int pg_begin(void)
 int pg_end(void)
 {
   PGresult *pgres;
-  pgres=PQexec(pgc, "END");
+  pgres=PQexec(pgc, "COMMIT");
   if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK ) {
     fprintf(stderr, "pg_end: %s\n", PQerrorMessage(pgc));
     if (pgres) PQclear (pgres);
     return -1;
   }
+  /* COMMIT of a transaction in which a statement failed succeeds, but
+   * rolls back: the status says ROLLBACK.
+   */
+  if (strcmp(PQcmdStatus(pgres), "ROLLBACK") == 0) {
+    fprintf(stderr, "pg_end: transaction was rolled back\n");
+    PQclear(pgres);
+    return -1;
+  }
   PQclear(pgres);
   return 0;
-}                                                   
+}
+
+/* pgsql ROLLBACK ********/
+/* After a failed statement a transaction accepts no other command until it
+ * ends; every error path between pg_begin() and pg_end() must call this, or
+ * every later statement on the connection fails.
+ */
+void pg_rollback(void)
+{
+  PGresult *pgres;
+  pgres=PQexec(pgc, "ROLLBACK");
+  if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK )
+    fprintf(stderr, "pg_rollback: %s\n", PQerrorMessage(pgc));
+  if (pgres) PQclear (pgres);
+}
+
+/* the statement failed because the table does not exist */
+static int pg_undefined_table(PGresult *pgres)
+{
+  const char *state;
+  if (pgres == NULL) return 0;
+  state = PQresultErrorField(pgres, PG_DIAG_SQLSTATE);
+  return (state != NULL && strcmp(state, "42P01") == 0);
+}
 
 int load_connection_info() {
 
@@ -1024,48 +1055,56 @@ int vget_ip_map( char *ip, char *domain, int domain_size)
   return (ret);
 }
 
-int vadd_ip_map( char *ip, char *domain) 
+int vadd_ip_map( char *ip, char *domain)
 {
   PGresult *pgres;
   int err = 0;
-  
+  int attempt, missing;
+
   if ( ip == NULL || strlen(ip) <= 0 ) return(-1);
   if ( domain == NULL || strlen(domain) <= 0 ) return(-1);
 
   if ( (err=vauth_open(1)) != 0 ) return(err);
 
-  if( ( err=pg_begin() )!= 0 ) {     /* begin transaction */
-    return(err);
-  }
-  qnprintf(SqlBufUpdate,SQL_BUF_SIZE,  
-	   "delete from ip_alias_map where ip_addr='%s' and domain='%s'",
-	   ip, domain);
-
-  /* step 1: delete previous entry */
-  pgres=PQexec(pgc, SqlBufUpdate);
-  if( pgres ) PQclear(pgres); /* don't check pgres status 
-				 table may not exist */
-
-  /* step 2: insert new data */
-  qnprintf(SqlBufUpdate,SQL_BUF_SIZE,  
-	   "insert into ip_alias_map (ip_addr,domain) values ('%s','%s')",
-	   ip, domain);
-  pgres=PQexec(pgc, SqlBufUpdate);
-  if ( !pgres || PQresultStatus(pgres) != PGRES_COMMAND_OK ) {
-    if( pgres ) PQclear(pgres);
-    vcreate_ip_map_table();
-    qnprintf(SqlBufUpdate,SQL_BUF_SIZE,  
-	   "insert into ip_alias_map (ip_addr,domain) values ('%s','%s')",
-	     ip, domain);
-    pgres=PQexec( pgc, SqlBufUpdate);
-    if ( !pgres || PQresultStatus(pgres) != PGRES_COMMAND_OK ) {
-      fprintf( stderr, "vadd_ip_map: insert: %s\n", PQerrorMessage(pgc));
-      if( pgres ) PQclear(pgres);
-      return -1;
+  /* Twice at most: if the table does not exist yet, create it (outside
+   * the transaction, which no longer accepts commands) and start over.
+   */
+  for (attempt = 0; attempt < 2; attempt++) {
+    if( ( err=pg_begin() )!= 0 ) {     /* begin transaction */
+      return(err);
     }
+
+    /* step 1: delete the previous entry for this address (ip_addr is the
+     * primary key, so an address maps to one domain; as with REPLACE in
+     * the MySQL module, a new mapping replaces the old one)
+     */
+    qnprintf(SqlBufUpdate,SQL_BUF_SIZE,
+	     "delete from ip_alias_map where ip_addr='%s'", ip);
+    pgres=PQexec(pgc, SqlBufUpdate);
+    if ( pgres && PQresultStatus(pgres) == PGRES_COMMAND_OK ) {
+      PQclear(pgres);
+
+      /* step 2: insert new data */
+      qnprintf(SqlBufUpdate,SQL_BUF_SIZE,
+	       "insert into ip_alias_map (ip_addr,domain) values ('%s','%s')",
+	       ip, domain);
+      pgres=PQexec(pgc, SqlBufUpdate);
+      if ( pgres && PQresultStatus(pgres) == PGRES_COMMAND_OK ) {
+        PQclear(pgres);
+        return ( pg_end() ); /* end transaction */
+      }
+    }
+
+    /* a statement failed: end the transaction */
+    missing = (attempt == 0 && pg_undefined_table(pgres));
+    if ( !missing )
+      fprintf( stderr, "vadd_ip_map: %s\n", PQerrorMessage(pgc));
+    if( pgres ) PQclear(pgres);
+    pg_rollback();
+    if ( !missing ) return -1;
+    vcreate_ip_map_table();
   }
-  if( pgres ) PQclear(pgres);
-  return ( pg_end() ); /* end transaction */
+  return -1;
 }
 
 int vdel_ip_map( char *ip, char *domain) 
@@ -1232,9 +1271,10 @@ int vwrite_dir_control(vdir_type *vdir, char *domain, uid_t uid, gid_t gid)
   }
   pgres=PQexec(pgc, SqlBufUpdate);
   if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK ) {
-    fprintf(stderr, "vwrite_dir_control: delete failed: %s", 
+    fprintf(stderr, "vwrite_dir_control: delete failed: %s",
 	    PQerrorMessage(pgc));
 	if (pgres) PQclear (pgres);
+    pg_rollback();
     return -1;
   }
   qnprintf(SqlBufUpdate, SQL_BUF_SIZE,
@@ -1265,6 +1305,7 @@ level_index0, level_index1, level_index2, the_dir ) values ( \
   if ( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK ) {
     fprintf(stderr, "vwrite_dir_control: %s\n", PQerrorMessage(pgc));
     if (pgres) PQclear (pgres);
+    pg_rollback();
     return(-1);
   }
   PQclear(pgres);
