@@ -284,7 +284,8 @@ int vauth_adduser(char *user, char *domain, char *pass, char *gecos, char *dir,
       snprintf(dirbuf, sizeof(dirbuf), "%s/users/%s", VPOPMAILDIR, user);
     }
   } else {
-    vget_assign(domain, dom_dir, sizeof(dom_dir), &uid, &gid);
+    if (vget_assign(domain, dom_dir, sizeof(dom_dir), &uid, &gid) == NULL)
+      return (VA_DOMAIN_DOES_NOT_EXIST);
     if (strlen(dir) > 0) {
       snprintf(dirbuf, sizeof(dirbuf), "%s/%s/%s", dom_dir, dir, user);
     } else {
