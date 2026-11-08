@@ -1869,6 +1869,7 @@ int logsql(	int verror, char *TheUser, char *TheDomain, char *ThePass,
     pgres=PQexec( pgc, SqlBufUpdate );
     if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK ) {
       if( pgres ) PQclear(pgres);
+      pgres = NULL;
       fprintf(stderr,"error inserting into vlog table\n");
     }
   }
