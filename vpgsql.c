@@ -811,7 +811,7 @@ int vopen_smtp_relay()
   int err;
 
   mytime = time(NULL);
-  ipaddr = get_remote_ip();
+  ipaddr = get_relay_ip();
   if ( ipaddr == NULL ) {
     return 0;
   }
