@@ -294,6 +294,10 @@ char *get_remote_ip();
 /*  Not yet categorized  */
 char randltr(void);
 int mkpasswd3(char *, char *, int);
+#ifdef REHASH_PASSWORDS
+struct vqpasswd;
+int vpw_rehash(struct vqpasswd *, char *, char *);
+#endif
 int add_domain_assign(char *alias_domain, char *real_domain, char *dir,
                       uid_t uid, gid_t gid);
 // int del_control( char *);

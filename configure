@@ -782,6 +782,8 @@ enable_relay_clear_minutes
 enable_learn_passwords
 enable_md5_passwords
 enable_sha512_passwords
+enable_yescrypt_passwords
+enable_rehash_passwords
 enable_file_locking
 enable_file_sync
 enable_clear_passwd
@@ -1489,6 +1491,8 @@ Optional Features:
   --enable-learn-passwords   If no password is stored for a user, learn it the first time they authenticate.
   --disable-md5-passwords    Use DES crypt() instead of MD5 encryption for passwords.
   --disable-sha512-passwords    Use DES crypt() instead of SHA512 encryption for passwords.
+  --disable-yescrypt-passwords  Use SHA512 (or the scheme selected by the options above) instead of yescrypt for new passwords.
+  --disable-rehash-passwords    Do not store a password again in the current scheme when a user logs in with a password hashed in an older one.
   --disable-file-locking     Don't use file locking.
   --enable-file-sync         Enable file sync after each message is delivered.
   --disable-clear-passwd     Don't store a cleartext version of the password in addition to the encrypted version.
@@ -8471,6 +8475,118 @@ esac
 
 #----------------------------------------------------------------------
 
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether yescrypt-passwords is enabled" >&5
+printf %s "checking whether yescrypt-passwords is enabled... " >&6; }
+# Check whether --enable-yescrypt-passwords was given.
+if test ${enable_yescrypt_passwords+y}
+then :
+  enableval=$enable_yescrypt_passwords; ENABLE_YESCRYPT_PASSWORDS=$enableval
+else $as_nop
+
+                        ENABLE_YESCRYPT_PASSWORDS=y
+
+
+fi
+
+
+case $ENABLE_YESCRYPT_PASSWORDS in
+  1*|y*|Y*)
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether crypt() supports yescrypt" >&5
+printf %s "checking whether crypt() supports yescrypt... " >&6; }
+      if test "$cross_compiling" = yes
+then :
+
+          { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no (cross compiling)" >&5
+printf "%s\n" "no (cross compiling)" >&6; }
+          ENABLE_YESCRYPT_PASSWORDS=0
+
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <crypt.h>
+#include <string.h>
+
+int
+main (void)
+{
+
+  char salt[CRYPT_GENSALT_OUTPUT_SIZE];
+  const char *h;
+  if (crypt_gensalt_rn("\$y\$", 0, NULL, 0, salt, sizeof(salt)) == NULL) return 1;
+  h = crypt("test", salt);
+  return (h == NULL || strncmp(h, "\$y\$", 3) != 0);
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+
+          { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+          ENABLE_YESCRYPT_PASSWORDS=1
+
+printf "%s\n" "#define YESCRYPT_PASSWORDS $ENABLE_YESCRYPT_PASSWORDS" >>confdefs.h
+
+
+else $as_nop
+
+          { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+          { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: crypt() has no yescrypt support (it comes with libxcrypt): new passwords use SHA512 or the scheme selected above" >&5
+printf "%s\n" "$as_me: WARNING: crypt() has no yescrypt support (it comes with libxcrypt): new passwords use SHA512 or the scheme selected above" >&2;}
+          ENABLE_YESCRYPT_PASSWORDS=0
+
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+      ;;
+  *)
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+      ENABLE_YESCRYPT_PASSWORDS=0
+      ;;
+esac
+
+#----------------------------------------------------------------------
+
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether rehash-passwords is enabled" >&5
+printf %s "checking whether rehash-passwords is enabled... " >&6; }
+# Check whether --enable-rehash-passwords was given.
+if test ${enable_rehash_passwords+y}
+then :
+  enableval=$enable_rehash_passwords; ENABLE_REHASH_PASSWORDS=$enableval
+else $as_nop
+
+                        ENABLE_REHASH_PASSWORDS=y
+
+
+fi
+
+
+case $ENABLE_REHASH_PASSWORDS in
+  1*|y*|Y*)
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+      ENABLE_REHASH_PASSWORDS=1
+
+printf "%s\n" "#define REHASH_PASSWORDS $ENABLE_REHASH_PASSWORDS" >>confdefs.h
+
+      ;;
+  *)
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+      ;;
+esac
+
+#----------------------------------------------------------------------
+
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether file-locking is enabled" >&5
 printf %s "checking whether file-locking is enabled... " >&6; }
 # Check whether --enable-file-locking was given.
@@ -11555,6 +11671,24 @@ case $ENABLE_SHA512_PASSWORDS in
     ;;
   *)
     echo "  sha512 passwords = OFF --disable-sha512-passwords"
+    ;;
+esac
+
+case $ENABLE_YESCRYPT_PASSWORDS in
+  1*)
+    echo "yescrypt passwords = ON  --enable-yescrypt-passwords (default)"
+    ;;
+  *)
+    echo "yescrypt passwords = OFF --disable-yescrypt-passwords, or not supported by crypt()"
+    ;;
+esac
+
+case $ENABLE_REHASH_PASSWORDS in
+  1*)
+    echo "  rehash passwords = ON  --enable-rehash-passwords (default)"
+    ;;
+  *)
+    echo "  rehash passwords = OFF --disable-rehash-passwords"
     ;;
 esac
 
