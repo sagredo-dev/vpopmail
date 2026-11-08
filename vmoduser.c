@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
         if ( Gecos[0] != 0 ) mypw->pw_gecos = Gecos;
         if ( Dir[0] != 0 ) mypw->pw_dir = Dir;
         if ( Passwd[0] != 0 )  {
-            if ( (i=mkpasswd3(Passwd,Crypted, 100)) != VA_SUCCESS ) {
+            if ( (i=mkpasswd3(Passwd,Crypted, sizeof(Crypted))) != VA_SUCCESS ) {
                 printf("Error: %s\n", verror(i));
                 vexit(i);
             }
@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
             if ( Gecos[0] != 0 ) mypw->pw_gecos = Gecos;
             if ( Dir[0] != 0 ) mypw->pw_dir = Dir;
             if ( Passwd[0] != 0 )  {
-                if ( (i=mkpasswd3(Passwd,Crypted, 100)) != VA_SUCCESS ) {
+                if ( (i=mkpasswd3(Passwd,Crypted, sizeof(Crypted))) != VA_SUCCESS ) {
                     printf("Error: %s\n", verror(i));
                     vexit(i);
                 }

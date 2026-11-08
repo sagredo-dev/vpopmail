@@ -482,7 +482,7 @@ int vauth_adduser(char *user, char *domain, char *password, char *gecos,
   int ret = 0, vd = 0;
   int i, len;
   char *b = NULL;
-  char crypted[100] = {0};
+  char crypted[MAX_PW_PASS + 1] = {0};
 
   if ((dir) && (*dir)) vd = 1;
 
@@ -495,8 +495,8 @@ int vauth_adduser(char *user, char *domain, char *password, char *gecos,
   }
 
   /* encrypt the password before anything is allocated */
-  memset((char *)crypted, 0, 100);
-  if (password[0] != 0 && mkpasswd3(password, crypted, 100) != VA_SUCCESS)
+  memset((char *)crypted, 0, sizeof(crypted));
+  if (password[0] != 0 && mkpasswd3(password, crypted, sizeof(crypted)) != VA_SUCCESS)
     return (VA_CRYPT_FAILED);
 
   if (vd) {
@@ -1461,20 +1461,10 @@ void *safe_malloc(size_t siz) {
 
 int vauth_crypt(char *user, char *domain, char *clear_pass,
                 struct vqpasswd *vpw) {
-  const char *c;
-	const char *p;
   if ( vpw == NULL ) return(-1);
-	p = vpw->pw_passwd;
-	
-  /* if needed remove {XXX-CRYPT}$ */
-	if (p[0] == '{') {
-		const char *k = strchr(p, '}');
-		if (k != NULL) p = k + 1;
-	}
-	
-  c = crypt(clear_pass, p);
-  if (c == NULL) return (-1);
-  return(strcmp(c, p));
+  /* removes a {XXX-CRYPT} prefix, handles every crypt() scheme and,
+   * with --enable-argon2id-passwords, Argon2id */
+  return(vpw_check_password(clear_pass, vpw->pw_passwd));
 }
 
 /***************************************************************************/

@@ -31,6 +31,25 @@ needs `auth_allow_weak_schemes = yes`, as before), provided dovecot runs on a sy
 `crypt()` supports yescrypt (libxcrypt). If dovecot, or any other program that checks these
 hashes, runs on a system without it, configure vpopmail with `--disable-yescrypt-passwords`.
 
+### Argon2id (optional)
+
+`--enable-argon2id-passwords` hashes new passwords with Argon2id instead, using libsodium
+(`apt install libsodium-dev`), with libsodium's interactive limits (64 MiB of memory per
+hash). The hashes are stored as `{ARGON2ID}$argon2id$v=19$...` (107 characters): dovecot
+uses the `{ARGON2ID}` prefix to pick the scheme, whatever `passdb_default_password_scheme`
+says, so a dovecot SQL passdb needs no configuration change, but dovecot must be built with
+libsodium (`doveadm pw -l` lists `ARGON2ID`; the Debian packages are). Old hashes keep
+working, and `vchkpw` upgrades them at login as above.
+
+Keep in mind:
+- Only builds with `--enable-argon2id-passwords` can check Argon2id hashes. Once users have
+  them, building without the option again locks those users out until their password is
+  reset.
+- Programs that read `pw_passwd` themselves (scripts, PHP tools) see the `{ARGON2ID}` prefix
+  and need to handle it.
+- The LDAP module stores the hash as `{crypt}{ARGON2ID}$argon2id$...`; it checks passwords
+  itself, but an LDAP server that checks binds against `userPassword` will not understand it.
+
 ## Upgrading from version 5.4.33
 
 When upgrading from version 5.4.33 to version 5.6.x, if you have the accounts on SQL, you should

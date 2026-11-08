@@ -784,6 +784,7 @@ enable_learn_passwords
 enable_md5_passwords
 enable_sha512_passwords
 enable_yescrypt_passwords
+enable_argon2id_passwords
 enable_rehash_passwords
 enable_file_locking
 enable_file_sync
@@ -1494,6 +1495,7 @@ Optional Features:
   --disable-md5-passwords    Use DES crypt() instead of MD5 encryption for passwords.
   --disable-sha512-passwords    Use DES crypt() instead of SHA512 encryption for passwords.
   --disable-yescrypt-passwords  Use SHA512 (or the scheme selected by the options above) instead of yescrypt for new passwords.
+  --enable-argon2id-passwords   Hash new passwords with Argon2id (needs libsodium) instead of yescrypt/SHA512.
   --disable-rehash-passwords    Do not store a password again in the current scheme when a user logs in with a password hashed in an older one.
   --disable-file-locking     Don't use file locking.
   --enable-file-sync         Enable file sync after each message is delivered.
@@ -8559,6 +8561,93 @@ esac
 
 #----------------------------------------------------------------------
 
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether argon2id-passwords is enabled" >&5
+printf %s "checking whether argon2id-passwords is enabled... " >&6; }
+# Check whether --enable-argon2id-passwords was given.
+if test ${enable_argon2id_passwords+y}
+then :
+  enableval=$enable_argon2id_passwords; ENABLE_ARGON2ID_PASSWORDS=$enableval
+else $as_nop
+
+                        ENABLE_ARGON2ID_PASSWORDS=n
+
+
+fi
+
+
+case $ENABLE_ARGON2ID_PASSWORDS in
+  1*|y*|Y*)
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+      ac_fn_c_check_header_compile "$LINENO" "sodium.h" "ac_cv_header_sodium_h" "$ac_includes_default"
+if test "x$ac_cv_header_sodium_h" = xyes
+then :
+
+else $as_nop
+  as_fn_error $? "--enable-argon2id-passwords needs libsodium (sodium.h not found)" "$LINENO" 5
+fi
+
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for crypto_pwhash_str_alg in -lsodium" >&5
+printf %s "checking for crypto_pwhash_str_alg in -lsodium... " >&6; }
+if test ${ac_cv_lib_sodium_crypto_pwhash_str_alg+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsodium  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char crypto_pwhash_str_alg ();
+int
+main (void)
+{
+return crypto_pwhash_str_alg ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_sodium_crypto_pwhash_str_alg=yes
+else $as_nop
+  ac_cv_lib_sodium_crypto_pwhash_str_alg=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_sodium_crypto_pwhash_str_alg" >&5
+printf "%s\n" "$ac_cv_lib_sodium_crypto_pwhash_str_alg" >&6; }
+if test "x$ac_cv_lib_sodium_crypto_pwhash_str_alg" = xyes
+then :
+  printf "%s\n" "#define HAVE_LIBSODIUM 1" >>confdefs.h
+
+  LIBS="-lsodium $LIBS"
+
+else $as_nop
+  as_fn_error $? "--enable-argon2id-passwords needs libsodium (crypto_pwhash_str_alg not found)" "$LINENO" 5
+fi
+
+      ENABLE_ARGON2ID_PASSWORDS=1
+
+printf "%s\n" "#define ARGON2ID_PASSWORDS $ENABLE_ARGON2ID_PASSWORDS" >>confdefs.h
+
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Argon2id hashes are stored as {ARGON2ID}\$argon2id\$...: anything else that checks vpopmail passwords must support Argon2id; dovecot needs to be built with libsodium (see README.md)" >&5
+printf "%s\n" "$as_me: WARNING: Argon2id hashes are stored as {ARGON2ID}\$argon2id\$...: anything else that checks vpopmail passwords must support Argon2id; dovecot needs to be built with libsodium (see README.md)" >&2;}
+      ;;
+  *)
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+      ENABLE_ARGON2ID_PASSWORDS=0
+      ;;
+esac
+
+#----------------------------------------------------------------------
+
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether rehash-passwords is enabled" >&5
 printf %s "checking whether rehash-passwords is enabled... " >&6; }
 # Check whether --enable-rehash-passwords was given.
@@ -11778,6 +11867,15 @@ case $ENABLE_YESCRYPT_PASSWORDS in
     ;;
   *)
     echo "yescrypt passwords = OFF --disable-yescrypt-passwords, or not supported by crypt()"
+    ;;
+esac
+
+case $ENABLE_ARGON2ID_PASSWORDS in
+  1*)
+    echo "argon2id passwords = ON  --enable-argon2id-passwords"
+    ;;
+  *)
+    echo "argon2id passwords = OFF --disable-argon2id-passwords (default)"
     ;;
 esac
 
