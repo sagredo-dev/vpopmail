@@ -494,6 +494,11 @@ int vauth_adduser(char *user, char *domain, char *password, char *gecos,
     return (-1);
   }
 
+  /* encrypt the password before anything is allocated */
+  memset((char *)crypted, 0, 100);
+  if (password[0] != 0 && mkpasswd3(password, crypted, 100) != VA_SUCCESS)
+    return (VA_CRYPT_FAILED);
+
   if (vd) {
     ret = strlen(dom_dir) + 5 + strlen(dir) + strlen(user);
   } else {
@@ -534,14 +539,7 @@ int vauth_adduser(char *user, char *domain, char *password, char *gecos,
   /* lm[0] will store : uid / pw_name */
   lm[0]->mod_values[0] = safe_strdup(user);
 
-  /* lm[1] will store : userPassword / pw_password */
-  memset((char *)crypted, 0, 100);
-  if (password[0] == 0) {
-    crypted[0] = 0;
-  } else {
-    mkpasswd3(password, crypted, 100);
-  }
-
+  /* lm[1] will store : userPassword / pw_password (crypted, made above) */
   lm[1]->mod_values[0] = (char *)safe_malloc(strlen(crypted) + 7 + 1);
 #ifdef MD5_PASSWORDS
 

@@ -561,6 +561,7 @@ int mod_user()
  char *param;
  char *value;
  int   ret;
+ int   crypt_err = 0;
  int   is_user = 0;
  int   can_override = 0;
 
@@ -638,8 +639,11 @@ int mod_user()
     } else if ( strcmp(param,"clear_text_password") == 0  &&
                 !(tmpvpw->pw_flags & NO_PASSWD_CHNG) ) {
       tmpvpw->pw_clear_passwd = strdup(value);
-      mkpasswd3(value,Crypted, sizeof(Crypted));
-      tmpvpw->pw_passwd = Crypted;
+      if ( mkpasswd3(value,Crypted, sizeof(Crypted)) != VA_SUCCESS ) {
+        crypt_err = VA_CRYPT_FAILED;
+      } else {
+        tmpvpw->pw_passwd = Crypted;
+      }
  
     /* only system admins or domain admins with override can clear all flags */
     } else if ( can_override==1 && strcmp(param,"clear_all_flags") == 0 ) {
@@ -734,8 +738,11 @@ int mod_user()
     }
   }
 
-  if ( (ret=vauth_setpw( tmpvpw, TmpDomain )) != 0 ) {
-    snprintf(WriteBuf,sizeof(WriteBuf),RET_ERR "0.507 %s" RET_CRLF, verror(ret)); 
+  /* the new password could not be encrypted: change nothing */
+  if ( crypt_err != 0 ) {
+    snprintf(WriteBuf,sizeof(WriteBuf),RET_ERR "0.507 %s" RET_CRLF, verror(crypt_err));
+  } else if ( (ret=vauth_setpw( tmpvpw, TmpDomain )) != 0 ) {
+    snprintf(WriteBuf,sizeof(WriteBuf),RET_ERR "0.507 %s" RET_CRLF, verror(ret));
   } else {
     snprintf(WriteBuf,sizeof(WriteBuf), RET_OK);
   }

@@ -449,8 +449,8 @@ void login_virtual_user() {
 
 #ifdef ENABLE_LEARN_PASSWORDS
   /* check for a valid vpopmail passwd field */
-  if (vpw->pw_passwd == NULL || vpw->pw_passwd[0] == 0) {
-    mkpasswd3(ThePass, TheCrypted, AUTH_SIZE);
+  if ((vpw->pw_passwd == NULL || vpw->pw_passwd[0] == 0) &&
+      mkpasswd3(ThePass, TheCrypted, AUTH_SIZE) == VA_SUCCESS) {
     vpw->pw_passwd = TheCrypted;
     vpw->pw_clear_passwd = ThePass;
     vauth_setpw(vpw, TheDomain);

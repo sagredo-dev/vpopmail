@@ -293,7 +293,7 @@ int vauth_adduser(char *user, char *domain, char *pass, char *gecos, char *dir,
   }
 
   if (pass[0] != 0) {
-    mkpasswd3(pass, Crypted, 100);
+    if (mkpasswd3(pass, Crypted, 100) != VA_SUCCESS) return (VA_CRYPT_FAILED);
   } else {
     Crypted[0] = 0;
   }
