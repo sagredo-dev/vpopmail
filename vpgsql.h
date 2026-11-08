@@ -72,13 +72,13 @@ PRIMARY KEY (pw_name ) "
 #endif
 #endif
 
-#define RELAY_TABLE_LAYOUT "ip_addr varchar(18) NOT NULL, \
+#define RELAY_TABLE_LAYOUT "ip_addr varchar(39) NOT NULL, \
 timestamp bigint DEFAULT 0 NOT NULL, PRIMARY KEY (ip_addr)"
 
 #define LASTAUTH_TABLE_LAYOUT \
 "userid varchar(32) NOT NULL, \
 domain varchar(96) NOT NULL,\
-remote_ip varchar(18) NOT NULL,  \
+remote_ip varchar(39) NOT NULL,  \
 timestamp bigint default 0 NOT NULL, \
 PRIMARY key (userid, domain)"
 
@@ -199,7 +199,7 @@ pw_shell = '%s' WHERE pw_name = '%s' "
 #endif
 
 #ifdef IP_ALIAS_DOMAINS
-#define IP_ALIAS_TABLE_LAYOUT "ip_addr varchar(18) NOT NULL, domain varchar(96), PRIMARY KEY (ip_addr)"
+#define IP_ALIAS_TABLE_LAYOUT "ip_addr varchar(39) NOT NULL, domain varchar(96), PRIMARY KEY (ip_addr)"
 #endif
 
 #define DIR_CONTROL_TABLE_LAYOUT "domain varchar(96) NOT NULL, cur_users int4, \

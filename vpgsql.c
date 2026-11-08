@@ -1086,9 +1086,9 @@ int vshow_ip_map( int first, char *ip, char *domain )
     return (0);
   }
 
-  strncpy( ip, PQgetvalue( pgres, ctuple, 0), 18);
+  snprintf( ip, 40, "%s", PQgetvalue( pgres, ctuple, 0)); /* up to 39 chars: IPv6 */
   strncpy( domain, PQgetvalue( pgres, ctuple, 1), 156);
-  strncpy( ip, PQgetvalue( pgres, ctuple, 0), 18);
+  snprintf( ip, 40, "%s", PQgetvalue( pgres, ctuple, 0)); /* up to 39 chars: IPv6 */
   strncpy( domain, PQgetvalue( pgres, ctuple, 1), 156);
 
   ctuple++;

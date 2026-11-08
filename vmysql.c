@@ -1190,7 +1190,7 @@ int vshow_ip_map( int first, char *ip, char *domain )
     }
 
     if ((row = mysql_fetch_row(res_read)) != NULL) {
-        strncpy(ip, row[0], 18); 
+        snprintf(ip, 40, "%s", row[0]); /* up to 39 chars: IPv6 */
         strncpy(domain, row[1], 156); 
         more = 1;
         return(1);
