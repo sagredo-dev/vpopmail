@@ -224,12 +224,11 @@ valias_line varchar(160) NOT NULL"
 #endif
 
 #ifdef ENABLE_SQL_LOGGING
-#define VLOG_TABLE_LAYOUT "id serial, \
-      userid char(32), passwd CHAR(32), \
-      domain CHAR(96), logon VARCHAR(200), \
-      remoteip char(18), message VARCHAR(255), \
-      timestamp bigint default 0 NOT NULL, error INT, \
-      INDEX user_idx (user), \
-      INDEX domain_idx (domain), INDEX remoteip_idx (remoteip), \
-      INDEX error_idx (error), INDEX message_idx (message)"
+/* PostgreSQL has no INDEX clause in CREATE TABLE: the indexes are created by
+ * vcreate_vlog_table() after the table. Column sizes as in vmysql.h. */
+#define VLOG_TABLE_LAYOUT "id serial PRIMARY KEY, \
+      userid varchar(32), passwd varchar(32), \
+      domain varchar(96), logon varchar(200), \
+      remoteip varchar(39), message varchar(255), \
+      timestamp bigint default 0 NOT NULL, error int"
 #endif
