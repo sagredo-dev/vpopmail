@@ -28,7 +28,7 @@ Features include
   * Configurable logging based on real world admin's comments
     and requirements. 
   * Support for MySQL, Oracle, PostgreSQL, /etc/passwd, /etc/shadow,
-     LDAP, Sybase, SQLite and default cdb authentication storage. 
+     LDAP, SQLite and default cdb authentication storage. 
   * Delivers directly to Maildir for use with qmail-pop3d,
     .qmail files or any other Maildir program. 
   * No need to have hundreds of .qmail files for virtual domains.

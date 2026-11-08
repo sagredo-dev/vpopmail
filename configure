@@ -1511,7 +1511,7 @@ Optional Features:
   --enable-incdir=DIR        Your MySQL/Oracle 'include' directory.
   --enable-libdir=DIR        Your MySQL/Oracle 'lib' directory.
   --enable-tinycdb Enable tinycdb library.
-  --enable-auth-module=MOD   Nominate how to store the vpopmail account information (cdb (default), mysql, pgsql, ldap, oracle, sybase, or sqlite).
+  --enable-auth-module=MOD   Nominate how to store the vpopmail account information (cdb (default), mysql, pgsql, ldap, oracle, or sqlite).
   --enable-passwd            Enable /etc/passwd (or shadow) accounts in addition to virtual domains.
   --enable-logging=OPT       Log to syslog: n=nothing, e=errors only (default), y=all attempts, p=errors with passwords, v=verbose (all attempts, with passwords).
   --enable-log-name=TEXT     Set syslog name vpopmail.
@@ -9345,29 +9345,15 @@ printf "%s\n" "#define USE_ORACLE $USE_ORACLE" >>confdefs.h
     ;;
 
   sy*|Sy*|SY*)
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: sybase" >&5
-printf "%s\n" "sybase" >&6; }
-    USE_CDB=0
-    USE_SQL=1
-    USE_SYBASE=1
-    rm -rf vauth.c
-    ln -sf vsybase.c vauth.c
-
-printf "%s\n" "#define USE_SQL $USE_SQL" >>confdefs.h
-
-
-printf "%s\n" "#define USE_SYBASE $USE_SYBASE" >>confdefs.h
-
-    auth_libs="-L/opt/sybase/lib -lsybdb -lm $loglib"
-
-    auth_inc="-I/opt/sybase/include"
-
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+    as_fn_error $? "The sybase auth-module has been removed. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|oracle|sqlite" "$LINENO" 5
     ;;
 
   *)
     { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
-    as_fn_error $? "A valid auth-module was not selected. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|oracle|sybase|sqlite" "$LINENO" 5
+    as_fn_error $? "A valid auth-module was not selected. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|oracle|sqlite" "$LINENO" 5
     ;;
 
 esac
@@ -9959,7 +9945,7 @@ then :
   enableval=$enable_sybase;
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-	as_fn_error $? "--enable-sybase has been superceded. Please use --enable-auth-module=sybase instead" "$LINENO" 5
+	as_fn_error $? "--enable-sybase: the sybase auth-module has been removed" "$LINENO" 5
 
 
 fi
@@ -11719,10 +11705,6 @@ case $AUTH_MODULE in
 
   or*|Or*|OR*)
     echo "       auth module = oracle --enable-auth-module=oracle"
-    ;;
-
-  sy*|Sy*|SY*)
-    echo "       auth module = sybase --enable-auth-module=sybase"
     ;;
 
   sq*|Sq*|SQ*)

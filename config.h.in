@@ -396,9 +396,6 @@
 /* "" */
 #undef USE_SQLITE
 
-/* "" */
-#undef USE_SYBASE
-
 /* Enable extensions on AIX 3, Interix.  */
 #ifndef _ALL_SOURCE
 # undef _ALL_SOURCE
