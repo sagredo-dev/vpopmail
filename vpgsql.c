@@ -209,6 +209,15 @@ static int pg_undefined_table(PGresult *pgres)
   return (state != NULL && strcmp(state, "42P01") == 0);
 }
 
+/* Copy a field of the vpopmail.pgsql line: at most size - 1 characters,
+ * always terminated.
+ */
+static void vpgsql_field(char *dst, size_t size, const char *src, size_t len) {
+    if (len >= size) len = size - 1;
+    memcpy(dst, src, len);
+    dst[len] = '\0';
+}
+
 int load_connection_info() {
 
     FILE *fp;
@@ -218,10 +227,10 @@ int load_connection_info() {
     char *p;
     char *p2;
     static int loaded = 0;
-    
+
+    /* only once it has been read successfully: after an error, try again */
     if (loaded) return 0;
-    loaded = 1;
-    
+
     sprintf(config, "%s/etc/%s", VPOPMAILDIR, "vpopmail.pgsql");
 
     fp = fopen(config, "r");
@@ -247,7 +256,7 @@ int load_connection_info() {
     p2 = strchr(p, '|');
     if (p2 == NULL) return VA_PARSE_ERROR;
     if (p != p2) {
-        strncpy(PGSQL_SERVER, p, p2 - p);
+        vpgsql_field(PGSQL_SERVER, sizeof(PGSQL_SERVER), p, p2 - p);
     } else {
         strcpy(PGSQL_SERVER, pgsql_server_default);
     }
@@ -256,7 +265,7 @@ int load_connection_info() {
     p2 = strchr(p, '|');
     if (p2 == NULL) return VA_PARSE_ERROR;
     if (p != p2) {
-        strncpy(PGSQL_SOCKET, p, p2 - p);
+        vpgsql_field(PGSQL_SOCKET, sizeof(PGSQL_SOCKET), p, p2 - p);
     } else {
         strcpy(PGSQL_SOCKET, pgsql_socket_default);
     }
@@ -266,7 +275,7 @@ int load_connection_info() {
     p2 = strchr(p, '|');
     if (p2 == NULL) return VA_PARSE_ERROR;
     if (p != p2) {
-        strncpy(PGSQL_USER, p, p2 - p);
+        vpgsql_field(PGSQL_USER, sizeof(PGSQL_USER), p, p2 - p);
     } else {
         strcpy(PGSQL_USER, pgsql_user_default);
     }
@@ -275,7 +284,7 @@ int load_connection_info() {
     p2 = strchr(p, '|');
     if (p2 == NULL) return VA_PARSE_ERROR;
     if (p != p2) {
-        strncpy(PGSQL_PASSWORD, p, p2 - p);
+        vpgsql_field(PGSQL_PASSWORD, sizeof(PGSQL_PASSWORD), p, p2 - p);
     } else {
         strcpy(PGSQL_PASSWORD, pgsql_password_default);
     }
@@ -284,19 +293,22 @@ int load_connection_info() {
     p2 = strchr(p, '\n');
     if (p2 == NULL) return VA_PARSE_ERROR;
     if (p != p2) {
-        strncpy(PGSQL_DATABASE, p, p2 - p);
+        vpgsql_field(PGSQL_DATABASE, sizeof(PGSQL_DATABASE), p, p2 - p);
     } else {
         strcpy(PGSQL_DATABASE, pgsql_database_default);
     }
-          
+
+    loaded = 1;
     return 0;
 }
 
 /*** Open a connection to pgsql ***/
 int vauth_open( int will_update )
 {
-    char dbconnect[512];
-    int r;
+    const char *keys[6];
+    const char *values[6];
+    char port[16];
+    int n;
 
 #ifdef VPOPMAIL_DEBUG
 show_trace = ( getenv("VPSHOW_TRACE") != NULL);
@@ -322,40 +334,42 @@ dump_data  = ( getenv("VPDUMP_DATA")  != NULL);
  *
  */
 
+  /* only marked open once connected: after a failure, the next call tries
+   * again instead of running queries on a broken connection
+   */
   if ( is_open != 0 ) return(0);
-  is_open = 1;
   verrori = 0;
-  
+
   verrori = load_connection_info();
   if (verrori) return -1;
 
-  /* Try to connect to the pgserver with the specified database. */
+  /* Try to connect to the pgserver with the specified database. The values
+   * are passed separately, so spaces or quotes in them (e.g. in the
+   * password) need no quoting.
+   */
+  n = 0;
   if (strlen(PGSQL_SERVER) != 0) {
-    if (strlen(PGSQL_PASSWORD) != 0) {
-       r = snprintf(dbconnect, 512, "host=%s port=%d user=%s password=%s dbname=%s", 
-        PGSQL_SERVER, PGSQL_PORT, PGSQL_USER, PGSQL_PASSWORD, PGSQL_DATABASE);
-    } else {
-      r = snprintf(dbconnect, 512, "host=%s port=%d user=%s dbname=%s", 
-        PGSQL_SERVER, PGSQL_PORT, PGSQL_USER, PGSQL_DATABASE);
-    }
-  } else {
-    if (strlen(PGSQL_PASSWORD) != 0) {    
-      r = snprintf(dbconnect, 512, "user=%s password=%s dbname=%s", 
-        PGSQL_USER, PGSQL_PASSWORD, PGSQL_DATABASE);
-    } else {
-      r = snprintf(dbconnect, 512, "user=%s dbname=%s", PGSQL_USER, PGSQL_DATABASE);
-    }
+    snprintf(port, sizeof(port), "%d", PGSQL_PORT);
+    keys[n] = "host";     values[n++] = PGSQL_SERVER;
+    keys[n] = "port";     values[n++] = port;
   }
-  if (r == -1) {
-    fprintf(stderr, "vauth_open: string buffer too short\n");
-    return -1;
+  keys[n] = "user";       values[n++] = PGSQL_USER;
+  if (strlen(PGSQL_PASSWORD) != 0) {
+    keys[n] = "password"; values[n++] = PGSQL_PASSWORD;
   }
-  pgc = PQconnectdb(dbconnect);
-  
-  if( PQstatus(pgc) == CONNECTION_BAD) {
-    fprintf(stderr, "vauth_open: can't connect: %s\n", PQerrorMessage(pgc));
+  keys[n] = "dbname";     values[n++] = PGSQL_DATABASE;
+  keys[n] = NULL;         values[n] = NULL;
+
+  pgc = PQconnectdbParams(keys, values, 0);
+
+  if( pgc == NULL || PQstatus(pgc) == CONNECTION_BAD) {
+    fprintf(stderr, "vauth_open: can't connect: %s\n",
+            pgc ? PQerrorMessage(pgc) : "out of memory");
+    if (pgc) PQfinish(pgc);
+    pgc = NULL;
     return VA_NO_AUTH_CONNECTION;
   }
+  is_open = 1;
   vpgsql_register_escaper(pgc);
   return(0);
 }
@@ -369,7 +383,7 @@ int vauth_create_table (char *table, char *layout, int showerror)
   if ((err = vauth_open(1))) return (err);
 
   snprintf(SqlBufCreate, SQL_BUF_SIZE,
-    "CREATE TABLE %s ( %s )", table, layout);
+    "CREATE TABLE \"%s\" ( %s )", table, layout);
   pgres=PQexec(pgc, SqlBufCreate);
   if (!pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK) {
     err = -1;
@@ -542,6 +556,9 @@ struct vqpasswd *vauth_getpw(char *user, char *domain)
     strncpy(vpw.pw_clear_passwd, PQgetvalue( pgres, 0, 7 ),SMALL_BUFF);
 #endif
 
+  /* the values are copied into vpw: the result is no longer needed */
+  PQclear(pgres);
+
   vlimits_setflags (&vpw, in_domain);
 
   return(&vpw);
@@ -558,7 +575,8 @@ int vauth_deldomain( char *domain )
 
 #ifndef MANY_DOMAINS
   tmpstr = vauth_munch_domain( domain );
-  snprintf( SqlBufUpdate, SQL_BUF_SIZE, "drop table %s", tmpstr);
+  /* quoted, like in the other queries: a name may start with a digit */
+  snprintf( SqlBufUpdate, SQL_BUF_SIZE, "drop table \"%s\"", tmpstr);
 #else
   tmpstr = PGSQL_DEFAULT_TABLE;
   qnprintf(SqlBufUpdate,SQL_BUF_SIZE,
@@ -579,12 +597,17 @@ int vauth_deldomain( char *domain )
 #endif
 
 #ifdef ENABLE_AUTH_LOGGING
-    qnprintf( SqlBufUpdate, SQL_BUF_SIZE, 
+    qnprintf( SqlBufUpdate, SQL_BUF_SIZE,
         "delete from lastauth where domain = '%s'", domain );
+    /* Cleanup only: the domain is already deleted. Report a failure
+     * (unless the table does not exist yet, SQLSTATE 42P01), don't fail.
+     */
     pgres=PQexec(pgc, SqlBufUpdate);
     if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK) {
-      return(-1);
-    } 	
+      const char *state = pgres ? PQresultErrorField(pgres, PG_DIAG_SQLSTATE) : NULL;
+      if( state == NULL || strcmp(state, "42P01") != 0 )
+        fprintf(stderr, "vauth_deldomain: lastauth: %s\n", PQerrorMessage(pgc));
+    }
     if(pgres) PQclear(pgres);
 #endif
 
@@ -592,10 +615,14 @@ int vauth_deldomain( char *domain )
 #ifdef ENABLE_SQL_REMOVE_DELETED
     qnprintf( SqlBufUpdate, SQL_BUF_SIZE,
        "delete from vlog where domain = '%s'", domain );
+    /* cleanup only, as above */
     pgres=PQexec(pgc, SqlBufUpdate);
     if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK) {
-      return(-1);
+      const char *state = pgres ? PQresultErrorField(pgres, PG_DIAG_SQLSTATE) : NULL;
+      if( state == NULL || strcmp(state, "42P01") != 0 )
+        fprintf(stderr, "vauth_deldomain: vlog: %s\n", PQerrorMessage(pgc));
     }
+    if(pgres) PQclear(pgres);
 #endif
 #endif
     return(0);
@@ -1047,7 +1074,8 @@ int vget_ip_map( char *ip, char *domain, int domain_size)
   else {
     ret = 0;
     ptr = PQgetvalue(pgres, ntuples-1, 0);
-    strncpy(domain, ptr, strlen(ptr) );
+    /* at most domain_size, always terminated */
+    snprintf(domain, domain_size, "%s", ptr);
   }
 
   PQclear(pgres);
@@ -1456,6 +1484,7 @@ time_t vget_lastauth(struct vqpasswd *pw, char *domain)
     pgres=PQexec(pgc, SqlBufRead);
     if ( !pgres || PQresultStatus(pgres) != PGRES_TUPLES_OK ) {
       fprintf(stderr,"vpgsql: sql error[g]: %s\n", PQerrorMessage(pgc));
+      if( pgres ) PQclear(pgres);
       return(0);
     }
   }
@@ -1475,6 +1504,9 @@ char *vget_lastauthip(struct vqpasswd *pw, char *domain)
   static char tmpbuf[100];
   int ntuples=0;
 
+  /* empty unless this user has a row (not the previous user's address) */
+  tmpbuf[0] = '\0';
+
   if ( vauth_open(0) != 0 ) return(NULL);
 
   qnprintf( SqlBufRead,  SQL_BUF_SIZE, "select remote_ip from lastauth where userid='%s' and domain='%s'",  pw->pw_name, domain);
@@ -1488,12 +1520,13 @@ char *vget_lastauthip(struct vqpasswd *pw, char *domain)
     pgres=PQexec(pgc, SqlBufRead);
     if ( !pgres || PQresultStatus(pgres) != PGRES_TUPLES_OK ) {
       fprintf( stderr,"vpgsql: sql error[h]: %s\n", PQerrorMessage(pgc));
+      if( pgres ) PQclear(pgres);
       return(NULL);
     }
   }
   ntuples = PQntuples(pgres);
   if( ntuples ) { /* got something */
-    strncpy(tmpbuf, PQgetvalue(pgres, ntuples-1, 0),100 );
+    snprintf(tmpbuf, sizeof(tmpbuf), "%s", PQgetvalue(pgres, ntuples-1, 0));
   }
   if( pgres ) PQclear(pgres);
   return(tmpbuf);
@@ -1576,7 +1609,7 @@ int valias_insert( char *alias, char *domain, char *alias_line)
   
 #ifdef USE_ONCHANGE
   snprintf( user_domain, MAX_BUFF, "%s@%s", alias, domain);
-  on_change("valias_add", domain, alias_line, 0, 0);
+  on_change("valias_insert", user_domain, alias_line, 0, 0);
 #endif
 
   while(*alias_line==' ') ++alias_line;
@@ -1603,7 +1636,7 @@ int valias_insert( char *alias, char *domain, char *alias_line)
 
 #ifdef USE_ONCHANGE
   snprintf( user_domain, MAX_BUFF, "%s@%s", alias, domain);
-  on_change("valias_add", domain, alias_line, 1, 1);
+  on_change("valias_insert", user_domain, alias_line, 1, 1);
 #endif
 
   return(0);
@@ -1622,7 +1655,7 @@ int valias_delete( char *alias, char *domain)
 
 #ifdef USE_ONCHANGE
   snprintf( user_domain, MAX_BUFF, "%s@%s", alias, domain);
-  on_change("valias_delete", domain, alias_line, 1, 0);
+  on_change("valias_delete", user_domain, "-", 1, 0);
 #endif
 
   qnprintf( SqlBufUpdate, SQL_BUF_SIZE, 
@@ -1646,7 +1679,7 @@ int valias_delete( char *alias, char *domain)
   
 #ifdef USE_ONCHANGE
   snprintf( user_domain, MAX_BUFF, "%s@%s", alias, domain);
-  on_change("valias_delete", domain, alias_line, 0, 1);
+  on_change("valias_delete", user_domain, "-", 0, 1);
 #endif 
   
   return(0);
@@ -1739,7 +1772,7 @@ void vcreate_valias_table()
 
   vauth_create_table ("valias", VALIAS_TABLE_LAYOUT, 1);
     snprintf( SqlBufCreate, SQL_BUF_SIZE,
-	"create index valias_idx on valias ( %s )", VALIAS_INDEX_LAYOUT );
+	"create index valias_idx on valias %s", VALIAS_INDEX_LAYOUT );
 
     pgres=PQexec( pgc, SqlBufCreate );
     if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK ) {
