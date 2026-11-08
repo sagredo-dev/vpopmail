@@ -392,13 +392,17 @@ int vauth_deluser(char *user, char *domain) {
   qnprintf(SqlBufUpdate, SQL_BUF_SIZE,
            "delete from lastauth where user = '%s' and domain = '%s'", user,
            domain);
+  /* Cleanup only: the user is already deleted, and failing here would make
+   * vdeluser() stop before removing the maildir. Report it, don't fail (and
+   * don't clear an error from the user delete above).
+   */
   rc = vsqlite_exec(sqlite_update, SqlBufUpdate, 0, 0, &err_msg);
   if (rc != SQLITE_OK) {
-    if (rc != SQLITE_ERROR) {
-      err = -1;
-    } else {
-      err = 0;
-    }
+    /* quiet when the table does not exist yet */
+    if (err_msg == NULL || strncmp(err_msg, "no such table", 13) != 0)
+      fprintf(stderr, "vauth_deluser: lastauth: %s\n", err_msg ? err_msg : "");
+    sqlite3_free(err_msg);
+    err_msg = NULL;
   }
 #endif
 
@@ -407,13 +411,14 @@ int vauth_deluser(char *user, char *domain) {
   qnprintf(SqlBufUpdate, SQL_BUF_SIZE,
            "delete from vlog where domain = '%s' and user = '%s'", domain,
            user);
+  /* cleanup only, as above */
   rc = vsqlite_exec(sqlite_update, SqlBufUpdate, 0, 0, &err_msg);
   if (rc != SQLITE_OK) {
-    if (rc != SQLITE_ERROR) {
-      err = -1;
-    } else {
-      err = 0;
-    }
+    /* quiet when the table does not exist yet */
+    if (err_msg == NULL || strncmp(err_msg, "no such table", 13) != 0)
+      fprintf(stderr, "vauth_deluser: vlog: %s\n", err_msg ? err_msg : "");
+    sqlite3_free(err_msg);
+    err_msg = NULL;
   }
 #endif
 #endif
