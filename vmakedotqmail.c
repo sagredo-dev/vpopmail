@@ -45,7 +45,7 @@
  *       vmakedotqmail -o -A
  *
  *       Install etc/vdefaultdelivery to .qmail of user <username@domain> (skip if existing)
- *       vmakedotqmail -o -u <username@domain>
+ *       vmakedotqmail -u <username@domain>
  *
  *       Install .qmail-default with vdelivermail (delete option) for domain 'domain.tld'
  *       vmakedotqmail -d domain.tld -q default
@@ -111,17 +111,24 @@ int make_dotqmail(char *homedir) {
   int overwritingFlag = 0;
   FILE *fs;
   char tmpbuf[MAX_BUFF];
-  char ch, defaultdelivery_file[MAX_BUFF];
-  FILE *defaultdelivery;
+  char defaultdelivery_file[MAX_BUFF];
+  int ch;
+  FILE *defaultdelivery = NULL;
 
   // exit if etc/vdefaultdelivery already has vdelivermail, to avoid vpopmail loop
   if (!reverse) {
     snprintf(defaultdelivery_file, sizeof(defaultdelivery_file), "%s/etc/vdefaultdelivery", VPOPMAILDIR);
     defaultdelivery = fopen(defaultdelivery_file, "r");
+    if (defaultdelivery == NULL) {
+      printf("\nERROR: Missing %s/etc/vdefaultdelivery file.\n", VPOPMAILDIR);
+      printf("To create a %s/etc/vdefaultdelivery that delivers to the mailbox type:\n", VPOPMAILDIR);
+      printf("echo \"./Maildir/\" > %s/etc/vdefaultdelivery\n\n", VPOPMAILDIR);
+      vexit(-1);
+    }
     while((fgets(tmpbuf, MAX_BUFF, defaultdelivery)!=NULL)) {
       if(strstr(tmpbuf, "vdelivermail")!=NULL) {
+        fclose(defaultdelivery);
         return 4;
-        break;
       }
     }
     rewind(defaultdelivery);
@@ -132,13 +139,17 @@ int make_dotqmail(char *homedir) {
   // return if file exists already unless -r removing. Continue if overwriting is active
   if (access(tmpbuf, F_OK)==0 && !reverse) {
     // exit
-    if (!overwriting) return 1;
+    if (!overwriting) {
+      fclose(defaultdelivery);
+      return 1;
+    }
     // continue if overwriting, but mark
     else overwritingFlag = 1;
   }
 
   // do not touch/remove nor fill the .qmail if testing
   if (testing) {
+    if (defaultdelivery != NULL) fclose(defaultdelivery);
     if (overwritingFlag) return 2;
     else if (reverse) return 3;
     else return 0;
@@ -159,17 +170,7 @@ int make_dotqmail(char *homedir) {
     chown(tmpbuf, VPOPMAILUID, VPOPMAILGID);
     chmod(tmpbuf, 0600);
 
-    /* Copy the content of etc/vdefaultdelivery into ~userhomedir/.qmail */
-    snprintf(defaultdelivery_file, sizeof(defaultdelivery_file), "%s/etc/vdefaultdelivery", VPOPMAILDIR);
-    defaultdelivery = fopen(defaultdelivery_file, "r");
-    if(defaultdelivery == NULL)
-    {
-      printf("\nERROR: Missing %s/etc/vdefaultdelivery file.\n", VPOPMAILDIR);
-      printf("To create a %s/etc/vdefaultdelivery type:\n", VPOPMAILDIR);
-      printf("echo \"| %s/bin/vdelivermail '' delete\" > %s/etc/vdefaultdelivery\n\n", VPOPMAILDIR, VPOPMAILDIR);
-      vexit(-1);
-    }
-
+    /* Copy the content of etc/vdefaultdelivery (opened above) into ~userhomedir/.qmail */
     while ((ch = fgetc(defaultdelivery)) != EOF) fputc(ch, fs);
 
     fclose(defaultdelivery); // close etc/vdefaultdelivery
@@ -374,7 +375,7 @@ void usage()
   printf("\tvmakedotqmail -o -A\n\n");
 
   printf("\tInstall etc/vdefaultdelivery to .qmail of user <username@domain> (skip if existing)\n");
-  printf("\tvmakedotqmail -o -u <username@domain>\n\n");
+  printf("\tvmakedotqmail -u <username@domain>\n\n");
 
   printf("\tInstall .qmail-default with vdelivermail (delete option) for domain 'domain.tld'\n");
   printf("\tvmakedotqmail -d domain.tld -q default\n\n");
