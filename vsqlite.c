@@ -1713,7 +1713,7 @@ int vopen_smtp_relay() {
   char *ipaddr;
   char *err_msg = NULL;
 
-  ipaddr = get_remote_ip();
+  ipaddr = get_relay_ip();
   if (ipaddr == NULL || *ipaddr == '\0') return (0);
 
   if (vauth_open_update() != 0) return (-1);

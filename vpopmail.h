@@ -290,6 +290,7 @@ int r_chown(char *, uid_t, gid_t);
 /*  Misc Functions  */
 int vopen_smtp_relay();
 char *get_remote_ip();
+char *get_relay_ip();
 
 /*  Not yet categorized  */
 char randltr(void);

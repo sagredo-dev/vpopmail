@@ -26,6 +26,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -3541,7 +3543,7 @@ int open_smtp_relay() {
 
   mytime = time(NULL);
 
-  ipaddr = get_remote_ip();
+  ipaddr = get_relay_ip();
   if (ipaddr == NULL) {
     return 0;
   }
@@ -4123,33 +4125,68 @@ char *date_header() {
 
 char *get_remote_ip() {
   char *ipenv;
-  static char ipbuf[30];
+  /* Large enough for any textual IPv4 or IPv6 address, including the
+   * IPv4-mapped form ::ffff:255.255.255.255 (INET6_ADDRSTRLEN is 46).
+   */
+  static char ipbuf[64];
   char *ipaddr;
   char *p;
 
   ipenv = getenv("TCPREMOTEIP"); /* tcpserver from daemontools */
   if (ipenv == NULL) ipenv = getenv("REMOTE_HOST"); /* xinetd */
-  if ((ipenv == NULL) || (strlen(ipenv) >= sizeof(ipbuf))) return ipenv;
+  if (ipenv == NULL) return NULL;
+  /* Too long to be an IP address: don't return it unsanitized. */
+  if (strlen(ipenv) >= sizeof(ipbuf)) return NULL;
 
   strcpy(ipbuf, ipenv);
   ipaddr = ipbuf;
 
-  /* Convert ::ffff:127.0.0.1 format to 127.0.0.1
-   * While avoiding buffer overflow.
+  /* Convert the IPv4-mapped ::ffff:127.0.0.1 format to 127.0.0.1.
+   * Only that prefix: other addresses may start with ':' too (e.g. ::1).
    */
-  if (*ipaddr == ':') {
-    ipaddr++;
-    if (*ipaddr != '\0') ipaddr++;
-    while ((*ipaddr != ':') && (*ipaddr != '\0')) ipaddr++;
-    if (*ipaddr != '\0') ipaddr++;
+  if (strncasecmp(ipaddr, "::ffff:", 7) == 0 && strchr(ipaddr + 7, '.') != NULL)
+    ipaddr += 7;
+
+  /* A valid IPv4 or IPv6 address is returned as is, so IPv6 keeps its ':'
+   * separators in the logs and in tcpserver rules (tcprules matches IPv6
+   * rules written with ':', not '_').
+   */
+  {
+    struct in6_addr a6; /* large enough for an IPv4 address too */
+    if (inet_pton(AF_INET, ipaddr, &a6) == 1 ||
+        inet_pton(AF_INET6, ipaddr, &a6) == 1)
+      return ipaddr;
   }
 
-  /* remove invalid characters */
+  /* Anything else: remove invalid characters, as before */
   for (p = ipaddr; *(p += strspn(p, ok_env_chars));) {
     *p = '_';
   }
 
   return ipaddr;
+}
+
+/* Address written into POP-before-SMTP relay rules (open-smtp / relay table).
+ * Rules keep the format they have always had: when the original address is
+ * shorter than 30 characters, ':' is written as '_' (as get_remote_ip() used
+ * to do), longer addresses as they are. NULL when there is no usable address.
+ */
+char *get_relay_ip() {
+  static char relaybuf[64];
+  char *ipenv;
+  char *ipaddr;
+  char *p;
+
+  if ((ipaddr = get_remote_ip()) == NULL || *ipaddr == '\0') return NULL;
+  snprintf(relaybuf, sizeof(relaybuf), "%s", ipaddr);
+
+  ipenv = getenv("TCPREMOTEIP");
+  if (ipenv == NULL) ipenv = getenv("REMOTE_HOST");
+  if (ipenv != NULL && strlen(ipenv) < 30) {
+    for (p = relaybuf; (p = strchr(p, ':')) != NULL; p++) *p = '_';
+  }
+
+  return relaybuf;
 }
 
 char *maildir_to_email(const char *maildir) {
