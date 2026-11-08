@@ -453,7 +453,7 @@ int vauth_adduser(char *user, char *domain, char *pass, char *gecos,
  gid_t gid;
  char dirbuf[200];
  char quota[30];
- char Crypted[100];
+ char Crypted[MAX_PW_PASS + 1];
  int err;
     
     if ( (err=vauth_open_update()) != 0 ) return(err);
@@ -478,7 +478,8 @@ int vauth_adduser(char *user, char *domain, char *pass, char *gecos,
             snprintf(dirbuf, sizeof(dirbuf), "%s/users/%s", VPOPMAILDIR, user);
         }
     } else {
-        vget_assign(domain, dom_dir, sizeof(dom_dir), &uid, &gid );
+        if (vget_assign(domain, dom_dir, sizeof(dom_dir), &uid, &gid ) == NULL)
+            return(VA_DOMAIN_DOES_NOT_EXIST);
         if ( strlen(dir) > 0 ) {
             snprintf(dirbuf, sizeof(dirbuf), "%s/%s/%s", dom_dir, dir, user);
         } else {
@@ -487,7 +488,7 @@ int vauth_adduser(char *user, char *domain, char *pass, char *gecos,
     }
 
     if ( pass[0] != 0 ) {
-        mkpasswd3(pass,Crypted, 100);
+        if (mkpasswd3(pass, Crypted, sizeof(Crypted)) != VA_SUCCESS) return (VA_CRYPT_FAILED);
     } else {
         Crypted[0] = 0;
     }
@@ -723,28 +724,27 @@ int vauth_deluser( char *user, char *domain )
 
 #ifdef ENABLE_AUTH_LOGGING
     qnprintf( SqlBufUpdate, SQL_BUF_SIZE, 
-        "delete from lastauth where user = '%s' and domain = '%s'", 
+        "delete from lastauth where user = '%s' and domain = '%s'",
         user, domain );
-    if (mysql_query(&mysql_update,SqlBufUpdate)) {
-	   err = mysql_errno(&mysql_update);
-	   if (err != ER_NO_SUCH_TABLE)
-		  err = -1;
-	   else
-		  err = 0;
-    } 
+    /* Cleanup only: the user is already deleted, and failing here would
+     * make vdeluser() stop before removing the maildir. Report it, don't
+     * fail (and don't clear an error from the user delete above).
+     */
+    if (mysql_query(&mysql_update,SqlBufUpdate) &&
+        mysql_errno(&mysql_update) != ER_NO_SUCH_TABLE) {
+        fprintf(stderr, "vauth_deluser: lastauth: %s\n", mysql_error(&mysql_update));
+    }
 #endif
 
 #ifdef ENABLE_SQL_LOGGING
 #ifdef ENABLE_SQL_REMOVE_DELETED
     qnprintf( SqlBufUpdate, SQL_BUF_SIZE,
-        "delete from vlog where domain = '%s' and user = '%s'", 
+        "delete from vlog where domain = '%s' and user = '%s'",
        domain, user );
-    if (mysql_query(&mysql_update,SqlBufUpdate)) {
-	   err = mysql_errno(&mysql_update);
-	   if (err != ER_NO_SUCH_TABLE)
-		  err = -1;
-	   else
-		  err = 0;
+    /* cleanup only, as above */
+    if (mysql_query(&mysql_update,SqlBufUpdate) &&
+        mysql_errno(&mysql_update) != ER_NO_SUCH_TABLE) {
+        fprintf(stderr, "vauth_deluser: vlog: %s\n", mysql_error(&mysql_update));
     }
 #endif
 #endif
@@ -982,7 +982,7 @@ int vopen_smtp_relay()
  int rows;
 
     mytime = time(NULL);
-    ipaddr = get_remote_ip();
+    ipaddr = get_relay_ip();
     if ( ipaddr == NULL ) {
         return 0;
     }
@@ -1190,7 +1190,7 @@ int vshow_ip_map( int first, char *ip, char *domain )
     }
 
     if ((row = mysql_fetch_row(res_read)) != NULL) {
-        strncpy(ip, row[0], 18); 
+        snprintf(ip, 40, "%s", row[0]); /* up to 39 chars: IPv6 */
         strncpy(domain, row[1], 156); 
         more = 1;
         return(1);
@@ -1863,7 +1863,7 @@ int vget_limits(const char *domain, struct vlimits *limits)
         return vlimits_read_limits_file (VLIMITS_DEFAULT_FILE, limits);
 
     } else if ((row = mysql_fetch_row(res_read)) != NULL) {
-        int perm = atol(row[22]);
+        int perm = atol(row[23]);
 
         limits->maxpopaccounts = atoi(row[0]);
         limits->maxaliases = atoi(row[1]);
@@ -1893,8 +1893,8 @@ int vget_limits(const char *domain, struct vlimits *limits)
         limits->perm_maillist_users = perm & VLIMIT_DISABLE_ALL;
         perm >>= VLIMIT_DISABLE_BITS;
         limits->perm_maillist_moderators = perm & VLIMIT_DISABLE_ALL;
-        limits->perm_quota = strtoll(row[23], NULL, 10);
-        limits->perm_defaultquota = strtoll(row[24], NULL, 10);
+        limits->perm_quota = strtoll(row[24], NULL, 10);
+        limits->perm_defaultquota = strtoll(row[25], NULL, 10);
     }
     mysql_free_result(res_read);
 
@@ -1982,20 +1982,10 @@ int vdel_limits(const char *domain)
 /************************************************************************/
 int vauth_crypt(char *user,char *domain,char *clear_pass,struct vqpasswd *vpw)
 {
-  const char *c;
-	const char *p;
   if ( vpw == NULL ) return(-1);
-	p = vpw->pw_passwd;
-	
-  /* if needed remove {XXX-CRYPT}$ */
-	if (p[0] == '{') {
-		const char *k = strchr(p, '}');
-		if (k != NULL) p = k + 1;
-	}
-	
-  c = crypt(clear_pass, p);
-  if (c == NULL) return (-1);
-  return(strcmp(c, p));
+  /* removes a {XXX-CRYPT} prefix, handles every crypt() scheme and,
+   * with --enable-argon2id-passwords, Argon2id */
+  return(vpw_check_password(clear_pass, vpw->pw_passwd));
 }
 
 

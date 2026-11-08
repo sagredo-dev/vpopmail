@@ -757,6 +757,102 @@ esac
 
 #----------------------------------------------------------------------
 
+AC_MSG_CHECKING(whether yescrypt-passwords is enabled)
+AC_ARG_ENABLE(yescrypt-passwords,
+        [  --disable-yescrypt-passwords  Use SHA512 (or the scheme selected by the options above) instead of yescrypt for new passwords.],
+        ENABLE_YESCRYPT_PASSWORDS=$enableval,
+                [
+                        ENABLE_YESCRYPT_PASSWORDS=y
+                ]
+)
+
+case $ENABLE_YESCRYPT_PASSWORDS in
+  1*|y*|Y*)
+      AC_MSG_RESULT(yes)
+      AC_MSG_CHECKING(whether crypt() supports yescrypt)
+      AC_RUN_IFELSE([AC_LANG_PROGRAM([[
+#include <crypt.h>
+#include <string.h>
+]], [[
+  char salt[CRYPT_GENSALT_OUTPUT_SIZE];
+  const char *h;
+  if (crypt_gensalt_rn("\$y\$", 0, NULL, 0, salt, sizeof(salt)) == NULL) return 1;
+  h = crypt("test", salt);
+  return (h == NULL || strncmp(h, "\$y\$", 3) != 0);
+]])],
+        [
+          AC_MSG_RESULT(yes)
+          ENABLE_YESCRYPT_PASSWORDS=1
+          AC_DEFINE_UNQUOTED(YESCRYPT_PASSWORDS,$ENABLE_YESCRYPT_PASSWORDS,"")
+        ],
+        [
+          AC_MSG_RESULT(no)
+          AC_MSG_WARN([crypt() has no yescrypt support (it comes with libxcrypt): new passwords use SHA512 or the scheme selected above])
+          ENABLE_YESCRYPT_PASSWORDS=0
+        ],
+        [
+          AC_MSG_RESULT([no (cross compiling)])
+          ENABLE_YESCRYPT_PASSWORDS=0
+        ])
+      ;;
+  *)
+      AC_MSG_RESULT(no)
+      ENABLE_YESCRYPT_PASSWORDS=0
+      ;;
+esac
+
+#----------------------------------------------------------------------
+
+AC_MSG_CHECKING(whether argon2id-passwords is enabled)
+AC_ARG_ENABLE(argon2id-passwords,
+        [  --enable-argon2id-passwords   Hash new passwords with Argon2id (needs libsodium) instead of yescrypt/SHA512.],
+        ENABLE_ARGON2ID_PASSWORDS=$enableval,
+                [
+                        ENABLE_ARGON2ID_PASSWORDS=n
+                ]
+)
+
+case $ENABLE_ARGON2ID_PASSWORDS in
+  1*|y*|Y*)
+      AC_MSG_RESULT(yes)
+      AC_CHECK_HEADER([sodium.h], [],
+          [AC_MSG_ERROR([--enable-argon2id-passwords needs libsodium (sodium.h not found)])])
+      AC_CHECK_LIB(sodium, crypto_pwhash_str_alg, [],
+          [AC_MSG_ERROR([--enable-argon2id-passwords needs libsodium (crypto_pwhash_str_alg not found)])])
+      ENABLE_ARGON2ID_PASSWORDS=1
+      AC_DEFINE_UNQUOTED(ARGON2ID_PASSWORDS,$ENABLE_ARGON2ID_PASSWORDS,"")
+      AC_MSG_WARN([Argon2id hashes are stored as {ARGON2ID}\$argon2id\$...: anything else that checks vpopmail passwords must support Argon2id; dovecot needs to be built with libsodium (see README.md)])
+      ;;
+  *)
+      AC_MSG_RESULT(no)
+      ENABLE_ARGON2ID_PASSWORDS=0
+      ;;
+esac
+
+#----------------------------------------------------------------------
+
+AC_MSG_CHECKING(whether rehash-passwords is enabled)
+AC_ARG_ENABLE(rehash-passwords,
+        [  --disable-rehash-passwords    Do not store a password again in the current scheme when a user logs in with a password hashed in an older one.],
+        ENABLE_REHASH_PASSWORDS=$enableval,
+                [
+                        ENABLE_REHASH_PASSWORDS=y
+                ]
+)
+
+case $ENABLE_REHASH_PASSWORDS in
+  1*|y*|Y*)
+      AC_MSG_RESULT(yes)
+      ENABLE_REHASH_PASSWORDS=1
+      AC_DEFINE_UNQUOTED(REHASH_PASSWORDS,$ENABLE_REHASH_PASSWORDS,"")
+      ;;
+  *)
+      AC_MSG_RESULT(no)
+      ;;
+esac
+
+#----------------------------------------------------------------------
+
 AC_MSG_CHECKING(whether file-locking is enabled)
 AC_ARG_ENABLE(file-locking,
         [  --disable-file-locking     Don't use file locking.],
@@ -1201,7 +1297,7 @@ AC_SUBST(domains_dir)
 
 #----------------------------------------------------------------------
 
-# cant contain this following block in the mysql section, as it is also used by oracle
+# MySQL include and lib directories
 incdir=""
 for f in /usr/include/mariadb /usr/local/mariadb/include/mysql /usr/local/mariadb/include /usr/local/include/mariadb /usr/include/mysql /usr/local/mysql/include/mysql /usr/local/mysql/include /usr/local/include/mysql
 do
@@ -1213,7 +1309,7 @@ do
 done
 
 AC_ARG_ENABLE(incdir,
-    [  --enable-incdir=DIR        Your MySQL/Oracle 'include' directory.],
+    [  --enable-incdir=DIR        Your MySQL 'include' directory.],
     incdir="$enableval",
 )
 
@@ -1228,7 +1324,7 @@ do
 done
 
 AC_ARG_ENABLE(libdir,
-    [  --enable-libdir=DIR        Your MySQL/Oracle 'lib' directory.],
+    [  --enable-libdir=DIR        Your MySQL 'lib' directory.],
     libdir="$enableval",
 )
 
@@ -1264,7 +1360,7 @@ AC_MSG_CHECKING(whether an auth module has been specified)
 AUTH_MODULE="cdb"
 
 AC_ARG_ENABLE(auth-module,
-    [  --enable-auth-module=MOD   Nominate how to store the vpopmail account information (cdb (default), mysql, pgsql, ldap, oracle, sybase, or sqlite).],
+    [  --enable-auth-module=MOD   Nominate how to store the vpopmail account information (cdb (default), mysql, pgsql, ldap, or sqlite).],
     AUTH_MODULE="$enableval",
 )
 
@@ -1396,38 +1492,18 @@ case $AUTH_MODULE in
     ;;
 
   or*|Or*|OR*)
-    AC_MSG_RESULT(oracle)
-    USE_CDB=0
-    USE_SQL=1
-    USE_ORACLE=1
-    rm -rf vauth.c
-    ln -sf voracle.c vauth.c
-    AC_DEFINE_UNQUOTED(USE_SQL,$USE_SQL,"")
-    AC_DEFINE_UNQUOTED(USE_ORACLE,$USE_ORACLE,"")
-    auth_libs="-L$libdir -lclntsh -lclient8 $loglib"
-    AC_SUBST(auth_libs)
-    auth_inc="-I$incdir"
-    AC_SUBST(auth_inc)
+    AC_MSG_RESULT(no)
+    AC_MSG_ERROR(The oracle auth-module has been removed. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|sqlite)
     ;;
 
   sy*|Sy*|SY*)
-    AC_MSG_RESULT(sybase)
-    USE_CDB=0
-    USE_SQL=1
-    USE_SYBASE=1
-    rm -rf vauth.c
-    ln -sf vsybase.c vauth.c
-    AC_DEFINE_UNQUOTED(USE_SQL,$USE_SQL,"")
-    AC_DEFINE_UNQUOTED(USE_SYBASE,$USE_SYBASE,"")
-    auth_libs="-L/opt/sybase/lib -lsybdb -lm $loglib"
-    AC_SUBST(auth_libs)
-    auth_inc="-I/opt/sybase/include"
-    AC_SUBST(auth_inc)
+    AC_MSG_RESULT(no)
+    AC_MSG_ERROR(The sybase auth-module has been removed. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|sqlite)
     ;;
 
   *)
     AC_MSG_RESULT(no)
-    AC_MSG_ERROR(A valid auth-module was not selected. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|oracle|sybase|sqlite)
+    AC_MSG_ERROR(A valid auth-module was not selected. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|sqlite)
     ;;
 
 esac
@@ -1847,14 +1923,14 @@ AC_ARG_ENABLE(ldap, [],
 AC_ARG_ENABLE(oracle, [],
     [
         AC_MSG_RESULT(yes)
-        AC_MSG_ERROR(--enable-oracle has been superceded. Please use --enable-auth-module=oracle instead)
+        AC_MSG_ERROR(--enable-oracle: the oracle auth-module has been removed)
     ]
 )
 
 AC_ARG_ENABLE(sybase, [],
     [
         AC_MSG_RESULT(yes)
-	AC_MSG_ERROR(--enable-sybase has been superceded. Please use --enable-auth-module=sybase instead)
+	AC_MSG_ERROR(--enable-sybase: the sybase auth-module has been removed)
     ]
 )
 
@@ -1963,6 +2039,33 @@ case $ENABLE_SHA512_PASSWORDS in
     ;;
   *)
     echo "  sha512 passwords = OFF --disable-sha512-passwords"
+    ;;
+esac
+
+case $ENABLE_YESCRYPT_PASSWORDS in
+  1*)
+    echo "yescrypt passwords = ON  --enable-yescrypt-passwords (default)"
+    ;;
+  *)
+    echo "yescrypt passwords = OFF --disable-yescrypt-passwords, or not supported by crypt()"
+    ;;
+esac
+
+case $ENABLE_ARGON2ID_PASSWORDS in
+  1*)
+    echo "argon2id passwords = ON  --enable-argon2id-passwords"
+    ;;
+  *)
+    echo "argon2id passwords = OFF --disable-argon2id-passwords (default)"
+    ;;
+esac
+
+case $ENABLE_REHASH_PASSWORDS in
+  1*)
+    echo "  rehash passwords = ON  --enable-rehash-passwords (default)"
+    ;;
+  *)
+    echo "  rehash passwords = OFF --disable-rehash-passwords"
     ;;
 esac
 
@@ -2125,14 +2228,6 @@ case $AUTH_MODULE in
     echo "       auth module = ldap --enable-auth-module=ldap"
     ;;
 
-  or*|Or*|OR*)
-    echo "       auth module = oracle --enable-auth-module=oracle"
-    ;;
-
-  sy*|Sy*|SY*)
-    echo "       auth module = sybase --enable-auth-module=sybase"
-    ;;
-    
   sq*|Sq*|SQ*)
     echo "       auth module = sqlite --enable-auth-module=sqlite"
     ;;    

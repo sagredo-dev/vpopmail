@@ -24,11 +24,11 @@ Features include
       * Storing clear text passwords to help tech support workers 
       * Record last authentication and automates deletion of
         stale accounts. 
-      * Storing alias/forwards in mysql or oracle 
+      * Storing alias/forwards in mysql 
   * Configurable logging based on real world admin's comments
     and requirements. 
-  * Support for MySQL, Oracle, PostgreSQL, /etc/passwd, /etc/shadow,
-     LDAP, Sybase, SQLite and default cdb authentication storage. 
+  * Support for MySQL, PostgreSQL, /etc/passwd, /etc/shadow,
+     LDAP, SQLite and default cdb authentication storage. 
   * Delivers directly to Maildir for use with qmail-pop3d,
     .qmail files or any other Maildir program. 
   * No need to have hundreds of .qmail files for virtual domains.

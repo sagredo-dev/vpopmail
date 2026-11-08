@@ -449,8 +449,8 @@ void login_virtual_user() {
 
 #ifdef ENABLE_LEARN_PASSWORDS
   /* check for a valid vpopmail passwd field */
-  if (vpw->pw_passwd == NULL || vpw->pw_passwd[0] == 0) {
-    mkpasswd3(ThePass, TheCrypted, AUTH_SIZE);
+  if ((vpw->pw_passwd == NULL || vpw->pw_passwd[0] == 0) &&
+      mkpasswd3(ThePass, TheCrypted, AUTH_SIZE) == VA_SUCCESS) {
     vpw->pw_passwd = TheCrypted;
     vpw->pw_clear_passwd = ThePass;
     vauth_setpw(vpw, TheDomain);
@@ -488,6 +488,16 @@ void login_virtual_user() {
          LogLine);
     vchkpw_exit(3);
   }
+
+#ifdef REHASH_PASSWORDS
+  /* The plain text password matched (not CRAM-MD5 or APOP, where ThePass is
+   * not the password): store it in the current hash scheme if the stored
+   * hash is older.
+   */
+  if ((cramaccepted != 0) && (apopaccepted != 0)) {
+    vpw_rehash(vpw, TheDomain, ThePass);
+  }
+#endif
 
 #ifdef ENABLE_LEARN_PASSWORDS
 #ifdef CLEAR_PASS

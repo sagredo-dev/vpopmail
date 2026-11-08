@@ -292,7 +292,7 @@ INDEX (alias, domain)"
       perm_alias               TINYINT(2) NOT NULL DEFAULT 0, \
       perm_forward             TINYINT(2) NOT NULL DEFAULT 0, \
       perm_autoresponder       TINYINT(2) NOT NULL DEFAULT 0, \
-      perm_maillist            TINYINT(4) NOT NULL DEFAULT 0, \
+      perm_maillist            SMALLINT NOT NULL DEFAULT 0, \
       perm_quota               TINYINT(2) NOT NULL DEFAULT 0, \
       perm_defaultquota        TINYINT(2) NOT NULL DEFAULT 0"
 #endif

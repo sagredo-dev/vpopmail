@@ -782,6 +782,9 @@ enable_relay_clear_minutes
 enable_learn_passwords
 enable_md5_passwords
 enable_sha512_passwords
+enable_yescrypt_passwords
+enable_argon2id_passwords
+enable_rehash_passwords
 enable_file_locking
 enable_file_sync
 enable_clear_passwd
@@ -1489,6 +1492,9 @@ Optional Features:
   --enable-learn-passwords   If no password is stored for a user, learn it the first time they authenticate.
   --disable-md5-passwords    Use DES crypt() instead of MD5 encryption for passwords.
   --disable-sha512-passwords    Use DES crypt() instead of SHA512 encryption for passwords.
+  --disable-yescrypt-passwords  Use SHA512 (or the scheme selected by the options above) instead of yescrypt for new passwords.
+  --enable-argon2id-passwords   Hash new passwords with Argon2id (needs libsodium) instead of yescrypt/SHA512.
+  --disable-rehash-passwords    Do not store a password again in the current scheme when a user logs in with a password hashed in an older one.
   --disable-file-locking     Don't use file locking.
   --enable-file-sync         Enable file sync after each message is delivered.
   --disable-clear-passwd     Don't store a cleartext version of the password in addition to the encrypted version.
@@ -1508,10 +1514,10 @@ Optional Features:
   --enable-logger-syslog   Log all changes to syslog
   --enable-logger-sqlite   Log all changes to a sqlite database
   --enable-domains-dir=TEXT  Directory in ~vpopmail to store domains (default=domains).
-  --enable-incdir=DIR        Your MySQL/Oracle 'include' directory.
-  --enable-libdir=DIR        Your MySQL/Oracle 'lib' directory.
+  --enable-incdir=DIR        Your MySQL 'include' directory.
+  --enable-libdir=DIR        Your MySQL 'lib' directory.
   --enable-tinycdb Enable tinycdb library.
-  --enable-auth-module=MOD   Nominate how to store the vpopmail account information (cdb (default), mysql, pgsql, ldap, oracle, sybase, or sqlite).
+  --enable-auth-module=MOD   Nominate how to store the vpopmail account information (cdb (default), mysql, pgsql, ldap, or sqlite).
   --enable-passwd            Enable /etc/passwd (or shadow) accounts in addition to virtual domains.
   --enable-logging=OPT       Log to syslog: n=nothing, e=errors only (default), y=all attempts, p=errors with passwords, v=verbose (all attempts, with passwords).
   --enable-log-name=TEXT     Set syslog name vpopmail.
@@ -8471,6 +8477,205 @@ esac
 
 #----------------------------------------------------------------------
 
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether yescrypt-passwords is enabled" >&5
+printf %s "checking whether yescrypt-passwords is enabled... " >&6; }
+# Check whether --enable-yescrypt-passwords was given.
+if test ${enable_yescrypt_passwords+y}
+then :
+  enableval=$enable_yescrypt_passwords; ENABLE_YESCRYPT_PASSWORDS=$enableval
+else $as_nop
+
+                        ENABLE_YESCRYPT_PASSWORDS=y
+
+
+fi
+
+
+case $ENABLE_YESCRYPT_PASSWORDS in
+  1*|y*|Y*)
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether crypt() supports yescrypt" >&5
+printf %s "checking whether crypt() supports yescrypt... " >&6; }
+      if test "$cross_compiling" = yes
+then :
+
+          { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no (cross compiling)" >&5
+printf "%s\n" "no (cross compiling)" >&6; }
+          ENABLE_YESCRYPT_PASSWORDS=0
+
+else $as_nop
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <crypt.h>
+#include <string.h>
+
+int
+main (void)
+{
+
+  char salt[CRYPT_GENSALT_OUTPUT_SIZE];
+  const char *h;
+  if (crypt_gensalt_rn("\$y\$", 0, NULL, 0, salt, sizeof(salt)) == NULL) return 1;
+  h = crypt("test", salt);
+  return (h == NULL || strncmp(h, "\$y\$", 3) != 0);
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_run "$LINENO"
+then :
+
+          { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+          ENABLE_YESCRYPT_PASSWORDS=1
+
+printf "%s\n" "#define YESCRYPT_PASSWORDS $ENABLE_YESCRYPT_PASSWORDS" >>confdefs.h
+
+
+else $as_nop
+
+          { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+          { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: crypt() has no yescrypt support (it comes with libxcrypt): new passwords use SHA512 or the scheme selected above" >&5
+printf "%s\n" "$as_me: WARNING: crypt() has no yescrypt support (it comes with libxcrypt): new passwords use SHA512 or the scheme selected above" >&2;}
+          ENABLE_YESCRYPT_PASSWORDS=0
+
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+      ;;
+  *)
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+      ENABLE_YESCRYPT_PASSWORDS=0
+      ;;
+esac
+
+#----------------------------------------------------------------------
+
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether argon2id-passwords is enabled" >&5
+printf %s "checking whether argon2id-passwords is enabled... " >&6; }
+# Check whether --enable-argon2id-passwords was given.
+if test ${enable_argon2id_passwords+y}
+then :
+  enableval=$enable_argon2id_passwords; ENABLE_ARGON2ID_PASSWORDS=$enableval
+else $as_nop
+
+                        ENABLE_ARGON2ID_PASSWORDS=n
+
+
+fi
+
+
+case $ENABLE_ARGON2ID_PASSWORDS in
+  1*|y*|Y*)
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+      ac_fn_c_check_header_compile "$LINENO" "sodium.h" "ac_cv_header_sodium_h" "$ac_includes_default"
+if test "x$ac_cv_header_sodium_h" = xyes
+then :
+
+else $as_nop
+  as_fn_error $? "--enable-argon2id-passwords needs libsodium (sodium.h not found)" "$LINENO" 5
+fi
+
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for crypto_pwhash_str_alg in -lsodium" >&5
+printf %s "checking for crypto_pwhash_str_alg in -lsodium... " >&6; }
+if test ${ac_cv_lib_sodium_crypto_pwhash_str_alg+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsodium  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char crypto_pwhash_str_alg ();
+int
+main (void)
+{
+return crypto_pwhash_str_alg ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_lib_sodium_crypto_pwhash_str_alg=yes
+else $as_nop
+  ac_cv_lib_sodium_crypto_pwhash_str_alg=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_sodium_crypto_pwhash_str_alg" >&5
+printf "%s\n" "$ac_cv_lib_sodium_crypto_pwhash_str_alg" >&6; }
+if test "x$ac_cv_lib_sodium_crypto_pwhash_str_alg" = xyes
+then :
+  printf "%s\n" "#define HAVE_LIBSODIUM 1" >>confdefs.h
+
+  LIBS="-lsodium $LIBS"
+
+else $as_nop
+  as_fn_error $? "--enable-argon2id-passwords needs libsodium (crypto_pwhash_str_alg not found)" "$LINENO" 5
+fi
+
+      ENABLE_ARGON2ID_PASSWORDS=1
+
+printf "%s\n" "#define ARGON2ID_PASSWORDS $ENABLE_ARGON2ID_PASSWORDS" >>confdefs.h
+
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Argon2id hashes are stored as {ARGON2ID}\$argon2id\$...: anything else that checks vpopmail passwords must support Argon2id; dovecot needs to be built with libsodium (see README.md)" >&5
+printf "%s\n" "$as_me: WARNING: Argon2id hashes are stored as {ARGON2ID}\$argon2id\$...: anything else that checks vpopmail passwords must support Argon2id; dovecot needs to be built with libsodium (see README.md)" >&2;}
+      ;;
+  *)
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+      ENABLE_ARGON2ID_PASSWORDS=0
+      ;;
+esac
+
+#----------------------------------------------------------------------
+
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether rehash-passwords is enabled" >&5
+printf %s "checking whether rehash-passwords is enabled... " >&6; }
+# Check whether --enable-rehash-passwords was given.
+if test ${enable_rehash_passwords+y}
+then :
+  enableval=$enable_rehash_passwords; ENABLE_REHASH_PASSWORDS=$enableval
+else $as_nop
+
+                        ENABLE_REHASH_PASSWORDS=y
+
+
+fi
+
+
+case $ENABLE_REHASH_PASSWORDS in
+  1*|y*|Y*)
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; }
+      ENABLE_REHASH_PASSWORDS=1
+
+printf "%s\n" "#define REHASH_PASSWORDS $ENABLE_REHASH_PASSWORDS" >>confdefs.h
+
+      ;;
+  *)
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+      ;;
+esac
+
+#----------------------------------------------------------------------
+
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether file-locking is enabled" >&5
 printf %s "checking whether file-locking is enabled... " >&6; }
 # Check whether --enable-file-locking was given.
@@ -9086,7 +9291,7 @@ printf "%s\n" "#define DOMAINS_DIR \"$domains_dir\"" >>confdefs.h
 
 #----------------------------------------------------------------------
 
-# cant contain this following block in the mysql section, as it is also used by oracle
+# MySQL include and lib directories
 incdir=""
 for f in /usr/include/mariadb /usr/local/mariadb/include/mysql /usr/local/mariadb/include /usr/local/include/mariadb /usr/include/mysql /usr/local/mysql/include/mysql /usr/local/mysql/include /usr/local/include/mysql
 do
@@ -9325,49 +9530,21 @@ printf "%s\n" "#define USE_LDAP $USE_LDAP" >>confdefs.h
     ;;
 
   or*|Or*|OR*)
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: oracle" >&5
-printf "%s\n" "oracle" >&6; }
-    USE_CDB=0
-    USE_SQL=1
-    USE_ORACLE=1
-    rm -rf vauth.c
-    ln -sf voracle.c vauth.c
-
-printf "%s\n" "#define USE_SQL $USE_SQL" >>confdefs.h
-
-
-printf "%s\n" "#define USE_ORACLE $USE_ORACLE" >>confdefs.h
-
-    auth_libs="-L$libdir -lclntsh -lclient8 $loglib"
-
-    auth_inc="-I$incdir"
-
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+    as_fn_error $? "The oracle auth-module has been removed. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|sqlite" "$LINENO" 5
     ;;
 
   sy*|Sy*|SY*)
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: sybase" >&5
-printf "%s\n" "sybase" >&6; }
-    USE_CDB=0
-    USE_SQL=1
-    USE_SYBASE=1
-    rm -rf vauth.c
-    ln -sf vsybase.c vauth.c
-
-printf "%s\n" "#define USE_SQL $USE_SQL" >>confdefs.h
-
-
-printf "%s\n" "#define USE_SYBASE $USE_SYBASE" >>confdefs.h
-
-    auth_libs="-L/opt/sybase/lib -lsybdb -lm $loglib"
-
-    auth_inc="-I/opt/sybase/include"
-
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+    as_fn_error $? "The sybase auth-module has been removed. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|sqlite" "$LINENO" 5
     ;;
 
   *)
     { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
 printf "%s\n" "no" >&6; }
-    as_fn_error $? "A valid auth-module was not selected. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|oracle|sybase|sqlite" "$LINENO" 5
+    as_fn_error $? "A valid auth-module was not selected. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|sqlite" "$LINENO" 5
     ;;
 
 esac
@@ -9947,7 +10124,7 @@ then :
   enableval=$enable_oracle;
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-        as_fn_error $? "--enable-oracle has been superceded. Please use --enable-auth-module=oracle instead" "$LINENO" 5
+        as_fn_error $? "--enable-oracle: the oracle auth-module has been removed" "$LINENO" 5
 
 
 fi
@@ -9959,7 +10136,7 @@ then :
   enableval=$enable_sybase;
         { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 printf "%s\n" "yes" >&6; }
-	as_fn_error $? "--enable-sybase has been superceded. Please use --enable-auth-module=sybase instead" "$LINENO" 5
+	as_fn_error $? "--enable-sybase: the sybase auth-module has been removed" "$LINENO" 5
 
 
 fi
@@ -11558,6 +11735,33 @@ case $ENABLE_SHA512_PASSWORDS in
     ;;
 esac
 
+case $ENABLE_YESCRYPT_PASSWORDS in
+  1*)
+    echo "yescrypt passwords = ON  --enable-yescrypt-passwords (default)"
+    ;;
+  *)
+    echo "yescrypt passwords = OFF --disable-yescrypt-passwords, or not supported by crypt()"
+    ;;
+esac
+
+case $ENABLE_ARGON2ID_PASSWORDS in
+  1*)
+    echo "argon2id passwords = ON  --enable-argon2id-passwords"
+    ;;
+  *)
+    echo "argon2id passwords = OFF --disable-argon2id-passwords (default)"
+    ;;
+esac
+
+case $ENABLE_REHASH_PASSWORDS in
+  1*)
+    echo "  rehash passwords = ON  --enable-rehash-passwords (default)"
+    ;;
+  *)
+    echo "  rehash passwords = OFF --disable-rehash-passwords"
+    ;;
+esac
+
 
 case $FILE_LOCKING in
   1*|y*|Y*)
@@ -11715,14 +11919,6 @@ case $AUTH_MODULE in
 
   ld*|Ld*|LD*)
     echo "       auth module = ldap --enable-auth-module=ldap"
-    ;;
-
-  or*|Or*|OR*)
-    echo "       auth module = oracle --enable-auth-module=oracle"
-    ;;
-
-  sy*|Sy*|SY*)
-    echo "       auth module = sybase --enable-auth-module=sybase"
     ;;
 
   sq*|Sq*|SQ*)

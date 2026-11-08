@@ -37,7 +37,7 @@ int ldapversion = 3;
 void *safe_malloc (size_t siz);
 char *safe_strdup (const char *s);
 void safe_free (void **p);
-int ldap_connect ();
+int vldap_connect();
 int compose_dn (char **dn, char *domain);
 
 #ifndef VPOPMAIL_LDAP_H

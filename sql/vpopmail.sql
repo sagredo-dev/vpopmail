@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS `limits` (
   `perm_alias` tinyint(2) NOT NULL DEFAULT 0,
   `perm_forward` tinyint(2) NOT NULL DEFAULT 0,
   `perm_autoresponder` tinyint(2) NOT NULL DEFAULT 0,
-  `perm_maillist` tinyint(4) NOT NULL DEFAULT 0,
+  `perm_maillist` smallint NOT NULL DEFAULT 0,
   `perm_quota` tinyint(2) NOT NULL DEFAULT 0,
   `perm_defaultquota` tinyint(2) NOT NULL DEFAULT 0,
   PRIMARY KEY (`domain`)

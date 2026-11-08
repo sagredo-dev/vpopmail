@@ -1,6 +1,9 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* "" */
+#undef ARGON2ID_PASSWORDS
+
+/* "" */
 #undef CLEAR_PASS
 
 /* Define to 1 if the `closedir' function returns void instead of int. */
@@ -121,6 +124,9 @@
 
 /* Define to 1 if you have the `socket' library (-lsocket). */
 #undef HAVE_LIBSOCKET
+
+/* Define to 1 if you have the `sodium' library (-lsodium). */
+#undef HAVE_LIBSODIUM
 
 /* Define to 1 if you have the <machine/endian.h> header file. */
 #undef HAVE_MACHINE_ENDIAN_H
@@ -335,6 +341,9 @@
 #undef REBUILD_TCPSERVER
 
 /* "" */
+#undef REHASH_PASSWORDS
+
+/* "" */
 #undef RELAY_CLEAR_MINUTES
 
 /* Define as the return type of signal handlers (`int' or `void'). */
@@ -385,9 +394,6 @@
 #undef USE_MYSQL
 
 /* "" */
-#undef USE_ORACLE
-
-/* "" */
 #undef USE_POSTGRES
 
 /* "" */
@@ -395,9 +401,6 @@
 
 /* "" */
 #undef USE_SQLITE
-
-/* "" */
-#undef USE_SYBASE
 
 /* Enable extensions on AIX 3, Interix.  */
 #ifndef _ALL_SOURCE
@@ -510,6 +513,9 @@
 
 /* "" */
 #undef VPOPUSER
+
+/* "" */
+#undef YESCRYPT_PASSWORDS
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const

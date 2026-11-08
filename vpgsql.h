@@ -72,13 +72,13 @@ PRIMARY KEY (pw_name ) "
 #endif
 #endif
 
-#define RELAY_TABLE_LAYOUT "ip_addr varchar(18) NOT NULL, \
+#define RELAY_TABLE_LAYOUT "ip_addr varchar(39) NOT NULL, \
 timestamp bigint DEFAULT 0 NOT NULL, PRIMARY KEY (ip_addr)"
 
 #define LASTAUTH_TABLE_LAYOUT \
 "userid varchar(32) NOT NULL, \
 domain varchar(96) NOT NULL,\
-remote_ip varchar(18) NOT NULL,  \
+remote_ip varchar(39) NOT NULL,  \
 timestamp bigint default 0 NOT NULL, \
 PRIMARY key (userid, domain)"
 
@@ -199,7 +199,7 @@ pw_shell = '%s' WHERE pw_name = '%s' "
 #endif
 
 #ifdef IP_ALIAS_DOMAINS
-#define IP_ALIAS_TABLE_LAYOUT "ip_addr varchar(18) NOT NULL, domain varchar(96), PRIMARY KEY (ip_addr)"
+#define IP_ALIAS_TABLE_LAYOUT "ip_addr varchar(39) NOT NULL, domain varchar(96), PRIMARY KEY (ip_addr)"
 #endif
 
 #define DIR_CONTROL_TABLE_LAYOUT "domain varchar(96) NOT NULL, cur_users int4, \
@@ -224,12 +224,11 @@ valias_line varchar(160) NOT NULL"
 #endif
 
 #ifdef ENABLE_SQL_LOGGING
-#define VLOG_TABLE_LAYOUT "id serial, \
-      userid char(32), passwd CHAR(32), \
-      domain CHAR(96), logon VARCHAR(200), \
-      remoteip char(18), message VARCHAR(255), \
-      timestamp bigint default 0 NOT NULL, error INT, \
-      INDEX user_idx (user), \
-      INDEX domain_idx (domain), INDEX remoteip_idx (remoteip), \
-      INDEX error_idx (error), INDEX message_idx (message)"
+/* PostgreSQL has no INDEX clause in CREATE TABLE: the indexes are created by
+ * vcreate_vlog_table() after the table. Column sizes as in vmysql.h. */
+#define VLOG_TABLE_LAYOUT "id serial PRIMARY KEY, \
+      userid varchar(32), passwd varchar(32), \
+      domain varchar(96), logon varchar(200), \
+      remoteip varchar(39), message varchar(255), \
+      timestamp bigint default 0 NOT NULL, error int"
 #endif

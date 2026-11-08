@@ -73,9 +73,6 @@ vpgsql.c
 	valias_delete()		del_alias	user@domain	alias_line
 	valias_delete_domain()	del_all_alias	domain
 
-vsybase.c
-	vauth_setpw_size()	mod_user	user@domain
-
 vpopmail.c
 	vadddomain()		add_domain	domain
 	vdeldomain()		del_domain	domain
