@@ -4,6 +4,14 @@
   - vdelivermail: structured logging, quota enforcement, :default and vdefaultdelivery by @rohan-bb69 in https://github.com/sagredo-dev/vpopmail/pull/16
   - Remove --enable-make-seekable feature and --enable-defaultdelivery option in https://github.com/sagredo-dev/vpopmail/pull/18
   - configure.ac: throw an error if tinycdb is enabled while the auth-module is not cdb by @sagredo-dev in https://github.com/sagredo-dev/vpopmail/pull/17
+  - Password hashing (by @yitzhaq):
+    - Hash new passwords with yescrypt when crypt() supports it (libxcrypt), else SHA512 as
+      before (--disable-yescrypt-passwords keeps SHA512). Existing hashes keep working; vchkpw
+      upgrades them at the next login (--disable-rehash-passwords turns that off). Dovecot needs
+      no change as long as its host has libxcrypt.
+    - Optional Argon2id password hashes (--enable-argon2id-passwords, needs libsodium).
+    - authvchkpw: compare the whole password hash.
+    - Check the result of mkpasswd3() everywhere.
 
 5.6.14 - Sep 16, 2026
   - storage.h: refactored 64-bit endian conversion handling, replacing non-portable GNU-specific byte-swap
