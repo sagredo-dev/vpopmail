@@ -875,7 +875,7 @@ int vauth_setpw(struct vqpasswd *inpw, char *domain) {
     if (ldap_connect() != 0) return -99;
   }
 
-  lm = (LDAPMod **)malloc(sizeof(LDAPMod *) * NUM_LDAP_FIELDS + 1);
+  lm = (LDAPMod **)safe_malloc(sizeof(LDAPMod *) * (NUM_LDAP_FIELDS + 1));
   for (i = 0; i < NUM_LDAP_FIELDS; ++i) {
     lm[i] = (LDAPMod *)safe_malloc(sizeof(LDAPMod));
     memset((LDAPMod *)lm[i], 0, sizeof(LDAPMod));
