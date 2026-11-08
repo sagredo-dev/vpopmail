@@ -385,9 +385,6 @@
 #undef USE_MYSQL
 
 /* "" */
-#undef USE_ORACLE
-
-/* "" */
 #undef USE_POSTGRES
 
 /* "" */

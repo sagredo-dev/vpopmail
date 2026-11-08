@@ -1201,7 +1201,7 @@ AC_SUBST(domains_dir)
 
 #----------------------------------------------------------------------
 
-# cant contain this following block in the mysql section, as it is also used by oracle
+# MySQL include and lib directories
 incdir=""
 for f in /usr/include/mariadb /usr/local/mariadb/include/mysql /usr/local/mariadb/include /usr/local/include/mariadb /usr/include/mysql /usr/local/mysql/include/mysql /usr/local/mysql/include /usr/local/include/mysql
 do
@@ -1213,7 +1213,7 @@ do
 done
 
 AC_ARG_ENABLE(incdir,
-    [  --enable-incdir=DIR        Your MySQL/Oracle 'include' directory.],
+    [  --enable-incdir=DIR        Your MySQL 'include' directory.],
     incdir="$enableval",
 )
 
@@ -1228,7 +1228,7 @@ do
 done
 
 AC_ARG_ENABLE(libdir,
-    [  --enable-libdir=DIR        Your MySQL/Oracle 'lib' directory.],
+    [  --enable-libdir=DIR        Your MySQL 'lib' directory.],
     libdir="$enableval",
 )
 
@@ -1264,7 +1264,7 @@ AC_MSG_CHECKING(whether an auth module has been specified)
 AUTH_MODULE="cdb"
 
 AC_ARG_ENABLE(auth-module,
-    [  --enable-auth-module=MOD   Nominate how to store the vpopmail account information (cdb (default), mysql, pgsql, ldap, oracle, or sqlite).],
+    [  --enable-auth-module=MOD   Nominate how to store the vpopmail account information (cdb (default), mysql, pgsql, ldap, or sqlite).],
     AUTH_MODULE="$enableval",
 )
 
@@ -1396,28 +1396,18 @@ case $AUTH_MODULE in
     ;;
 
   or*|Or*|OR*)
-    AC_MSG_RESULT(oracle)
-    USE_CDB=0
-    USE_SQL=1
-    USE_ORACLE=1
-    rm -rf vauth.c
-    ln -sf voracle.c vauth.c
-    AC_DEFINE_UNQUOTED(USE_SQL,$USE_SQL,"")
-    AC_DEFINE_UNQUOTED(USE_ORACLE,$USE_ORACLE,"")
-    auth_libs="-L$libdir -lclntsh -lclient8 $loglib"
-    AC_SUBST(auth_libs)
-    auth_inc="-I$incdir"
-    AC_SUBST(auth_inc)
+    AC_MSG_RESULT(no)
+    AC_MSG_ERROR(The oracle auth-module has been removed. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|sqlite)
     ;;
 
   sy*|Sy*|SY*)
     AC_MSG_RESULT(no)
-    AC_MSG_ERROR(The sybase auth-module has been removed. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|oracle|sqlite)
+    AC_MSG_ERROR(The sybase auth-module has been removed. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|sqlite)
     ;;
 
   *)
     AC_MSG_RESULT(no)
-    AC_MSG_ERROR(A valid auth-module was not selected. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|oracle|sqlite)
+    AC_MSG_ERROR(A valid auth-module was not selected. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|sqlite)
     ;;
 
 esac
@@ -1837,7 +1827,7 @@ AC_ARG_ENABLE(ldap, [],
 AC_ARG_ENABLE(oracle, [],
     [
         AC_MSG_RESULT(yes)
-        AC_MSG_ERROR(--enable-oracle has been superceded. Please use --enable-auth-module=oracle instead)
+        AC_MSG_ERROR(--enable-oracle: the oracle auth-module has been removed)
     ]
 )
 
@@ -2113,10 +2103,6 @@ case $AUTH_MODULE in
 
   ld*|Ld*|LD*)
     echo "       auth module = ldap --enable-auth-module=ldap"
-    ;;
-
-  or*|Or*|OR*)
-    echo "       auth module = oracle --enable-auth-module=oracle"
     ;;
 
   sq*|Sq*|SQ*)

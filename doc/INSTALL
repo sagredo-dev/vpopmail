@@ -3,7 +3,6 @@ For more information see the README files
  README.mysql   
  README.pgsql
  README.ldap  
- README.oracle  
  README.vlimits
  README.quotas
  README.roamingusers
