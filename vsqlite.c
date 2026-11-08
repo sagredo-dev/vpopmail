@@ -822,7 +822,7 @@ int vshow_ip_map(int first, char *ip, char *domain) {
   }
 
   if (rc == SQLITE_ROW) {
-    strncpy(ip, sqlite3_column_text(stmt_read, 0), 18);
+    snprintf(ip, 40, "%s", (const char *)sqlite3_column_text(stmt_read, 0)); /* up to 39 chars: IPv6 */
     strncpy(domain, sqlite3_column_text(stmt_read, 1), 156);
     more = 1;
     return (1);
