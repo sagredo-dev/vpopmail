@@ -3534,12 +3534,10 @@ int open_smtp_relay() {
   int fd_lok_file;
 #endif /* FILE_LOCKING */
   char *ipaddr;
-  char *tmpstr;
   time_t mytime;
   int rebuild_cdb = 1;
   char open_smtp_tmp_filename[MAX_BUFF];
   char tmpbuf1[MAX_BUFF];
-  char tmpbuf2[MAX_BUFF];
 
   mytime = time(NULL);
 
@@ -3586,11 +3584,12 @@ int open_smtp_relay() {
 
   /* read in the current open-smtp file */
   while (fgets(tmpbuf1, sizeof(tmpbuf1), fs_cur_file) != NULL) {
-    snprintf(tmpbuf2, sizeof(tmpbuf2), "%s", tmpbuf1);
-    /* extract the ip address from this line */
-    tmpstr = strtok(tmpbuf2, ":");
-    /* is this a match for our current ip? */
-    if (strcmp(tmpstr, ipaddr) != 0) {
+    /* is this the line for our current ip? Lines are ip:allow,...; an IPv6
+     * address contains ':' itself, so compare the address and the ':' after
+     * it rather than the text up to the first ':'
+     */
+    if (strncmp(tmpbuf1, ipaddr, strlen(ipaddr)) != 0 ||
+        tmpbuf1[strlen(ipaddr)] != ':') {
       /* no match, so copy the line out to our tmp file */
       fputs(tmpbuf1, fs_tmp_file);
     } else {
@@ -4167,25 +4166,24 @@ char *get_remote_ip() {
 }
 
 /* Address written into POP-before-SMTP relay rules (open-smtp / relay table).
- * Rules keep the format they have always had: when the original address is
- * shorter than 30 characters, ':' is written as '_' (as get_remote_ip() used
- * to do), longer addresses as they are. NULL when there is no usable address.
+ * tcpserver looks rules up by the exact text of the client address, so an IPv6
+ * address is written with ':' in the form inet_ntop() gives (the form
+ * tcpserver from ucspi-tcp6, or from ucspi-tcp with the IPv6 patch, puts in
+ * TCPREMOTEIP; their tcprules accept such rules). NULL when there is no usable
+ * address.
  */
 char *get_relay_ip() {
   static char relaybuf[64];
-  char *ipenv;
   char *ipaddr;
-  char *p;
+  struct in6_addr a6;
 
   if ((ipaddr = get_remote_ip()) == NULL || *ipaddr == '\0') return NULL;
+
+  if (inet_pton(AF_INET6, ipaddr, &a6) == 1 &&
+      inet_ntop(AF_INET6, &a6, relaybuf, sizeof(relaybuf)) != NULL)
+    return relaybuf;
+
   snprintf(relaybuf, sizeof(relaybuf), "%s", ipaddr);
-
-  ipenv = getenv("TCPREMOTEIP");
-  if (ipenv == NULL) ipenv = getenv("REMOTE_HOST");
-  if (ipenv != NULL && strlen(ipenv) < 30) {
-    for (p = relaybuf; (p = strchr(p, ':')) != NULL; p++) *p = '_';
-  }
-
   return relaybuf;
 }
 
