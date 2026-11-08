@@ -1675,3 +1675,91 @@ int vauth_crypt(char *user, char *domain, char *clear_pass,
   if (c == NULL) return (-1);
   return(strcmp(c, p));
 }
+
+#ifdef POP_AUTH_OPEN_RELAY
+/************************************************************************/
+/* POP-before-SMTP relay table (--enable-roaming-users), as in the MySQL
+ * and PostgreSQL modules.
+ */
+void vcreate_relay_table() {
+  vauth_create_table("relay", RELAY_TABLE_LAYOUT, 1);
+}
+
+/* open_smtp_relay() expects -1 on database errors, 0 when the address was
+ * already there (only its time is updated) and 1 when it was added
+ * (tcp.smtp.cdb is rebuilt only then). See vpopmail.c.
+ */
+int vopen_smtp_relay() {
+  char *ipaddr;
+  char *err_msg = NULL;
+
+  ipaddr = get_remote_ip();
+  if (ipaddr == NULL || *ipaddr == '\0') return (0);
+
+  if (vauth_open_update() != 0) return (-1);
+
+  qnprintf(SqlBufUpdate, SQL_BUF_SIZE,
+           "update relay set timestamp = %lu where ip_addr = '%s'",
+           (unsigned long)time(NULL), ipaddr);
+  if (sqlite3_exec(sqlite_update, SqlBufUpdate, 0, 0, &err_msg) != SQLITE_OK) {
+    /* the table may not exist yet */
+    sqlite3_free(err_msg);
+    err_msg = NULL;
+    vcreate_relay_table();
+  } else if (sqlite3_changes(sqlite_update) > 0) {
+    return (0);
+  }
+
+  qnprintf(SqlBufUpdate, SQL_BUF_SIZE,
+           "insert into relay (ip_addr, timestamp) values ('%s', %lu)",
+           ipaddr, (unsigned long)time(NULL));
+  if (sqlite3_exec(sqlite_update, SqlBufUpdate, 0, 0, &err_msg) != SQLITE_OK) {
+    fprintf(stderr, "vsqlite: sql error[r1]: %s\n", err_msg);
+    sqlite3_free(err_msg);
+    return (-1);
+  }
+  return (1);
+}
+
+/* write one tcprules line per address in the relay table */
+static int vsqlite_relay_rule(void *arg, int ncols, char **values,
+                              char **names) {
+  char line[MAX_BUFF];
+  int fdm = *(int *)arg;
+
+  (void)names;
+  /* never write an empty address: that would be the default rule */
+  if (ncols < 1 || values[0] == NULL || values[0][0] == 0) return (0);
+  snprintf(line, sizeof(line), "%s:allow,RELAYCLIENT=\"\",RBLSMTPD=\"\"\n",
+           values[0]);
+  if (write(fdm, line, strlen(line)) < 0) return (1);
+  return (0);
+}
+
+void vupdate_rules(int fdm) {
+  char *err_msg = NULL;
+
+  if (vauth_open_read() != 0) return;
+
+  if (sqlite3_exec(sqlite_read, "select ip_addr from relay",
+                   vsqlite_relay_rule, &fdm, &err_msg) != SQLITE_OK) {
+    /* the table may not exist yet: no relay rules */
+    sqlite3_free(err_msg);
+    vcreate_relay_table();
+  }
+}
+
+void vclear_open_smtp(time_t clear_minutes, time_t mytime) {
+  char *err_msg = NULL;
+
+  if (vauth_open_update() != 0) return;
+
+  snprintf(SqlBufUpdate, SQL_BUF_SIZE,
+           "delete from relay where timestamp <= %lu",
+           (unsigned long)(mytime - clear_minutes));
+  if (sqlite3_exec(sqlite_update, SqlBufUpdate, 0, 0, &err_msg) != SQLITE_OK) {
+    sqlite3_free(err_msg);
+    vcreate_relay_table();
+  }
+}
+#endif
