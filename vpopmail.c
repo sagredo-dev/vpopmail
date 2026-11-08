@@ -2926,6 +2926,11 @@ void vset_default_domain(char *domain) {
   char *tmpstr, *cp;
 #ifdef IP_ALIAS_DOMAINS
   char host[MAX_BUFF];
+  /* large enough for any textual IPv4 or IPv6 address (see get_remote_ip) */
+  char localip[64];
+  char oldkey[64];
+  char *ip;
+  int found;
 #endif
 
   if (domain != NULL) {
@@ -2954,33 +2959,48 @@ void vset_default_domain(char *domain) {
   }
 
 #ifdef IP_ALIAS_DOMAINS
-  tmpstr = getenv("TCPLOCALIP");
-
-  /* courier-imap uses IPv6 */
-  if (tmpstr != NULL) {
-    /* As a security precaution, remove all but good chars */
-    for (cp = tmpstr; *(cp += strspn(cp, ok_env_chars));) {
-      *cp = '_';
-    }
-
-    /* Michael Bowe 14th August 2003
-     * Mmmm Yuk below. What if TCPLOCALIP=":\0"
-     * Buffer overflow.
-     * Need to perhaps at least check strlen of tmpstr
-     */
-    if (tmpstr[0] == ':') {
-      tmpstr += 2;
-      while (*tmpstr != ':') ++tmpstr;
-      ++tmpstr;
-    }
-  }
-
-  memset(host, 0, sizeof(host));
   /* take the ip address that the connection was made to
    * and go and look this up in our vip map
    * and then store the domain into the host var
    */
-  if (vget_ip_map(tmpstr, host, sizeof(host)) == 0 && !host_in_locals(host)) {
+  tmpstr = getenv("TCPLOCALIP");
+  /* Too long to be an IP address: no lookup. */
+  if (tmpstr != NULL && strlen(tmpstr) < sizeof(localip)) {
+    struct in6_addr a6; /* large enough for an IPv4 address too */
+
+    /* The form this lookup used before: every character outside
+     * ok_env_chars (such as ':') replaced by '_'. Maps written for it are
+     * still found. Work on copies: don't change the environment.
+     */
+    strcpy(oldkey, tmpstr);
+    for (cp = oldkey; *(cp += strspn(cp, ok_env_chars));) {
+      *cp = '_';
+    }
+
+    strcpy(localip, tmpstr);
+    ip = localip;
+    /* courier-imap and other IPv6 servers give IPv4 connections as
+     * ::ffff:a.b.c.d; look those up as a.b.c.d.
+     */
+    if (strncasecmp(ip, "::ffff:", 7) == 0 && strchr(ip + 7, '.') != NULL)
+      ip += 7;
+    /* A valid IPv4 or IPv6 address is looked up as is; anything else in
+     * the sanitized form, as before.
+     */
+    if (inet_pton(AF_INET, ip, &a6) != 1 && inet_pton(AF_INET6, ip, &a6) != 1)
+      ip = oldkey;
+
+    memset(host, 0, sizeof(host));
+    found = (vget_ip_map(ip, host, sizeof(host)) == 0);
+    if (!found && ip != oldkey) {
+      memset(host, 0, sizeof(host));
+      found = (vget_ip_map(oldkey, host, sizeof(host)) == 0);
+    }
+  } else {
+    found = 0;
+  }
+
+  if (found && !host_in_locals(host)) {
     if (strlen(host) > 0) {
       /* Michael Bowe 14th August 2003
        * How can we prevent possible buffer overflows here
