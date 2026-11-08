@@ -136,7 +136,7 @@ struct vqpasswd *vauth_getpw(char *user, char *domain) {
 
   /* connect to the ldap server (if we havent already got a connection open) */
   if (ld == NULL) {
-    if (ldap_connect() != 0) {
+    if (vldap_connect() != 0) {
       safe_free((void **)&filter);
       return NULL;
     }
@@ -382,7 +382,7 @@ struct vqpasswd *vauth_getall(char *domain, int first, int sortit) {
 
     /* connect to the ldap server if we havent already done so */
     if (ld == NULL) {
-      if (ldap_connect() != 0) {
+      if (vldap_connect() != 0) {
         safe_free((void **)&filter);
         return NULL;
       }
@@ -514,7 +514,7 @@ int vauth_adduser(char *user, char *domain, char *password, char *gecos,
 
   /* make an ldap connection (unless we already have one open) */
   if (ld == NULL) {
-    if (ldap_connect() != 0) return -99;
+    if (vldap_connect() != 0) return -99;
   }
 
   lm = (LDAPMod **)safe_malloc(sizeof(LDAPMod *) * (NUM_LDAP_FIELDS + 1));
@@ -641,7 +641,7 @@ int vauth_adddomain(char *domain) {
 
   /* make a connection to the ldap server, if we are not already connected */
   if (ld == NULL) {
-    ret = ldap_connect();
+    ret = vldap_connect();
     if (ret != 0) {
       return -99;
       /* Attention I am not quite shure, when we return NULL or -99, see above
@@ -726,7 +726,7 @@ int vauth_deldomain(char *domain) {
 
   /* make a connection to the ldap server, if we dont have one already */
   if (ld == NULL) {
-    if (ldap_connect() != 0) return -99;
+    if (vldap_connect() != 0) return -99;
   }
 
   len = strlen(domain) + strlen(VLDAP_BASEDN) + 4 + 1;
@@ -782,7 +782,7 @@ int vauth_deluser(char *user, char *domain) {
 
   /* make a connection to the ldap server if we dont have one already */
   if (ld == NULL) {
-    if (ldap_connect() != 0) return -99;
+    if (vldap_connect() != 0) return -99;
   }
 
   len = 4 + strlen(user) + 2 + strlen(VLDAP_BASEDN) + 4 + strlen(domain) + 1;
@@ -872,7 +872,7 @@ int vauth_setpw(struct vqpasswd *inpw, char *domain) {
   }
 
   if (ld == NULL) {
-    if (ldap_connect() != 0) return -99;
+    if (vldap_connect() != 0) return -99;
   }
 
   lm = (LDAPMod **)safe_malloc(sizeof(LDAPMod *) * (NUM_LDAP_FIELDS + 1));
@@ -1387,7 +1387,7 @@ int compose_dn(char **dn, char *domain) {
 
 /***************************************************************************/
 
-int ldap_connect() {
+int vldap_connect() {
   char uri[1024];
   int ret = 0;
   struct berval creds;
@@ -1496,7 +1496,7 @@ char *valias_select(char *alias, char *domain) {
   while (valias_current != NULL) valias_current = linklist_del(valias_current);
 
   if (ld == NULL) {
-    err = ldap_connect();
+    err = vldap_connect();
     if (err) return NULL;
   }
 
@@ -1596,7 +1596,7 @@ int valias_insert(char *alias, char *domain, char *alias_line) {
 #endif
 
   if (ld == NULL) {
-    if ((err = ldap_connect()) != 0) return (err);
+    if ((err = vldap_connect()) != 0) return (err);
   }
 
 #ifdef USE_ONCHANGE
@@ -1710,7 +1710,7 @@ int valias_remove(char *alias, char *domain, char *alias_line) {
   char user_domain[MAX_BUFF];
 #endif
 
-  if ((err = ldap_connect()) != 0) return (err);
+  if ((err = vldap_connect()) != 0) return (err);
 
 #ifdef USE_ONCHANGE
   snprintf(user_domain, MAX_BUFF, "%s@%s", alias, domain);
@@ -1821,7 +1821,7 @@ int valias_delete(char *alias, char *domain) {
   char user_domain[MAX_BUFF];
 #endif
 
-  if ((err = ldap_connect()) != 0) return (err);
+  if ((err = vldap_connect()) != 0) return (err);
 
 #ifdef USE_ONCHANGE
   snprintf(user_domain, MAX_BUFF, "%s@%s", alias, domain);
@@ -1856,7 +1856,7 @@ int valias_delete_domain(char *domain) {
   char **aa = NULL, *fields[] = {"aa", NULL}, *p = NULL;
 
   if (ld == NULL) {
-    err = ldap_connect();
+    err = vldap_connect();
     if (err) return 0;
   }
 
@@ -1923,7 +1923,7 @@ char *valias_select_all(char *alias, char *domain) {
   char **aa = NULL, **di = NULL, *fields[] = {"aa", "di", NULL}, *p = NULL;
 
   if (ld == NULL) {
-    err = ldap_connect();
+    err = vldap_connect();
     if (err) return NULL;
   }
 
@@ -2028,7 +2028,7 @@ char *valias_select_names(char *alias, char *domain) {
   char **aa = NULL, *fields[] = {"aa", NULL}, *p = NULL;
 
   if (ld == NULL) {
-    err = ldap_connect();
+    err = vldap_connect();
     if (err) return NULL;
   }
 
