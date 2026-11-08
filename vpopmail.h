@@ -294,6 +294,7 @@ char *get_remote_ip();
 /*  Not yet categorized  */
 char randltr(void);
 int mkpasswd3(char *, char *, int);
+int vpw_check_password(const char *, const char *);
 #ifdef REHASH_PASSWORDS
 struct vqpasswd;
 int vpw_rehash(struct vqpasswd *, char *, char *);

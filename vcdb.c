@@ -825,7 +825,7 @@ int vauth_adduser_line( FILE *fs1,
  char Dir[156];
  uid_t uid;
  gid_t gid;
- char crypted[100];
+ char crypted[MAX_PW_PASS + 1];
  
 	if ( vget_assign(domain, Dir, 156, &uid, &gid ) == NULL ) {
 		strcpy(Dir, VPOPMAILDIR);
@@ -833,7 +833,7 @@ int vauth_adduser_line( FILE *fs1,
  
         if ( pass[0] != 0 ) {
             /* before anything is written for this user */
-            if (mkpasswd3(pass,crypted, 100) != VA_SUCCESS)
+            if (mkpasswd3(pass,crypted, sizeof(crypted)) != VA_SUCCESS)
                 return(VA_CRYPT_FAILED);
         } else {
             crypted[0] = 0;
@@ -1323,18 +1323,8 @@ void vcdb_strip_char( char *instr )
 
 int vauth_crypt(char *user,char *domain,char *clear_pass,struct vqpasswd *vpw)
 {
-  const char *c;
-	const char *p;
   if ( vpw == NULL ) return(-1);
-	p = vpw->pw_passwd;
-	
-  /* if needed remove {XXX-CRYPT}$ */
-	if (p[0] == '{') {
-		const char *k = strchr(p, '}');
-		if (k != NULL) p = k + 1;
-	}
-	
-  c = crypt(clear_pass, p);
-  if (c == NULL) return (-1);
-  return(strcmp(c, p));
+  /* removes a {XXX-CRYPT} prefix, handles every crypt() scheme and,
+   * with --enable-argon2id-passwords, Argon2id */
+  return(vpw_check_password(clear_pass, vpw->pw_passwd));
 }

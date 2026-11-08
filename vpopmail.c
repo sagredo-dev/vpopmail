@@ -35,6 +35,9 @@
 #ifdef HAVE_CRYPT_H
 #include <crypt.h>
 #endif
+#ifdef ARGON2ID_PASSWORDS
+#include <sodium.h>
+#endif
 #ifdef HAVE_ERR_H
 #include <err.h>
 #endif
@@ -910,6 +913,27 @@ int mkpasswd3(char *clearpass, char *crypted, int ssize) {
   char salt[12];
   static int seeded = 0;
 
+#if defined(ARGON2ID_PASSWORDS)
+  {
+    /* Stored with the {ARGON2ID} prefix, which dovecot uses to pick the
+     * scheme whatever its default scheme is; vpopmail removes it when
+     * checking (vpw_check_password()).
+     */
+    char ahash[crypto_pwhash_STRBYTES];
+
+    if (sodium_init() >= 0 &&
+        crypto_pwhash_str_alg(ahash, clearpass, strlen(clearpass),
+                              crypto_pwhash_OPSLIMIT_INTERACTIVE,
+                              crypto_pwhash_MEMLIMIT_INTERACTIVE,
+                              crypto_pwhash_ALG_ARGON2ID13) == 0) {
+      if (snprintf(crypted, ssize, "{ARGON2ID}%s", ahash) >= ssize)
+        return (VA_CRYPT_FAILED);
+      return (VA_SUCCESS);
+    }
+    /* libsodium failed (e.g. out of memory): use the scheme below */
+  }
+#endif
+
 #if defined(YESCRYPT_PASSWORDS)
   {
     /* crypt_gensalt_rn() takes its random bytes from the system */
@@ -993,21 +1017,67 @@ int mkpasswd3(char *clearpass, char *crypted, int ssize) {
 
 /************************************************************************/
 
+/* Skip leading {SCHEME} prefixes, as dovecot writes them ({SHA512-CRYPT},
+ * {ARGON2ID}, ...), and the LDAP module's {crypt}.
+ */
+static const char *vpw_strip_scheme(const char *hash) {
+  while (hash[0] == '{') {
+    const char *k = strchr(hash, '}');
+    if (k == NULL) break;
+    hash = k + 1;
+  }
+  return hash;
+}
+
+/* Check the plain text password 'clear' against the stored hash.
+ * Returns 0 when it matches, non-zero otherwise. Handles every scheme crypt()
+ * knows and, with --enable-argon2id-passwords, Argon2id hashes.
+ */
+int vpw_check_password(const char *clear, const char *stored) {
+  const char *hash;
+  const char *c;
+
+  if (clear == NULL || stored == NULL) return (-1);
+  hash = vpw_strip_scheme(stored);
+  /* an empty hash would match an empty crypt() result */
+  if (hash[0] == '\0') return (-1);
+
+  if (strncmp(hash, "$argon2", 7) == 0) {
+#ifdef ARGON2ID_PASSWORDS
+    if (sodium_init() < 0) return (-1);
+    return (crypto_pwhash_str_verify(hash, clear, strlen(clear)) == 0) ? 0 : 1;
+#else
+    return (-1);
+#endif
+  }
+
+  c = crypt(clear, hash);
+  if (c == NULL || c[0] == '*') return (-1);
+  return (strcmp(c, hash) != 0);
+}
+
+/************************************************************************/
+
 #ifdef REHASH_PASSWORDS
 /* Rank of the hash schemes mkpasswd3() can make, oldest first: DES, MD5,
- * SHA512, yescrypt. -1 for anything else (bcrypt, argon2, unknown), which is
- * never replaced.
+ * SHA512, yescrypt, Argon2id. -1 for anything else (bcrypt, unknown), which
+ * is never replaced.
  */
-static int vpw_hash_rank(const char *hash) {
+static int vpw_hash_rank(const char *stored) {
+  const char *hash = vpw_strip_scheme(stored);
+
   if (hash[0] != '$') return (strlen(hash) == 13) ? 0 : -1; /* DES */
   if (strncmp(hash, "$1$", 3) == 0) return 1;
   if (strncmp(hash, "$6$", 3) == 0) return 2;
   if (strncmp(hash, "$y$", 3) == 0) return 3;
+  if (strncmp(hash, "$argon2id$", 10) == 0) return 4;
   return -1;
 }
 
 /* rank of the scheme mkpasswd3() is configured to make */
-#if defined(YESCRYPT_PASSWORDS)
+#if defined(ARGON2ID_PASSWORDS)
+#define VPW_HASH_TARGET_RANK 4
+#elif defined(YESCRYPT_PASSWORDS)
 #define VPW_HASH_TARGET_RANK 3
 #elif defined(SHA512_PASSWORDS)
 #define VPW_HASH_TARGET_RANK 2

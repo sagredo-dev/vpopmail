@@ -803,6 +803,34 @@ esac
 
 #----------------------------------------------------------------------
 
+AC_MSG_CHECKING(whether argon2id-passwords is enabled)
+AC_ARG_ENABLE(argon2id-passwords,
+        [  --enable-argon2id-passwords   Hash new passwords with Argon2id (needs libsodium) instead of yescrypt/SHA512.],
+        ENABLE_ARGON2ID_PASSWORDS=$enableval,
+                [
+                        ENABLE_ARGON2ID_PASSWORDS=n
+                ]
+)
+
+case $ENABLE_ARGON2ID_PASSWORDS in
+  1*|y*|Y*)
+      AC_MSG_RESULT(yes)
+      AC_CHECK_HEADER([sodium.h], [],
+          [AC_MSG_ERROR([--enable-argon2id-passwords needs libsodium (sodium.h not found)])])
+      AC_CHECK_LIB(sodium, crypto_pwhash_str_alg, [],
+          [AC_MSG_ERROR([--enable-argon2id-passwords needs libsodium (crypto_pwhash_str_alg not found)])])
+      ENABLE_ARGON2ID_PASSWORDS=1
+      AC_DEFINE_UNQUOTED(ARGON2ID_PASSWORDS,$ENABLE_ARGON2ID_PASSWORDS,"")
+      AC_MSG_WARN([Argon2id hashes are stored as {ARGON2ID}\$argon2id\$...: anything else that checks vpopmail passwords must support Argon2id; dovecot needs to be built with libsodium (see README.md)])
+      ;;
+  *)
+      AC_MSG_RESULT(no)
+      ENABLE_ARGON2ID_PASSWORDS=0
+      ;;
+esac
+
+#----------------------------------------------------------------------
+
 AC_MSG_CHECKING(whether rehash-passwords is enabled)
 AC_ARG_ENABLE(rehash-passwords,
         [  --disable-rehash-passwords    Do not store a password again in the current scheme when a user logs in with a password hashed in an older one.],
@@ -2040,6 +2068,15 @@ case $ENABLE_YESCRYPT_PASSWORDS in
     ;;
   *)
     echo "yescrypt passwords = OFF --disable-yescrypt-passwords, or not supported by crypt()"
+    ;;
+esac
+
+case $ENABLE_ARGON2ID_PASSWORDS in
+  1*)
+    echo "argon2id passwords = ON  --enable-argon2id-passwords"
+    ;;
+  *)
+    echo "argon2id passwords = OFF --disable-argon2id-passwords (default)"
     ;;
 esac
 
