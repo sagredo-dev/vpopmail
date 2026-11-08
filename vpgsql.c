@@ -52,6 +52,47 @@ char PGSQL_DATABASE[64];
 char PGSQL_USER[64];
 char PGSQL_PASSWORD[128];
 
+/* Escaper for qnprintf(), registered once a connection is open (see
+ * vsql_escape_hook in vpopmail.c).  Without it qnprintf() puts a backslash
+ * before quotes, which PostgreSQL does not treat as an escape inside '...'
+ * (standard_conforming_strings is on by default since 9.1).
+ */
+static PGconn *vsql_escape_conn = NULL;
+
+static size_t vpgsql_escape(char *dst, const char *src, char quote)
+{
+  size_t n = 0;
+  int error = 0;
+
+  /* A double-quoted identifier (the table names in vpgsql.h): the only
+   * escape PostgreSQL defines inside one is a doubled double quote.
+   */
+  if (quote == '"') {
+    for (; *src != '\0'; src++) {
+      if (*src == '"') dst[n++] = '"';
+      dst[n++] = *src;
+    }
+    dst[n] = '\0';
+    return n;
+  }
+
+  /* A single-quoted literal: let libpq escape it for this connection's
+   * settings and encoding.  Refuse any other delimiter.
+   */
+  if (quote != '\'') return (size_t)-1;
+  if (vsql_escape_conn == NULL) return (size_t)-1;
+
+  n = PQescapeStringConn(vsql_escape_conn, dst, src, strlen(src), &error);
+  if (error) return (size_t)-1;
+  return n;
+}
+
+static void vpgsql_register_escaper(PGconn *conn)
+{
+  vsql_escape_conn = conn;
+  vsql_escape_hook = (conn != NULL) ? vpgsql_escape : NULL;
+}
+
 /* pgsql has no built-in replication, yet.
    #ifdef PGSQL_REPLICATION
    static PGconn *pgc_read;
@@ -283,7 +324,8 @@ dump_data  = ( getenv("VPDUMP_DATA")  != NULL);
   if( PQstatus(pgc) == CONNECTION_BAD) {
     fprintf(stderr, "vauth_open: can't connect: %s\n", PQerrorMessage(pgc));
     return VA_NO_AUTH_CONNECTION;
-  }	
+  }
+  vpgsql_register_escaper(pgc);
   return(0);
 }
 
@@ -936,6 +978,7 @@ void vclose()
   /* disconnection from the database */
   if ( is_open == 1 ) {
     is_open = 0;
+    vpgsql_register_escaper(NULL);
     PQfinish(pgc);
   }
 }
