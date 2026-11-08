@@ -559,7 +559,7 @@ int vauth_deluser( char *user, char *domain )
 
 #ifdef ENABLE_AUTH_LOGGING
   qnprintf( SqlBufUpdate, SQL_BUF_SIZE, 
-	    "delete from lastauth where user = '%s' and domain = '%s'", 
+	    "delete from lastauth where userid = '%s' and domain = '%s'", 
 	    user, domain );
   pgres=PQexec(pgc, SqlBufUpdate);
   if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK ) {
@@ -571,7 +571,7 @@ int vauth_deluser( char *user, char *domain )
 #ifdef ENABLE_SQL_LOGGING
 #ifdef ENABLE_SQL_REMOVE_DELETED
     qnprintf( SqlBufUpdate, SQL_BUF_SIZE,
-        "delete from vlog where domain = '%s' and user='%s'", 
+        "delete from vlog where domain = '%s' and userid='%s'", 
        domain, user );
     pgres=PQexec(pgc, SqlBufUpdate);
     if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK) {
@@ -1826,7 +1826,7 @@ int logsql(	int verror, char *TheUser, char *TheDomain, char *ThePass,
     pgres=PQexec( pgc, SqlBufUpdate );
     if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK ) {
       if( pgres ) PQclear(pgres);
-      fprintf(stderr,"error inserting into lastauth table\n");
+      fprintf(stderr,"error inserting into vlog table\n");
     }
   }
   if( pgres ) PQclear(pgres);
@@ -1835,8 +1835,27 @@ int logsql(	int verror, char *TheUser, char *TheDomain, char *ThePass,
 
 void vcreate_vlog_table()
 {
-  vauth_create_table ("vlog", VLOG_TABLE_LAYOUT, 1);
-  return;
+  /* same indexes as the MySQL vlog table */
+  static const char *indexes[] = {
+    "CREATE INDEX vlog_userid_idx ON vlog (userid)",
+    "CREATE INDEX vlog_domain_idx ON vlog (domain)",
+    "CREATE INDEX vlog_remoteip_idx ON vlog (remoteip)",
+    "CREATE INDEX vlog_error_idx ON vlog (error)",
+    "CREATE INDEX vlog_message_idx ON vlog (message)",
+    "CREATE INDEX vlog_timestamp_idx ON vlog (timestamp)"
+  };
+  PGresult *pgres;
+  unsigned int i;
+
+  if (vauth_create_table ("vlog", VLOG_TABLE_LAYOUT, 1) != 0) return;
+
+  for (i = 0; i < sizeof(indexes) / sizeof(indexes[0]); i++) {
+    pgres = PQexec(pgc, indexes[i]);
+    if (!pgres || PQresultStatus(pgres) != PGRES_COMMAND_OK)
+      fprintf(stderr, "vpgsql: error creating index on vlog: %s\n",
+              PQerrorMessage(pgc));
+    if (pgres) PQclear(pgres);
+  }
 }
 #endif
 
