@@ -1105,26 +1105,37 @@ int vshow_ip_map( int first, char *ip, char *domain )
   if ( first == 1 ) {
     snprintf(SqlBufRead,SQL_BUF_SIZE, 
 	     "select ip_addr, domain from ip_alias_map"); 
-    if (pgres) { 
+    /* pgres is static: clear it and forget it, so that it is never
+     * cleared twice (on the next listing or a call after the last row)
+     */
+    if (pgres) {
       PQclear(pgres);
-      ntuples=ctuple=0;
-    }	
+      pgres = NULL;
+    }
+    ntuples=ctuple=0;
     if ( ! (pgres=PQexec(pgc, SqlBufRead))
          || PQresultStatus(pgres) != PGRES_TUPLES_OK ) {
       if(pgres) PQclear(pgres);
-      snprintf(SqlBufRead,SQL_BUF_SIZE, 
-	       "select ip_addr, domain from ip_alias_map"); 
+      pgres = NULL;
+      snprintf(SqlBufRead,SQL_BUF_SIZE,
+	       "select ip_addr, domain from ip_alias_map");
       vcreate_ip_map_table();
       if ( ! (pgres=PQexec(pgc, SqlBufRead))
 	   || PQresultStatus(pgres) != PGRES_TUPLES_OK ) {
+	if(pgres) PQclear(pgres);
+	pgres = NULL;
 	return(0);
       }
     }
     ntuples=PQntuples(pgres);
-  } 
+  }
+
+  /* no listing in progress */
+  if ( pgres == NULL ) return (0);
 
   if ( ctuple == ntuples ) {
     PQclear(pgres);
+    pgres = NULL;
     ntuples=ctuple=0;
     return (0);
   }
@@ -1248,14 +1259,13 @@ level_index0, level_index1, level_index2, the_dir ) values ( \
 	   vdir->the_dir);
 
   pgres=PQexec(pgc, SqlBufUpdate);
+  /* No create-and-retry here: the table exists (the delete above worked),
+   * and after a failed statement the transaction accepts no more commands.
+   */
   if ( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK ) {
-    PQclear(pgres);
-    vcreate_dir_control(domain);
-    if ( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK ) {
-      fprintf(stderr, "vwrite_dir_control: %s\n", PQerrorMessage(pgc));
-      if (pgres) PQclear (pgres);
-      return(-1);
-    }
+    fprintf(stderr, "vwrite_dir_control: %s\n", PQerrorMessage(pgc));
+    if (pgres) PQclear (pgres);
+    return(-1);
   }
   PQclear(pgres);
   return pg_end(); /* end transcation */
@@ -1307,11 +1317,12 @@ int vdel_dir_control(char *domain)
   pgres=PQexec(pgc, SqlBufUpdate);
 
   if ( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK ) {
-    PQclear(pgres);
+    if (pgres) PQclear(pgres);
     vcreate_dir_control(domain);
-    qnprintf(SqlBufUpdate, SQL_BUF_SIZE, 
-	     "delete from dir_control where domain = '%s'", 
-	     domain); 
+    qnprintf(SqlBufUpdate, SQL_BUF_SIZE,
+	     "delete from dir_control where domain = '%s'",
+	     domain);
+    pgres=PQexec(pgc, SqlBufUpdate);
     if ( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK ) {
       fprintf(stderr, "vdel_dir_control: delete failed[e]: %s\n", 
 	      PQerrorMessage(pgc));
