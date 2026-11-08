@@ -1863,7 +1863,7 @@ int vget_limits(const char *domain, struct vlimits *limits)
         return vlimits_read_limits_file (VLIMITS_DEFAULT_FILE, limits);
 
     } else if ((row = mysql_fetch_row(res_read)) != NULL) {
-        int perm = atol(row[22]);
+        int perm = atol(row[23]);
 
         limits->maxpopaccounts = atoi(row[0]);
         limits->maxaliases = atoi(row[1]);
@@ -1893,8 +1893,8 @@ int vget_limits(const char *domain, struct vlimits *limits)
         limits->perm_maillist_users = perm & VLIMIT_DISABLE_ALL;
         perm >>= VLIMIT_DISABLE_BITS;
         limits->perm_maillist_moderators = perm & VLIMIT_DISABLE_ALL;
-        limits->perm_quota = strtoll(row[23], NULL, 10);
-        limits->perm_defaultquota = strtoll(row[24], NULL, 10);
+        limits->perm_quota = strtoll(row[24], NULL, 10);
+        limits->perm_defaultquota = strtoll(row[25], NULL, 10);
     }
     mysql_free_result(res_read);
 
