@@ -457,10 +457,12 @@ int vauth_adduser(char *user, char *domain, char *pass, char *gecos,
 	    );
   if(! ( pgres=PQexec(pgc,SqlBufUpdate) )||
      PQresultStatus(pgres)!=PGRES_COMMAND_OK )  {
-    fprintf(stderr, "vauth_adduser: %s\npgsql: %s\n", 
+    fprintf(stderr, "vauth_adduser: %s\npgsql: %s\n",
 	    SqlBufUpdate, PQerrorMessage(pgc));
+    if( pgres )  PQclear(pgres);
+    return(-1);
   }
-  if( pgres )  PQclear(pgres);
+  PQclear(pgres);
   return(0);
 
 }
@@ -889,45 +891,42 @@ int vopen_smtp_relay()
     return 0;
   }
 
-  if ( (err=vauth_open(1)) != 0 ) return 0;
+  /* open_smtp_relay() expects -1 on database errors, 0 when the address
+   * was already there (only its time is updated) and 1 when it was added
+   * (tcp.smtp.cdb is rebuilt only then). See vpopmail.c.
+   */
+  if ( (err=vauth_open(1)) != 0 ) return -1;
 
-  qnprintf(SqlBufUpdate, SQL_BUF_SIZE, 
+  qnprintf(SqlBufUpdate, SQL_BUF_SIZE,
     "UPDATE relay SET ip_addr='%s', timestamp=%d WHERE ip_addr='%s'",
     ipaddr, (int)mytime, ipaddr);
 
   pgres=PQexec(pgc, SqlBufUpdate);
-  if (PQresultStatus(pgres) == PGRES_COMMAND_OK && atoi(PQcmdTuples(pgres)) == 0) {
-    if( pgres ) PQclear(pgres);
-
-    qnprintf( SqlBufUpdate, SQL_BUF_SIZE,
-      "INSERT INTO relay (ip_addr, timestamp) VALUES ('%s', %lu)",
-      ipaddr, time(NULL)); 
-
-    pgres=PQexec(pgc, SqlBufUpdate);
+  if (pgres && PQresultStatus(pgres) == PGRES_COMMAND_OK) {
+    if (atoi(PQcmdTuples(pgres)) > 0) {
+      PQclear(pgres);
+      return 0;
     }
-
-/* UPDATE returned 0 rows and/or INSERT failed.  Try creating the table */
-  if(!pgres || PQresultStatus(pgres) != PGRES_COMMAND_OK) {
+    PQclear(pgres);
+  } else {
+    /* the table may not exist yet */
     if( pgres ) PQclear(pgres);
-
     vcreate_relay_table();
+  }
 
-/* and try INSERTing now... */
-    qnprintf( SqlBufUpdate, SQL_BUF_SIZE,
-      "INSERT INTO relay (ip_addr, timestamp) VALUES ('%s', %lu)",
-      ipaddr, time(NULL)); 
+  qnprintf( SqlBufUpdate, SQL_BUF_SIZE,
+    "INSERT INTO relay (ip_addr, timestamp) VALUES ('%s', %lu)",
+    ipaddr, time(NULL));
 
-    pgres=PQexec(pgc, SqlBufUpdate);
-    }
-
+  pgres=PQexec(pgc, SqlBufUpdate);
   if(pgres && PQresultStatus(pgres) == PGRES_COMMAND_OK ) {
-    /* need to return non-zero value if value inserted */
-    if( pgres ) PQclear(pgres);
+    PQclear(pgres);
     return 1;
   }
 
+  fprintf(stderr, "vopen_smtp_relay: %s\n", PQerrorMessage(pgc));
   if( pgres ) PQclear(pgres);
-  return 0;
+  return -1;
 }
 
 void vupdate_rules(int fdm)
@@ -978,17 +977,17 @@ void vclear_open_smtp(time_t clear_minutes, time_t mytime)
   time_t delete_time;
   int err;
     
-  // open_smtp_relay() expects "-1" on database errors. "0" means duplicate record. (See vpopmail.c)
-  if ( (err=vauth_open(1)) != 0 ) return (-1);
+  if ( (err=vauth_open(1)) != 0 ) return;
   delete_time = mytime - clear_minutes;
 
-  snprintf( SqlBufUpdate, SQL_BUF_SIZE, 
-	    "DELETE FROM relay WHERE timestamp <= %d", 
+  snprintf( SqlBufUpdate, SQL_BUF_SIZE,
+	    "DELETE FROM relay WHERE timestamp <= %d",
 	    (int)delete_time);
   pgres=PQexec(pgc, SqlBufUpdate);
   if( !pgres || PQresultStatus(pgres) != PGRES_COMMAND_OK) {
     vcreate_relay_table();
   }
+  if( pgres ) PQclear(pgres);
   return;
 }
 
@@ -1122,11 +1121,10 @@ int vdel_ip_map( char *ip, char *domain)
 
   pgres=PQexec(pgc, SqlBufUpdate);
   if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK ) {
-    fprintf(stderr, "vdel_ip_map: delete failed: %s\n", 
+    fprintf(stderr, "vdel_ip_map: delete failed: %s\n",
 	    PQerrorMessage(pgc));
     if(pgres) PQclear(pgres);
-    /* #warning why are we returning 0 when we couldn't delete?*/
-    return(0);
+    return(-1);
   }
   if(pgres) PQclear(pgres);
   return(0);
@@ -1600,16 +1598,15 @@ int valias_insert( char *alias, char *domain, char *alias_line)
       if (pgres) PQclear (pgres);
       return(-1);
     }
-    if(pgres) PQclear(pgres);
+  }
+  PQclear(pgres);
 
 #ifdef USE_ONCHANGE
   snprintf( user_domain, MAX_BUFF, "%s@%s", alias, domain);
   on_change("valias_add", domain, alias_line, 1, 1);
 #endif
 
-    return(0);
-  }
-  return(-1);
+  return(0);
 }
 
 int valias_delete( char *alias, char *domain)
