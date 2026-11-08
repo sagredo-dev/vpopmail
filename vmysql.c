@@ -723,28 +723,27 @@ int vauth_deluser( char *user, char *domain )
 
 #ifdef ENABLE_AUTH_LOGGING
     qnprintf( SqlBufUpdate, SQL_BUF_SIZE, 
-        "delete from lastauth where user = '%s' and domain = '%s'", 
+        "delete from lastauth where user = '%s' and domain = '%s'",
         user, domain );
-    if (mysql_query(&mysql_update,SqlBufUpdate)) {
-	   err = mysql_errno(&mysql_update);
-	   if (err != ER_NO_SUCH_TABLE)
-		  err = -1;
-	   else
-		  err = 0;
-    } 
+    /* Cleanup only: the user is already deleted, and failing here would
+     * make vdeluser() stop before removing the maildir. Report it, don't
+     * fail (and don't clear an error from the user delete above).
+     */
+    if (mysql_query(&mysql_update,SqlBufUpdate) &&
+        mysql_errno(&mysql_update) != ER_NO_SUCH_TABLE) {
+        fprintf(stderr, "vauth_deluser: lastauth: %s\n", mysql_error(&mysql_update));
+    }
 #endif
 
 #ifdef ENABLE_SQL_LOGGING
 #ifdef ENABLE_SQL_REMOVE_DELETED
     qnprintf( SqlBufUpdate, SQL_BUF_SIZE,
-        "delete from vlog where domain = '%s' and user = '%s'", 
+        "delete from vlog where domain = '%s' and user = '%s'",
        domain, user );
-    if (mysql_query(&mysql_update,SqlBufUpdate)) {
-	   err = mysql_errno(&mysql_update);
-	   if (err != ER_NO_SUCH_TABLE)
-		  err = -1;
-	   else
-		  err = 0;
+    /* cleanup only, as above */
+    if (mysql_query(&mysql_update,SqlBufUpdate) &&
+        mysql_errno(&mysql_update) != ER_NO_SUCH_TABLE) {
+        fprintf(stderr, "vauth_deluser: vlog: %s\n", mysql_error(&mysql_update));
     }
 #endif
 #endif
