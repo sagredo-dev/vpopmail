@@ -92,13 +92,28 @@ pw_comp(char *login __unused, char *password, char *challenge, char *response)
 
 	if(!response || (response && !*response))
 	{
-		if (!(crypt_pass = crypt((char *) challenge, (char *) password)))
+		const char     *hash = password;
+
+		/* if needed remove {XXX-CRYPT}, as vauth_crypt() does */
+		if (hash[0] == '{')
+		{
+			const char     *k = strchr(hash, '}');
+			if (k != NULL)
+				hash = k + 1;
+		}
+		/* an empty hash would match an empty crypt() result */
+		if (!*hash)
+			return(1);
+		if (!(crypt_pass = crypt((char *) challenge, hash)))
 		{
 			printf("454-%s (#4.3.0)\r\n", strerror(errno));
 			fflush(stdout);
 			_exit (111);
 		}
-		return(strncmp((const char *) crypt_pass, (const char *) password, (size_t) 14));
+		/* compare the whole hash: its first characters are the scheme and
+		 * the salt, which are the same for any password
+		 */
+		return(strcmp((const char *) crypt_pass, hash));
 	}
 	hmac_md5((unsigned char *) challenge, (int) strlen((const char *) challenge), (unsigned char *) password,
 		(int) strlen((const char *) password), digest);
