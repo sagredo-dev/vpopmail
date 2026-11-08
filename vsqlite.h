@@ -53,7 +53,7 @@ primary key (pw_name ) "
 
 #define RELAY_TABLE_LAYOUT \
   "ip_addr text not null, \
-timestamp text, primary key (ip_addr)"
+timestamp integer, primary key (ip_addr)"
 
 #define LASTAUTH_TABLE_LAYOUT \
   "user text NOT NULL, \
