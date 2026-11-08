@@ -525,6 +525,7 @@ int vauth_adduser(char *user, char *domain, char *pass, char *gecos, char *dir, 
  static char tmpbuf2[MAX_BUFF_CDB];
  char *tmpstr;
  int added = 0;
+ int err = 0;
  FILE *fs1;
  FILE *fs2;
 #ifdef FILE_LOCKING
@@ -564,20 +565,30 @@ int vauth_adduser(char *user, char *domain, char *pass, char *gecos, char *dir, 
         return(-1);
     }
 
-    while (fgets(tmpbuf1,MAX_BUFF_CDB,fs2)!=NULL){    
+    while (err == 0 && fgets(tmpbuf1,MAX_BUFF_CDB,fs2)!=NULL){
         strncpy(tmpbuf2, tmpbuf1, MAX_BUFF_CDB);
         tmpstr = strtok(tmpbuf2,":");
         if ( added == 0 && strcmp(user, tmpstr) < 0 ) {
             added = 1;
-            vauth_adduser_line( fs1, user, pass, domain,gecos,dir, apop);
+            err = vauth_adduser_line( fs1, user, pass, domain,gecos,dir, apop);
         }
         fputs(tmpbuf1, fs1);
     }
-    if ( added == 0 ) {
-        vauth_adduser_line( fs1, user, pass, domain,gecos,dir,apop);
+    if ( err == 0 && added == 0 ) {
+        err = vauth_adduser_line( fs1, user, pass, domain,gecos,dir,apop);
     }
     fclose(fs1);
     fclose(fs2);
+
+    /* the password could not be encrypted: leave vpasswd as it was */
+    if ( err != 0 ) {
+        unlink(vpasswd_bak_file);
+#ifdef FILE_LOCKING
+        unlock_lock(fd3, 0, SEEK_SET, 0);
+        close(fd3);
+#endif
+        return(err);
+    }
     
     rename(vpasswd_bak_file, vpasswd_file);
       
@@ -821,11 +832,13 @@ int vauth_adduser_line( FILE *fs1,
         }
  
         if ( pass[0] != 0 ) {
-            mkpasswd3(pass,crypted, 100);
+            /* before anything is written for this user */
+            if (mkpasswd3(pass,crypted, 100) != VA_SUCCESS)
+                return(VA_CRYPT_FAILED);
         } else {
             crypted[0] = 0;
         }
-                                         
+
         fprintf(fs1,"%s:", user );
         
         if ( apop == USE_POP ) fprintf(fs1, "%s:1:", crypted);

@@ -944,8 +944,11 @@ int mkpasswd3(char *clearpass, char *crypted, int ssize) {
   salt[2] = 0;
 #endif
 
+  /* crypt() reports failure with NULL or, in libxcrypt, with a "*0" or "*1"
+   * token, which is not a hash ('*' never starts one)
+   */
   tmpstr = crypt(clearpass, salt);
-  if (tmpstr == NULL) return (VA_CRYPT_FAILED);
+  if (tmpstr == NULL || tmpstr[0] == '*') return (VA_CRYPT_FAILED);
 
 #if defined(MD5_PASSWORDS) || defined(SHA512_PASSWORDS)
   /* Make sure this host's crypt supports MD5 passwords.  If not,
@@ -956,11 +959,13 @@ int mkpasswd3(char *clearpass, char *crypted, int ssize) {
     salt[1] = randltr();
     salt[2] = 0;
     tmpstr = crypt(clearpass, salt);
-    if (tmpstr == NULL) return (VA_CRYPT_FAILED);
+    if (tmpstr == NULL || tmpstr[0] == '*') return (VA_CRYPT_FAILED);
   }
 #endif
 
-  strncpy(crypted, tmpstr, ssize);
+  /* a cut-off hash would not match the password */
+  if (strlen(tmpstr) >= (size_t)ssize) return (VA_CRYPT_FAILED);
+  strcpy(crypted, tmpstr);
   return (VA_SUCCESS);
 }
 
@@ -1670,7 +1675,8 @@ int vpasswd(char *username, char *domain, char *password, int apop) {
   if (mypw->pw_flags & NO_PASSWD_CHNG) return (-1);
 
   /* encrypt their supplied password, and save it */
-  mkpasswd3(password, Crypted, sizeof(Crypted));
+  if (mkpasswd3(password, Crypted, sizeof(Crypted)) != VA_SUCCESS)
+    return (VA_CRYPT_FAILED);
   mypw->pw_passwd = Crypted;
 
 #ifdef CLEAR_PASS
