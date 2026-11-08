@@ -47,10 +47,33 @@ void vcreate_lastauth_table();
 /*
  * Open a connection to mysql for updates
  */
+/* Escaper for qnprintf() (see vsql_escape_hook in vpopmail.c).  Without it
+ * qnprintf() puts a backslash before quotes, which SQLite never treats as an
+ * escape: the quote that follows ends the literal.  In SQLite the only escape
+ * inside '...' (and inside a `...` identifier) is doubling the delimiter.
+ */
+static size_t vsqlite_escape(char *dst, const char *src, char quote) {
+  size_t n = 0;
+
+  /* "..." is an identifier in SQLite (with a fallback to a string that
+   * depends on the build), so values must be single quoted; refuse the rest.
+   */
+  if (quote != '\'' && quote != '`') return (size_t)-1;
+
+  for (; *src != '\0'; src++) {
+    if (*src == quote) dst[n++] = quote;
+    dst[n++] = *src;
+  }
+  dst[n] = '\0';
+  return n;
+}
+
 int vauth_open_update() {
   int rc;
   mode_t oldmask;
   char filedb[MAX_BUFF];
+
+  vsql_escape_hook = vsqlite_escape;
 
   /* if the database is already open, just return */
   if (update_open) return (0);
@@ -99,6 +122,8 @@ int vauth_open_read() {
   int rc;
   mode_t oldmask;
   char filedb[MAX_BUFF];
+
+  vsql_escape_hook = vsqlite_escape;
 
   /* if the database is already open, just return */
   if (read_open) return (0);
@@ -1642,6 +1667,7 @@ int vset_limits(const char *domain, const struct vlimits *limits) {
 /************************************************************************/
 int vdel_limits(const char *domain) {
   char *err_msg = NULL;
+  if (vauth_open_update() != 0) return (-1);
   qnprintf(SqlBufUpdate, SQL_BUF_SIZE, "DELETE FROM limits WHERE domain = '%s'",
            domain);
 
