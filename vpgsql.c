@@ -663,9 +663,15 @@ int vauth_deluser( char *user, char *domain )
   qnprintf( SqlBufUpdate, SQL_BUF_SIZE, 
 	    "delete from lastauth where userid = '%s' and domain = '%s'", 
 	    user, domain );
+  /* Cleanup only: the user is already deleted, and failing here would make
+   * vdeluser() stop before removing the maildir. Report it (unless the
+   * table does not exist yet, SQLSTATE 42P01), don't fail.
+   */
   pgres=PQexec(pgc, SqlBufUpdate);
   if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK ) {
-    err = -1;
+    const char *state = pgres ? PQresultErrorField(pgres, PG_DIAG_SQLSTATE) : NULL;
+    if( state == NULL || strcmp(state, "42P01") != 0 )
+      fprintf(stderr, "vauth_deluser: lastauth: %s\n", PQerrorMessage(pgc));
   }
   if( pgres ) PQclear(pgres);
 #endif
@@ -673,12 +679,16 @@ int vauth_deluser( char *user, char *domain )
 #ifdef ENABLE_SQL_LOGGING
 #ifdef ENABLE_SQL_REMOVE_DELETED
     qnprintf( SqlBufUpdate, SQL_BUF_SIZE,
-        "delete from vlog where domain = '%s' and userid='%s'", 
+        "delete from vlog where domain = '%s' and userid='%s'",
        domain, user );
+    /* cleanup only, as above */
     pgres=PQexec(pgc, SqlBufUpdate);
-    if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK) {
-      err = -1;
+    if( !pgres || PQresultStatus(pgres)!=PGRES_COMMAND_OK ) {
+      const char *state = pgres ? PQresultErrorField(pgres, PG_DIAG_SQLSTATE) : NULL;
+      if( state == NULL || strcmp(state, "42P01") != 0 )
+        fprintf(stderr, "vauth_deluser: vlog: %s\n", PQerrorMessage(pgc));
     }
+    if( pgres ) PQclear(pgres);
 #endif
 #endif
 
