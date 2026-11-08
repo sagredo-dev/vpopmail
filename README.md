@@ -7,6 +7,30 @@ This is a fork of [brunonymous/vpopmail](https://github.com/brunonymous/vpopmail
 
 Latest 5.7 version of `Vpopmail` requires `inih` (to read _vdelivermail.ini_). `libcurl` (to read the Date: header in the logs) is an optional dependence.
 
+## Password hashing
+
+New passwords are hashed with yescrypt (`$y$...`) when the system's `crypt()` supports it,
+which is the case with libxcrypt (all current Linux distributions); otherwise configure falls
+back to SHA512 (`$6$...`). `--disable-yescrypt-passwords` keeps SHA512.
+
+Existing hashes keep working: passwords are checked with `crypt()`, which reads the scheme
+from the stored hash, so a database with a mix of MD5, SHA512 and yescrypt hashes is fine and
+no column needs to change (a yescrypt hash is 73 characters).
+
+When a user logs in through `vchkpw` with a password whose hash uses an older scheme, `vchkpw`
+stores it again in the current scheme, so hashes are upgraded as users log in
+(`--disable-rehash-passwords` turns this off). Hashes are never replaced by an older scheme.
+Users whose logins never go through `vchkpw` (for example IMAP/POP3 with dovecot reading the
+SQL table directly) get the new scheme when they next change their password.
+
+Anything else that checks the hashes itself must support yescrypt. Dovecot's `CRYPT` and
+`SHA512-CRYPT` schemes both hand the hash to the system's `crypt()`, which picks the algorithm
+from the hash itself. So a dovecot SQL passdb with `passdb_default_password_scheme =
+SHA512-CRYPT` keeps working unchanged with a mix of yescrypt, SHA512 and MD5 hashes (MD5 still
+needs `auth_allow_weak_schemes = yes`, as before), provided dovecot runs on a system whose
+`crypt()` supports yescrypt (libxcrypt). If dovecot, or any other program that checks these
+hashes, runs on a system without it, configure vpopmail with `--disable-yescrypt-passwords`.
+
 ## Upgrading from version 5.4.33
 
 When upgrading from version 5.4.33 to version 5.6.x, if you have the accounts on SQL, you should

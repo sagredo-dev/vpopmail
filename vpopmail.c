@@ -32,6 +32,9 @@
 #include <time.h>
 #include <unistd.h>
 #include "config.h"
+#ifdef HAVE_CRYPT_H
+#include <crypt.h>
+#endif
 #ifdef HAVE_ERR_H
 #include <err.h>
 #endif
@@ -907,6 +910,25 @@ int mkpasswd3(char *clearpass, char *crypted, int ssize) {
   char salt[12];
   static int seeded = 0;
 
+#if defined(YESCRYPT_PASSWORDS)
+  {
+    /* crypt_gensalt_rn() takes its random bytes from the system */
+    char ysalt[CRYPT_GENSALT_OUTPUT_SIZE];
+
+    if (crypt_gensalt_rn("$y$", 0, NULL, 0, ysalt, sizeof(ysalt)) != NULL) {
+      tmpstr = crypt(clearpass, ysalt);
+      if (tmpstr != NULL && strncmp(tmpstr, "$y$", 3) == 0) {
+        if (strlen(tmpstr) >= (size_t)ssize) return (VA_CRYPT_FAILED);
+        strcpy(crypted, tmpstr);
+        return (VA_SUCCESS);
+      }
+    }
+    /* no yescrypt at run time (the crypt library is not the one configure
+     * found): use the scheme below
+     */
+  }
+#endif
+
   if (!seeded) {
     seeded = 1;
     srand(time(NULL) ^ (getpid() << 15));
@@ -968,6 +990,61 @@ int mkpasswd3(char *clearpass, char *crypted, int ssize) {
   strcpy(crypted, tmpstr);
   return (VA_SUCCESS);
 }
+
+/************************************************************************/
+
+#ifdef REHASH_PASSWORDS
+/* Rank of the hash schemes mkpasswd3() can make, oldest first: DES, MD5,
+ * SHA512, yescrypt. -1 for anything else (bcrypt, argon2, unknown), which is
+ * never replaced.
+ */
+static int vpw_hash_rank(const char *hash) {
+  if (hash[0] != '$') return (strlen(hash) == 13) ? 0 : -1; /* DES */
+  if (strncmp(hash, "$1$", 3) == 0) return 1;
+  if (strncmp(hash, "$6$", 3) == 0) return 2;
+  if (strncmp(hash, "$y$", 3) == 0) return 3;
+  return -1;
+}
+
+/* rank of the scheme mkpasswd3() is configured to make */
+#if defined(YESCRYPT_PASSWORDS)
+#define VPW_HASH_TARGET_RANK 3
+#elif defined(SHA512_PASSWORDS)
+#define VPW_HASH_TARGET_RANK 2
+#elif defined(MD5_PASSWORDS)
+#define VPW_HASH_TARGET_RANK 1
+#else
+#define VPW_HASH_TARGET_RANK 0
+#endif
+
+/* Call after the plain text password 'clear' was checked against vpw and
+ * matched. If the stored hash uses an older scheme than the one mkpasswd3()
+ * makes now (for example SHA512 after the move to yescrypt), store the
+ * password again in the current scheme, so that hashes are upgraded as users
+ * log in. A hash is never replaced by one of an older or unknown scheme
+ * (e.g. when yescrypt is disabled or not available on this host).
+ * Returns 1 when the hash was replaced, 0 otherwise.
+ */
+int vpw_rehash(struct vqpasswd *vpw, char *domain, char *clear) {
+  static char crypted[MAX_PW_PASS + 1];
+  int old_rank;
+
+  if (vpw == NULL || domain == NULL || clear == NULL || clear[0] == 0) return 0;
+  if (vpw->pw_passwd == NULL || vpw->pw_passwd[0] == 0) return 0;
+  old_rank = vpw_hash_rank(vpw->pw_passwd);
+  /* unknown scheme, or already as new as what mkpasswd3() makes: the
+   * common case, decided without hashing anything
+   */
+  if (old_rank < 0 || old_rank >= VPW_HASH_TARGET_RANK) return 0;
+
+  if (mkpasswd3(clear, crypted, sizeof(crypted)) != VA_SUCCESS) return 0;
+  /* mkpasswd3() fell back to an older scheme at run time */
+  if (vpw_hash_rank(crypted) <= old_rank) return 0;
+
+  vpw->pw_passwd = crypted;
+  return (vauth_setpw(vpw, domain) == 0);
+}
+#endif
 
 /************************************************************************/
 

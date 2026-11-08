@@ -335,6 +335,9 @@
 #undef REBUILD_TCPSERVER
 
 /* "" */
+#undef REHASH_PASSWORDS
+
+/* "" */
 #undef RELAY_CLEAR_MINUTES
 
 /* Define as the return type of signal handlers (`int' or `void'). */
@@ -513,6 +516,9 @@
 
 /* "" */
 #undef VPOPUSER
+
+/* "" */
+#undef YESCRYPT_PASSWORDS
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const

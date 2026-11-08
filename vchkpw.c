@@ -489,6 +489,16 @@ void login_virtual_user() {
     vchkpw_exit(3);
   }
 
+#ifdef REHASH_PASSWORDS
+  /* The plain text password matched (not CRAM-MD5 or APOP, where ThePass is
+   * not the password): store it in the current hash scheme if the stored
+   * hash is older.
+   */
+  if ((cramaccepted != 0) && (apopaccepted != 0)) {
+    vpw_rehash(vpw, TheDomain, ThePass);
+  }
+#endif
+
 #ifdef ENABLE_LEARN_PASSWORDS
 #ifdef CLEAR_PASS
   /* User with pw_clear_passwd unset but pw_passwd set
