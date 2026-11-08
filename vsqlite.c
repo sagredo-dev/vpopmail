@@ -854,15 +854,13 @@ int vread_dir_control(vdir_type *vdir, char *domain, uid_t uid, gid_t gid) {
     }
   }
 
+  /* SQLITE_ROW: the domain has a row; SQLITE_DONE: it has none */
   rc = sqlite3_step(stmt_read);
-  if ((rc != SQLITE_OK) && (rc != SQLITE_DONE)) {
-    rc = sqlite3_step(stmt_read);
-    if ((rc != SQLITE_OK) && (rc != SQLITE_DONE)) {
-      sqlite3_finalize(stmt_read);
-      fprintf(stderr, "vsqlite: sql error[14]: %s\n",
-              sqlite3_errmsg(sqlite_read));
-      return (-1);
-    }
+  if ((rc != SQLITE_ROW) && (rc != SQLITE_DONE)) {
+    fprintf(stderr, "vsqlite: sql error[14]: %s\n",
+            sqlite3_errmsg(sqlite_read));
+    sqlite3_finalize(stmt_read);
+    return (-1);
   }
 
   if (rc == SQLITE_ROW) {
@@ -950,10 +948,13 @@ level_index0, level_index1, level_index2, the_dir ) values ( \
 /************************************************************************/
 void vcreate_dir_control(char *domain) {
   char *err_msg = NULL;
+  /* Not SqlBufUpdate: callers re-run their own query from it afterwards. */
+  char SqlBufCreate[SQL_BUF_SIZE];
+
   if (vauth_create_table("dir_control", DIR_CONTROL_TABLE_LAYOUT, 1)) return;
 
   /* this next bit should be replaced with a call to vwrite_dir_control */
-  qnprintf(SqlBufUpdate, SQL_BUF_SIZE,
+  qnprintf(SqlBufCreate, SQL_BUF_SIZE,
            "replace into dir_control ( \
 domain, cur_users, \
 level_cur, level_max, \
@@ -971,8 +972,9 @@ level_index0, level_index1, level_index2, the_dir ) values ( \
            domain, MAX_DIR_LEVELS, MAX_DIR_LIST - 1, MAX_DIR_LIST - 1,
            MAX_DIR_LIST - 1);
 
-  if (sqlite3_exec(sqlite_update, SqlBufUpdate, 0, 0, &err_msg) != SQLITE_OK) {
-    fprintf(stderr, "vmysql: sql error[16]: %s\n", err_msg);
+  if (sqlite3_exec(sqlite_update, SqlBufCreate, 0, 0, &err_msg) != SQLITE_OK) {
+    fprintf(stderr, "vsqlite: sql error[16]: %s\n", err_msg);
+    sqlite3_free(err_msg);
     return;
   }
 }
@@ -1041,20 +1043,16 @@ time_t vget_lastauth(struct vqpasswd *pw, char *domain) {
     return (-1);
   }
 
+  /* SQLITE_ROW: last login time; SQLITE_DONE: no login recorded (0) */
   mytime = 0;
-  while (1) {
-    rc = sqlite3_step(stmt_read);
-
-    if (rc != SQLITE_ROW) {
-      mytime = atol(sqlite3_column_text(stmt_read, 0));
-    } else if (rc != SQLITE_DONE) {
-      break;
-    } else {
-      sqlite3_finalize(stmt_read);
-      fprintf(stderr, "vsqlite: sql error[20]: %s\n",
-              sqlite3_errmsg(sqlite_read));
-      return (-1);
-    }
+  rc = sqlite3_step(stmt_read);
+  if (rc == SQLITE_ROW) {
+    mytime = (time_t)sqlite3_column_int64(stmt_read, 0);
+  } else if (rc != SQLITE_DONE) {
+    fprintf(stderr, "vsqlite: sql error[20]: %s\n",
+            sqlite3_errmsg(sqlite_read));
+    sqlite3_finalize(stmt_read);
+    return (-1);
   }
 
   sqlite3_finalize(stmt_read);
@@ -1066,6 +1064,9 @@ time_t vget_lastauth(struct vqpasswd *pw, char *domain) {
 char *vget_lastauthip(struct vqpasswd *pw, char *domain) {
   int rc;
   static char tmpbuf[100];
+
+  /* empty unless this user has a row (not the previous user's address) */
+  tmpbuf[0] = '\0';
 
   if (vauth_open_read() != 0) return (NULL);
 
@@ -1082,19 +1083,15 @@ char *vget_lastauthip(struct vqpasswd *pw, char *domain) {
 
   rc = sqlite3_step(stmt_read);
   if ((rc != SQLITE_ROW) && (rc != SQLITE_DONE)) {
-    vcreate_lastauth_table();
-    rc = sqlite3_step(stmt_read);
-    if ((rc != SQLITE_ROW) && (rc != SQLITE_DONE)) {
-      fprintf(stderr, "vmysql: sql error[22]: %s\n",
-              sqlite3_errmsg(sqlite_read));
-      return (NULL);
-    }
+    fprintf(stderr, "vsqlite: sql error[22]: %s\n",
+            sqlite3_errmsg(sqlite_read));
+    sqlite3_finalize(stmt_read);
+    return (NULL);
   }
 
-  while (rc == SQLITE_ROW) {
-    strncpy(tmpbuf, sqlite3_column_text(stmt_read, 0), 100);
-    rc = sqlite3_step(stmt_read);
-  }
+  if (rc == SQLITE_ROW && sqlite3_column_text(stmt_read, 0) != NULL)
+    snprintf(tmpbuf, sizeof(tmpbuf), "%s",
+             (const char *)sqlite3_column_text(stmt_read, 0));
   sqlite3_finalize(stmt_read);
   return (tmpbuf);
 }
@@ -1135,25 +1132,17 @@ where alias = '%s' and domain = '%s'",
     return (NULL);
   }
 
+  /* each row is SQLITE_ROW; SQLITE_DONE after the last (or if none) */
   rc = sqlite3_step(stmt_read);
-  if ((rc != SQLITE_OK) && (rc != SQLITE_DONE)) {
-    vcreate_valias_table();
-    rc = sqlite3_step(stmt_read);
-    if ((rc != SQLITE_OK) && (rc != SQLITE_DONE)) {
-      sqlite3_finalize(stmt_read);
-      fprintf(stderr, "vsqlite: sql error[25]: %s\n",
-              sqlite3_errmsg(sqlite_read));
-      return (NULL);
-    }
-  }
-
-  while (rc == SQLITE_OK) {
-    fprintf(stderr, "%s\n", sqlite3_column_text(stmt_read, 0));
+  while (rc == SQLITE_ROW) {
     temp_entry =
         linklist_add(temp_entry, sqlite3_column_text(stmt_read, 0), "");
     if (valias_current == NULL) valias_current = temp_entry;
     rc = sqlite3_step(stmt_read);
   }
+  if (rc != SQLITE_DONE)
+    fprintf(stderr, "vsqlite: sql error[25]: %s\n",
+            sqlite3_errmsg(sqlite_read));
   sqlite3_finalize(stmt_read);
 
   if (valias_current == NULL)
@@ -1324,15 +1313,18 @@ int valias_delete_domain(char *domain) {
 void vcreate_valias_table() {
   int err;
   char *err_msg = NULL;
+  /* Not SqlBufUpdate: callers re-run their own query from it afterwards. */
+  char SqlBufCreate[SQL_BUF_SIZE];
 
   vauth_create_table("valias", VALIAS_TABLE_LAYOUT, 1);
 
   if ((err = vauth_open_update()) != 0) return;
 
-  snprintf(SqlBufUpdate, SQL_BUF_SIZE,
+  snprintf(SqlBufCreate, SQL_BUF_SIZE,
            "create index valias_idx on valias ( %s )", VALIAS_INDEX_LAYOUT);
-  if (sqlite3_exec(sqlite_update, SqlBufUpdate, 0, 0, &err_msg) != SQLITE_OK) {
+  if (sqlite3_exec(sqlite_update, SqlBufCreate, 0, 0, &err_msg) != SQLITE_OK) {
     fprintf(stderr, "vsqlite: sql error[37]: %s\n", err_msg);
+    sqlite3_free(err_msg);
     return;
   }
 }
@@ -1360,24 +1352,17 @@ char *valias_select_all(char *alias, char *domain) {
     return (NULL);
   }
 
+  /* each row is SQLITE_ROW; SQLITE_DONE after the last (or if none) */
   rc = sqlite3_step(stmt_read);
-  if ((rc != SQLITE_OK) && (rc != SQLITE_DONE)) {
-    vcreate_valias_table();
-    rc = sqlite3_step(stmt_read);
-    if ((rc != SQLITE_OK) && (rc != SQLITE_DONE)) {
-      sqlite3_finalize(stmt_read);
-      fprintf(stderr, "vsqlite: sql error[31]: %s\n",
-              sqlite3_errmsg(sqlite_read));
-      return (NULL);
-    }
-  }
-
   while (rc == SQLITE_ROW) {
     temp_entry = linklist_add(temp_entry, sqlite3_column_text(stmt_read, 1),
                               sqlite3_column_text(stmt_read, 0));
     if (valias_current == NULL) valias_current = temp_entry;
     rc = sqlite3_step(stmt_read);
   }
+  if (rc != SQLITE_DONE)
+    fprintf(stderr, "vsqlite: sql error[31]: %s\n",
+            sqlite3_errmsg(sqlite_read));
   sqlite3_finalize(stmt_read);
 
   if (valias_current == NULL)
@@ -1428,24 +1413,17 @@ char *valias_select_names(char *domain) {
     return (NULL);
   }
 
+  /* each row is SQLITE_ROW; SQLITE_DONE after the last (or if none) */
   rc = sqlite3_step(stmt_read);
-  if ((rc != SQLITE_OK) && (rc != SQLITE_DONE)) {
-    vcreate_valias_table();
-    rc = sqlite3_step(stmt_read);
-    if ((rc != SQLITE_OK) && (rc != SQLITE_DONE)) {
-      sqlite3_finalize(stmt_read);
-      fprintf(stderr, "vsqlite: sql error[33]: %s\n",
-              sqlite3_errmsg(sqlite_read));
-      return (NULL);
-    }
-  }
-
   while (rc == SQLITE_ROW) {
     temp_entry =
         linklist_add(temp_entry, sqlite3_column_text(stmt_read, 0), "");
     if (valias_current == NULL) valias_current = temp_entry;
     rc = sqlite3_step(stmt_read);
   }
+  if (rc != SQLITE_DONE)
+    fprintf(stderr, "vsqlite: sql error[33]: %s\n",
+            sqlite3_errmsg(sqlite_read));
   sqlite3_finalize(stmt_read);
 
   if (valias_current == NULL)
