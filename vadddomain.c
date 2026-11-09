@@ -103,10 +103,10 @@ int main(int argc, char *argv[]) {
     if ((fs = fopen(TmpBuf1, "w+")) != NULL) {
       /* if catchall address is an email address... */
       if (strstr(BounceEmail, "@") != NULL) {
-        fprintf(fs, "| %s/bin/vdelivermail '' %s\n", VPOPMAILDIR, BounceEmail);
+        fprintf(fs, "|%s/bin/vdelivermail '' %s\n", VPOPMAILDIR, BounceEmail);
         /* No '@' - so assume catchall is a mailbox name */
       } else {
-        fprintf(fs, "| %s/bin/vdelivermail '' %s/%s\n", VPOPMAILDIR, a_dir,
+        fprintf(fs, "|%s/bin/vdelivermail '' %s/%s\n", VPOPMAILDIR, a_dir,
                 BounceEmail);
       }
 

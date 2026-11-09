@@ -153,7 +153,8 @@ typedef struct {
   gelf_context_t context;
 } gelf_t;
 
-int gelf_load_config(config_t *config, int check_mode);
+const char *gelf_config_path(char *buf, size_t size);
+int gelf_load_config(config_t *config, const char *filename, int check_mode);
 void log_process_start(gelf_t *gelf);
 void gelf_log(gelf_t *gelf, int severity, const char *buf, const char *full_message);
 void log_delivery(gelf_t *gelf, delivery_log_t* d);

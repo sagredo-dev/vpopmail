@@ -19,6 +19,7 @@
 /* code review/cleanup/rewrite October 2004 through March, 2005
  * by Tom Collins <tom@tomlogic.com>
  *
+ * Overhauled again in October 2026, by Rohan Carly.
  */
 
 /* include files */
@@ -1467,10 +1468,9 @@ int run_command(char *prog, const char *log_source) {
         autoresponder: cannot open /path/to/file
       */
     case 99:
-      vexiterr(EXIT_OK_STOP, INFO, NULL, "Shell command exited 99, vdelivermail skipping remaining instructions and exiting 99");
-      // TODO: Consider returning -1 from fn instead.
-      // See qmail-command man page. 99 means success, but prevent the remainder of .qmail being processed.
-      // Calling vexit(99) here means that the remainder of .qmail-default will not be processed.
+      // 99 means success, but prevent the remainder of .qmail being processed.
+      // See https://notes.sagredo.eu/files/qmail/man/qmail/qmail-command.8.html
+      return -1;
     case 0:
       break;
     default: // typically 111
@@ -3881,7 +3881,8 @@ int check_forward_deliver(const vqpasswd_copy_t *recipient) {
     if (strcmp(cleaned[i], "+list") == 0) continue;
 
     // It's safe to pass the user record data (recipient) because check_forward_deliver is never called by deliver_mail itself.
-    if (deliver_mail(cleaned[i],recipient,".qmail") == -1) { // e.g. from child process exit code 99, if we enable that feature
+    if (deliver_mail(cleaned[i],recipient,".qmail") == -1) { // e.g. child process gave exit code 99
+      log_event(DEBUG,"Command returned 99, skipping remaining .qmail instructions within %s",dotqmail);
       break;
     }
   }
@@ -4073,19 +4074,20 @@ void action_default_delivery(char** instructions, const vqpasswd_copy_t *recipie
     line = instructions[i-1];
     if(line[0]=='|' && strstr(line, "vdelivermail")!=NULL) {
       DeprecationWarning = 1;
-      log_event(WARN,"Shell command containing 'vdelivermail' within defaultdelivery is deprecated. Delivering to ./Maildir/ instead.");
+      log_event(WARN,"Shell command containing 'vdelivermail' within vdefaultdelivery is deprecated. Delivering to ./Maildir/ instead.");
       // Preserve vpopmail 5.6 behaviour:
       char instruction[HEADER_VALUE_MAX];
       normalise_program_instruction(instruction, sizeof instruction, line + 1);
-      manage_deliver_to_maildir("./Maildir/",recipient,"defaultdelivery",instruction);
+      manage_deliver_to_maildir("./Maildir/",recipient,"vdefaultdelivery",instruction);
       if (i != count) {
-        log_event(ERROR,"defauldelivery contained 'vdelivermail' and fall-back delivery succeeded."
+        log_event(ERROR,"vdefaultdelivery contained 'vdelivermail' and fall-back delivery succeeded."
          " Skipping remaining instructions to preserve legacy behaviour.");
       };
       return;
     }
 
-    if (deliver_mail(instructions[i-1],recipient,"defaultdelivery") == -1) {
+    if (deliver_mail(instructions[i-1],recipient,"vdefaultdelivery") == -1) {
+      log_event(DEBUG,"Command returned 99, skipping remaining vdefaultdelivery instructions");
       break;
     }
   }
@@ -4108,14 +4110,14 @@ int check_default_delivery(const vqpasswd_copy_t *recipient) {
   }
   // Unlike qmail-local's .qmail handling, 0 bytes means no instructions, the same as comments only.
   if (instructions[0] == NULL) {
-    log_event(WARN,"defaultdelivery file has 0 bytes, mail discarded");
+    log_event(WARN,"vdefaultdelivery file has 0 bytes, mail discarded");
     free_array(instructions);
     return 1;
   };
   //validate_default_delivery(instructions, 0); // fatal on error, won't pickup issues with individual instructions
 
   if (count_non_comment_instructions(instructions) == 0) {
-    log_event(WARN,"defaultdelivery exists, is larger than 0 bytes, but has no delivery"
+    log_event(WARN,"vdefaultdelivery exists, is larger than 0 bytes, but has no delivery"
      " instructions. Technically valid, but mail silently discarded!"); 
     return 1;
   }
@@ -4462,6 +4464,7 @@ int process_valias(void) {
 
       if (deliver_mail(instruction, found ? &recipient : NULL, "valias") == -1) { 
         // -1 means we should stop, but report success
+        log_event(DEBUG,"Command returned 99, skipping remaining valias lines");
         gelf.context.valias_completed++;
         if (wildcard_mode) {
           restore_non_wildcard_environment(&save_env); 
@@ -4511,7 +4514,9 @@ void check_for_mail_loop(char *recipient) {
  */
 int main(int argc, char **argv) {
   bool within_qmail_default = check_qmail_default() == 0;
-  char reason[1024];
+  char config_file_problem[1024];
+  char log_start_problem[1024];
+  bool logging_operational = false;
   
   // Switches like -v need to work, even when configuration files are invalid.
   if (! within_qmail_default) {
@@ -4529,24 +4534,28 @@ int main(int argc, char **argv) {
   }
 
   // Enable logging early, so we can report on incorrect command-line options.
-  if (gelf_setup(&gelf, reason, sizeof(reason)) != 0) {
+  if (gelf_setup(&gelf, config_file_problem, sizeof(config_file_problem)) != 0) {
     if (within_qmail_default) {
-      printf("%s. (#4.3.0)\n", reason);
+      printf("%s. (#4.3.0)\n", config_file_problem);
       vexit(EXIT_DEFER); // if we are called by maildrop, it receives EPIPE before it can see our exit code.
     }
+    printf("%s. Aborting.\n", config_file_problem);
     exit(1);
   }
 
-  if (start_logging(&gelf, reason, sizeof(reason)) != 0) {
-    // With mandatory=0, the failure is silent!
+  if (start_logging(&gelf, log_start_problem, sizeof(log_start_problem)) == 0) {
+    logging_operational = true;
+  }
+  else {
     if (gelf.config.file.mandatory) {
       if (within_qmail_default) {
-        printf("%s. (#4.3.0)\n", reason);
+        printf("Unable to open log file %s. (#4.3.0)\n", gelf.config.file.path);
         vexit(EXIT_DEFER); // if we are called by maildrop, it receives EPIPE before it can see our exit code.
       }
-      printf("%s. Aborting.\n", reason);
+      printf("%s. Aborting.\n", log_start_problem);
       exit(1);
     }
+    // With mandatory=0, we log at the end of main(), just after a successful delivery. We have little choice.
   }
 
   // Any failure here is held over, so that the start event is logged first and
@@ -4634,8 +4643,13 @@ int main(int argc, char **argv) {
     usernotfound();
 
   // Send a warning into qmail-send's log. Emitting any earlier could leak it into the body of bounce emails.
+  if (! logging_operational) {
+    // Only reached when gelf.config.file.mandatory is false
+    printf("vdelivermail: delivery succeeded, but logging is not operational: %s.\n", log_start_problem);
+    vexit(EXIT_OK);
+  };
   if (DeprecationWarning) {
-    vexiterr(EXIT_OK, ERROR, "vdelivermail: defaultdelivery file contained deprecated 'vdelivermail' shell command", "Exiting, success");
+    vexiterr(EXIT_OK, ERROR, "vdelivermail: vdefaultdelivery file contained deprecated 'vdelivermail' shell command", "Exiting, success");
   };
 
   /* exit successfully and have qmail delete the email */

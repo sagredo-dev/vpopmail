@@ -1201,10 +1201,10 @@ AC_SUBST(domains_dir)
 
 #----------------------------------------------------------------------
 
-vdelivermail_log_dir="$vpopmaildir/log"
+vdelivermail_log_dir="/var/log/vpopmail"
 
 AC_ARG_ENABLE(vdelivermail-log-dir,
-    [  --enable-vdelivermail-log-dir=DIR  Directory for vdelivermail.log (default=VPOPMAILDIR/log). Only used when vdelivermail.ini and the logrotate file are first installed.],
+    [  --enable-vdelivermail-log-dir=DIR  Directory for vdelivermail.log (default=/var/log/vpopmail). Only used when vdelivermail.ini and the logrotate file are first installed.],
     vdelivermail_log_dir="$enableval",
 )
 
@@ -1342,7 +1342,22 @@ case $AUTH_MODULE in
         AC_MSG_ERROR([Unable to find your MySQL lib dir, specify --enable-libdir.])
     fi
 
-    auth_libs="-Xlinker -R -Xlinker $libdir -L$libdir $extralibflags -lmysqlclient -lz -lm $loglib"
+    # MariaDB's client library is libmariadb; libmysqlclient is either MySQL's or a compat symlink to it.
+    # Try mariadb first, to match the include dir search above.
+    save_LDFLAGS="$LDFLAGS"
+    save_LIBS="$LIBS"
+    LDFLAGS="$LDFLAGS -L$libdir"
+    AC_SEARCH_LIBS([mysql_real_connect], [mariadb mysqlclient], [],
+        [AC_MSG_ERROR([Found neither libmariadb nor libmysqlclient in $libdir, specify --enable-libdir.])],
+        [$extralibflags -lz -lm])
+    LDFLAGS="$save_LDFLAGS"
+    LIBS="$save_LIBS"
+    case "$ac_cv_search_mysql_real_connect" in
+      "none required") mysql_lib="" ;;
+      *)               mysql_lib="$ac_cv_search_mysql_real_connect" ;;
+    esac
+
+    auth_libs="-Xlinker -R -Xlinker $libdir -L$libdir $extralibflags $mysql_lib -lz -lm $loglib"
     AC_SUBST(auth_libs)
     ;;
     
@@ -1915,9 +1930,7 @@ AC_MSG_RESULT(no)
 
 #----------------------------------------------------------------------
 
-AC_CONFIG_FILES([Makefile
-                 vdelivermail.ini.install:vdelivermail.ini
-                 vdelivermail.logrotate.install:vdelivermail.logrotate])
+AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
 
 #----------------------------------------------------------------------

@@ -36,7 +36,7 @@ _delivery-instruction_ must be one of:
 ```
    someone@anotherexample.com   - an email address anywhere in the world.
 
-   /path/to/some/Maildir        - a Maildir on the local server that the 
+   /path/to/some/Maildir/       - a Maildir on the local server that the 
                                   vpopmail user has write access to.   
 
    delete                       - Delete all mail to non-existant users
@@ -78,7 +78,7 @@ system, you really have to be a `qmail` guru to make it all work.
 
 ## Changes in version 5.7
 
-Thanks to [rohan-bb69](https://github.com/rohan-bb69/vpopmail/) for the `vdelivermail` upgrade
+Thanks to Rohan Carly for the `vdelivermail` upgrade
 that is introduced below.
 
 **1** 
@@ -213,7 +213,7 @@ after each one. `:default` sees the original, as `main()` would have. Rows match
 Each delivery is logged to `~vpopmail/log/vdelivermail.log`.
 
 An example: one delivery, as logged with `format=pretty` (the default). Each run also logs a "start" event, and an "exit" event with the
-result, exit code and message size; all of a run's events share its `vdm_id`.
+result, exit code and message size; all of a run's events share its `run` identifier.
 
 ```json
 {
@@ -228,7 +228,7 @@ result, exit code and message size; all of a run's events share its `vdm_id`.
   "domain": "example.com",
   "user": "bob@example.com",
   "instruction": "./Maildir/",
-  "source": "defaultdelivery",
+  "source": "vdefaultdelivery",
   "method": "maildir",
   "success": 1,
   "maildir_path": "/home/vpopmail/domains/example.com/bob/Maildir",
@@ -241,7 +241,7 @@ result, exit code and message size; all of a run's events share its `vdm_id`.
   "maildir_not_enough_space": 0,
   "maildir_nearly_full": 0,
   "maildir_quota_warning_delivered": 0,
-  "vdm_id": "1791851996.1188506.mail.example.com",
+  "run": "1791851996.1188506.mail.example.com",
   "time_sent": "2026-10-13T07:00:00+08:00"
 }
 ```

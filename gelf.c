@@ -274,6 +274,22 @@ static int gelf_ini_handler(void* user, const char* section, const char* name, c
 };
 
 
+/*
+ * The config file to read: VPOPMAIL_VDELIVERMAIL_CONFIG if set and non-empty,
+ * otherwise VPOPMAILDIR/etc/vdelivermail.ini (alongside vpopmail's other config files).
+ * Returns either the environment value or buf, which holds the default.
+ */
+const char *gelf_config_path(char *buf, size_t size) {
+  const char *filename = getenv(GELF_CONFIG_ENV);
+
+  if (filename == NULL || *filename == '\0') {
+    snprintf(buf, size, "%s/etc/vdelivermail.ini", VPOPMAILDIR);
+    filename = buf;
+  }
+  return filename;
+}
+
+
 // The file must exist.
 // caller must free the strings in config. Returns 0 on success.
 /*
@@ -282,9 +298,7 @@ static int gelf_ini_handler(void* user, const char* section, const char* name, c
  * is usable whether or not its key appeared. Does not touch any gelf_t fields.
  * Wraps inih and libcjson so callers don't need to know about either.
  *
- * The config file defaults to VPOPMAILDIR/etc/vdelivermail.ini
- * (alongside vpopmail's other config files), overridable via the
- * VPOPMAIL_VDELIVERMAIL_CONFIG environment variable.
+ * filename is the ini to read, normally from gelf_config_path().
  *
  * Any malformed value is an error whether or not its target is enabled.
  * Callers defer the delivery rather
@@ -293,15 +307,8 @@ static int gelf_ini_handler(void* user, const char* section, const char* name, c
  * Return: 0 on success, non-zero on error (file open failure, parse error,
  * or an unusable tracking_header or [file_log] directory).
  */
-int gelf_load_config(config_t *config, int check_mode) {
-  char default_path[MAX_BUFF];
-  const char* filename = getenv(GELF_CONFIG_ENV);
+int gelf_load_config(config_t *config, const char *filename, int check_mode) {
   int line;
-
-  if (filename == NULL || *filename == '\0') {
-    snprintf(default_path, sizeof(default_path), "%s/etc/vdelivermail.ini", VPOPMAILDIR);
-    filename = default_path;
-  }
 
   memset(config, 0, sizeof(*config));
 
@@ -497,7 +504,7 @@ static char *respace(const char *in) {
 /*
  * Dropped from format=pretty: fields that exist for GELF consumers, constants, and numbers that a
  * person would rather read as words. Each one either says nothing to a human or is already
- * said better by a neighbour -- _time for timestamp, _severity for level. _vdm_id
+ * said better by a neighbour -- _time for timestamp, _severity for level. _run
  * stays: it is the only thing tying a run's start, delivery and exit together.
  */
 static const char *const omit_from_pretty[] = {
@@ -676,11 +683,11 @@ static void add_common_fields(gelf_t *gelf, cJSON *root, time_t now) {
   cJSON_AddStringToObject(root, "version", "1.1");
   cJSON_AddStringToObject(root, "host", gelf->config.log_source_hostname);
   /* GELF timestamp: whole seconds since the epoch, matching the epoch in
-   * vdm_id. Supplied rather than left to Graylog's receive time, and zone
+   * _run. Supplied rather than left to Graylog's receive time, and zone
    * free by construction, unlike _time. */
   cJSON_AddNumberToObject(root, "timestamp", (double)now);
   cJSON_AddStringToObject(root, "_app", "vdelivermail");
-  cJSON_AddStringToObject(root, "_vdm_id", gelf->vdm_id);
+  cJSON_AddStringToObject(root, "_run", gelf->vdm_id);
 }
 
 
@@ -1222,7 +1229,7 @@ void set_vdm_id(gelf_t *gelf) {
 
 
 /*
- * Loads the logging configuration and sets the delivery ID. Doesn't open the log file:
+ * Loads vdelivermail.ini and sets the delivery ID. Doesn't open the log file:
  * start_logging does that, once the caller has the config it needs to decide whether
  * an unopenable log defers.
  * Returns 0 on success, or -1 if the configuration can't be loaded, with a one-line
@@ -1237,9 +1244,11 @@ int gelf_setup(gelf_t *gelf, char *reason_out, size_t reason_size) {
   memset(gelf, 0, sizeof(*gelf));
   gelf->log_fd = -1;
   reason_out[0] = '\0';
+  char default_path[MAX_BUFF];
+  const char *filename = gelf_config_path(default_path, sizeof default_path);
 
-  if (gelf_load_config(&gelf->config, 0) != 0) {
-    snprintf(reason_out, reason_size, "Logging system failed to start"); // TODO: indicate filename
+  if (gelf_load_config(&gelf->config, filename, 0) != 0) {
+    snprintf(reason_out, reason_size, "Configuration file error. See %s",filename);
     return -1;
   }
 

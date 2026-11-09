@@ -91,6 +91,21 @@ noinst_HEADERS += header_text.h nmh/fmt_rfc2047.h nmh/shim/h/mh.h \
 EXTRA_DIST += nmh/COPYRIGHT nmh/README.md
 EXTRA_DIST += vdefaultdelivery vdelivermail.ini vdelivermail.logrotate
 
+# Filled-in copies of the templates, made by make so that make clean removes them.
+edit = sed \
+	-e 's|@vdelivermail_log_dir[@]|$(vdelivermail_log_dir)|g' \
+	-e 's|@vpopuser[@]|$(vpopuser)|g' \
+	-e 's|@vpopgroup[@]|$(vpopgroup)|g'
+
+vdelivermail.ini.install: $(srcdir)/vdelivermail.ini Makefile
+	$(edit) $(srcdir)/vdelivermail.ini > $@.tmp && mv $@.tmp $@
+
+vdelivermail.logrotate.install: $(srcdir)/vdelivermail.logrotate Makefile
+	$(edit) $(srcdir)/vdelivermail.logrotate > $@.tmp && mv $@.tmp $@
+
+all-local: vdelivermail.ini.install vdelivermail.logrotate.install
+CLEANFILES = vdelivermail.ini.install vdelivermail.logrotate.install
+
 vkill_SOURCES = vkill.c 
 vkill_LDADD = libvpopmail.a @auth_libs@
 
@@ -183,7 +198,7 @@ install-exec-am:
 	  fi ; \
 	done
 
-install-data-local:
+install-data-local: vdelivermail.ini.install vdelivermail.logrotate.install
 	$(INSTALL) -d -g @vpopgroup@ -m 0700 -o @vpopuser@ \
 	  $(DESTDIR)@vpopmaildir@/@domains_dir@
 
