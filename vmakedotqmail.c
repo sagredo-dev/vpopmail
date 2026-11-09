@@ -19,7 +19,7 @@
 
 /*
  * This program can be useful to create the user's .qmail file with the content of
- * control/defauldelivery. It can also handle domain's .qmail-default files.
+ * ~vpopmail/etc/vdefauldelivery. It can also handle domain's .qmail-default files.
  * Look at the documentation concerning the defaultdelivery feature in the
  * doc/README.defaultdelivery.md file or at the
  * https://notes.sagredo.eu/en/qmail-notes-185/installing-and-configuring-vpopmail-81.html
