@@ -166,7 +166,7 @@ int make_dotqmail(char *homedir) {
     {
       printf("\nERROR: Missing %s/etc/vdefaultdelivery file.\n", VPOPMAILDIR);
       printf("To create a %s/etc/vdefaultdelivery type:\n", VPOPMAILDIR);
-      printf("echo \"| %s/bin/vdelivermail '' delete\" > %s/etc/vdefaultdelivery\n\n", VPOPMAILDIR, VPOPMAILDIR);
+      printf("echo \"|%s/bin/vdelivermail '' delete\" > %s/etc/vdefaultdelivery\n\n", VPOPMAILDIR, VPOPMAILDIR);
       vexit(-1);
     }
 
@@ -200,7 +200,7 @@ int make_dotqmail_default(char *domain) {
   char *realdomain = vget_assign(domain, NULL, 0, NULL, NULL); // path of real domain
 
   // the lda will be vdelivermail if -q default
-  if (strcmp(qValue, "default")==0) snprintf(ldabuf, sizeof(ldabuf), "| %s/bin/vdelivermail '' %s", VPOPMAILDIR, DOT_QMAIL_DEFAULT_OPTION);
+  if (strcmp(qValue, "default")==0) snprintf(ldabuf, sizeof(ldabuf), "|%s/bin/vdelivermail '' %s", VPOPMAILDIR, DOT_QMAIL_DEFAULT_OPTION);
   else snprintf(ldabuf, sizeof(ldabuf), "%s", qValue);
 
   /* process domain */
