@@ -293,7 +293,7 @@ int vadddomain(char *domain, char *dir, uid_t uid, gid_t gid) {
     close(call_dir);
     return (VA_COULD_NOT_OPEN_QMAIL_DEFAULT);
   } else {
-    fprintf(fs, "| %s/bin/vdelivermail '' delete\n", VPOPMAILDIR);
+    fprintf(fs, "|%s/bin/vdelivermail '' delete\n", VPOPMAILDIR);
     fclose(fs);
   }
 
