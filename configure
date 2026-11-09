@@ -657,6 +657,7 @@ auth_inc
 auth_libs
 BUILD_CDB_FALSE
 BUILD_CDB_TRUE
+vdelivermail_log_dir
 domains_dir
 vpopmaildir
 vpopgroup
@@ -801,6 +802,7 @@ enable_domainquotas
 enable_logger_syslog
 enable_logger_sqlite
 enable_domains_dir
+enable_vdelivermail_log_dir
 enable_incdir
 enable_libdir
 enable_tinycdb
@@ -1508,6 +1510,7 @@ Optional Features:
   --enable-logger-syslog   Log all changes to syslog
   --enable-logger-sqlite   Log all changes to a sqlite database
   --enable-domains-dir=TEXT  Directory in ~vpopmail to store domains (default=domains).
+  --enable-vdelivermail-log-dir=DIR  Directory for vdelivermail.log (default=/var/log/vpopmail). Only used when vdelivermail.ini and the logrotate file are first installed.
   --enable-incdir=DIR        Your MySQL/Oracle 'include' directory.
   --enable-libdir=DIR        Your MySQL/Oracle 'lib' directory.
   --enable-tinycdb Enable tinycdb library.
@@ -9086,6 +9089,28 @@ printf "%s\n" "#define DOMAINS_DIR \"$domains_dir\"" >>confdefs.h
 
 #----------------------------------------------------------------------
 
+vdelivermail_log_dir="/var/log/vpopmail"
+
+# Check whether --enable-vdelivermail-log-dir was given.
+if test ${enable_vdelivermail_log_dir+y}
+then :
+  enableval=$enable_vdelivermail_log_dir; vdelivermail_log_dir="$enableval"
+fi
+
+
+case "$vdelivermail_log_dir" in
+  yes|no) as_fn_error $? "--enable-vdelivermail-log-dir needs a directory" "$LINENO" 5 ;;
+  /*)     ;;
+  *)      as_fn_error $? "--enable-vdelivermail-log-dir must be an absolute path" "$LINENO" 5 ;;
+esac
+
+
+printf "%s\n" "#define VDELIVERMAIL_LOG_DIR \"$vdelivermail_log_dir\"" >>confdefs.h
+
+
+
+#----------------------------------------------------------------------
+
 # cant contain this following block in the mysql section, as it is also used by oracle
 incdir=""
 for f in /usr/include/mariadb /usr/local/mariadb/include/mysql /usr/local/mariadb/include /usr/local/include/mariadb /usr/include/mysql /usr/local/mysql/include/mysql /usr/local/mysql/include /usr/local/include/mysql
@@ -9240,7 +9265,80 @@ printf "%s\n" "#define USE_MYSQL $USE_MYSQL" >>confdefs.h
         as_fn_error $? "Unable to find your MySQL lib dir, specify --enable-libdir." "$LINENO" 5
     fi
 
-    auth_libs="-Xlinker -R -Xlinker $libdir -L$libdir $extralibflags -lmysqlclient -lz -lm $loglib"
+    # MariaDB's client library is libmariadb; libmysqlclient is either MySQL's or a compat symlink to it.
+    # Try mariadb first, to match the include dir search above.
+    save_LDFLAGS="$LDFLAGS"
+    save_LIBS="$LIBS"
+    LDFLAGS="$LDFLAGS -L$libdir"
+    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for library containing mysql_real_connect" >&5
+printf %s "checking for library containing mysql_real_connect... " >&6; }
+if test ${ac_cv_search_mysql_real_connect+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+  ac_func_search_save_LIBS=$LIBS
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+char mysql_real_connect ();
+int
+main (void)
+{
+return mysql_real_connect ();
+  ;
+  return 0;
+}
+_ACEOF
+for ac_lib in '' mariadb mysqlclient
+do
+  if test -z "$ac_lib"; then
+    ac_res="none required"
+  else
+    ac_res=-l$ac_lib
+    LIBS="-l$ac_lib $extralibflags -lz -lm $ac_func_search_save_LIBS"
+  fi
+  if ac_fn_c_try_link "$LINENO"
+then :
+  ac_cv_search_mysql_real_connect=$ac_res
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext
+  if test ${ac_cv_search_mysql_real_connect+y}
+then :
+  break
+fi
+done
+if test ${ac_cv_search_mysql_real_connect+y}
+then :
+
+else $as_nop
+  ac_cv_search_mysql_real_connect=no
+fi
+rm conftest.$ac_ext
+LIBS=$ac_func_search_save_LIBS
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $ac_cv_search_mysql_real_connect" >&5
+printf "%s\n" "$ac_cv_search_mysql_real_connect" >&6; }
+ac_res=$ac_cv_search_mysql_real_connect
+if test "$ac_res" != no
+then :
+  test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+else $as_nop
+  as_fn_error $? "Found neither libmariadb nor libmysqlclient in $libdir, specify --enable-libdir." "$LINENO" 5
+fi
+
+    LDFLAGS="$save_LDFLAGS"
+    LIBS="$save_LIBS"
+    case "$ac_cv_search_mysql_real_connect" in
+      "none required") mysql_lib="" ;;
+      *)               mysql_lib="$ac_cv_search_mysql_real_connect" ;;
+    esac
+
+    auth_libs="-Xlinker -R -Xlinker $libdir -L$libdir $extralibflags $mysql_lib -lz -lm $loglib"
 
     ;;
 
