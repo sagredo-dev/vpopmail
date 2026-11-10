@@ -3796,7 +3796,7 @@ int check_forward_deliver(const vqpasswd_copy_t *recipient) {
   // The current directory is the homedir, so opening by this path is the same as opening ".qmail".
   char cwd[PATH_MAX];
   if (getcwd(cwd, sizeof cwd) == NULL) snprintf(cwd, sizeof cwd, ".");
-  char dotqmail[sizeof cwd - 1 + sizeof("/.qmail-") - 1 + sizeof(TheExt) - 1 + sizeof("default")]; // longest: <cwd>/.qmail-<ext>default
+  char dotqmail[sizeof cwd - 1 + sizeof("/.qmail-") - 1 + AUTH_SIZE - 1 + sizeof("default")]; // longest: <cwd>/.qmail-<ext>default
 
 #ifdef QMAIL_EXT
   /* format the file name */
