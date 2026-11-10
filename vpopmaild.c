@@ -423,6 +423,11 @@ int login()
     return(-2);
   } 
 
+#ifdef REHASH_PASSWORDS
+  /* store the password in the current hash scheme if the stored hash is older */
+  vpw_rehash(tmpvpw, TheDomain, pass);
+#endif
+
 //  snprintf(WriteBuf,sizeof(WriteBuf), RET_OK_MORE);
 //  wait_write();
 

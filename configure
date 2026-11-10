@@ -1495,7 +1495,7 @@ Optional Features:
   --disable-md5-passwords    Use DES crypt() instead of MD5 encryption for passwords.
   --disable-sha512-passwords    Use DES crypt() instead of SHA512 encryption for passwords.
   --disable-yescrypt-passwords  Use SHA512 (or the scheme selected by the options above) instead of yescrypt for new passwords.
-  --enable-argon2id-passwords   Hash new passwords with Argon2id (needs libsodium) instead of yescrypt/SHA512.
+  --enable-argon2id-passwords   Hash new passwords with Argon2id (needs libsodium) instead of yescrypt/SHA512. Each check needs 64 MiB of memory.
   --disable-rehash-passwords    Do not store a password again in the current scheme when a user logs in with a password hashed in an older one.
   --disable-file-locking     Don't use file locking.
   --enable-file-sync         Enable file sync after each message is delivered.

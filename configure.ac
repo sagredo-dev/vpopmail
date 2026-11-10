@@ -805,7 +805,7 @@ esac
 
 AC_MSG_CHECKING(whether argon2id-passwords is enabled)
 AC_ARG_ENABLE(argon2id-passwords,
-        [  --enable-argon2id-passwords   Hash new passwords with Argon2id (needs libsodium) instead of yescrypt/SHA512.],
+        [  --enable-argon2id-passwords   Hash new passwords with Argon2id (needs libsodium) instead of yescrypt/SHA512. Each check needs 64 MiB of memory.],
         ENABLE_ARGON2ID_PASSWORDS=$enableval,
                 [
                         ENABLE_ARGON2ID_PASSWORDS=n

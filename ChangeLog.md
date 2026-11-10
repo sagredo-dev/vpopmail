@@ -6,8 +6,8 @@
   - configure.ac: throw an error if tinycdb is enabled while the auth-module is not cdb by @sagredo-dev in https://github.com/sagredo-dev/vpopmail/pull/17
   - Password hashing (by @yitzhaq):
     - Hash new passwords with yescrypt when crypt() supports it (libxcrypt), else SHA512 as
-      before (--disable-yescrypt-passwords keeps SHA512). Existing hashes keep working; vchkpw
-      upgrades them at the next login (--disable-rehash-passwords turns that off). Dovecot needs
+      before (--disable-yescrypt-passwords keeps SHA512). Existing hashes keep working; vchkpw and
+      vpopmaild upgrade them at the next login (--disable-rehash-passwords turns that off). Dovecot needs
       no change as long as its host has libxcrypt.
     - Optional Argon2id password hashes (--enable-argon2id-passwords, needs libsodium).
     - authvchkpw: compare the whole password hash.
