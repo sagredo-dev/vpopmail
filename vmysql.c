@@ -453,7 +453,7 @@ int vauth_adduser(char *user, char *domain, char *pass, char *gecos,
  gid_t gid;
  char dirbuf[200];
  char quota[30];
- char Crypted[100];
+ char Crypted[MAX_PW_PASS + 1];
  int err;
     
     if ( (err=vauth_open_update()) != 0 ) return(err);
@@ -487,7 +487,7 @@ int vauth_adduser(char *user, char *domain, char *pass, char *gecos,
     }
 
     if ( pass[0] != 0 ) {
-        mkpasswd3(pass,Crypted, 100);
+        if (mkpasswd3(pass, Crypted, sizeof(Crypted)) != VA_SUCCESS) return (VA_CRYPT_FAILED);
     } else {
         Crypted[0] = 0;
     }
@@ -1190,7 +1190,7 @@ int vshow_ip_map( int first, char *ip, char *domain )
     }
 
     if ((row = mysql_fetch_row(res_read)) != NULL) {
-        strncpy(ip, row[0], 18); 
+        snprintf(ip, 40, "%s", row[0]); /* up to 39 chars: IPv6 */
         strncpy(domain, row[1], 156); 
         more = 1;
         return(1);
@@ -1982,20 +1982,10 @@ int vdel_limits(const char *domain)
 /************************************************************************/
 int vauth_crypt(char *user,char *domain,char *clear_pass,struct vqpasswd *vpw)
 {
-  const char *c;
-	const char *p;
   if ( vpw == NULL ) return(-1);
-	p = vpw->pw_passwd;
-	
-  /* if needed remove {XXX-CRYPT}$ */
-	if (p[0] == '{') {
-		const char *k = strchr(p, '}');
-		if (k != NULL) p = k + 1;
-	}
-	
-  c = crypt(clear_pass, p);
-  if (c == NULL) return (-1);
-  return(strcmp(c, p));
+  /* removes a {XXX-CRYPT} prefix, handles every crypt() scheme and,
+   * with --enable-argon2id-passwords, Argon2id */
+  return(vpw_check_password(clear_pass, vpw->pw_passwd));
 }
 
 

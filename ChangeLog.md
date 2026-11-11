@@ -11,6 +11,25 @@
     - One connection with a busy timeout, finalize statements once, refuse empty queries.
     - vauth_deluser(): cleanup failures do not decide the result.
     - vauth_adduser(): fail when the domain is not in assign.
+  - PostgreSQL module (by @yitzhaq):
+    - Escape SQL strings through libpq.
+    - Make room for IPv6 addresses in IP columns and ip map reads. Existing databases need
+      sql/vpopmail-pgsql-ipv6_upgrade.sql.
+    - Create a valid vlog table, use userid in deletes.
+    - Fix double frees in the dir_control and ip map functions.
+    - Roll back failed transactions; mapping an already mapped IP address replaces the mapping.
+    - Return the results callers expect.
+    - Connection, buffer, leak and table name fixes.
+    - vauth_deluser(): cleanup failures do not decide the result.
+    - vauth_adduser(): fail when the domain is not in assign.
+  - Password hashing (by @yitzhaq):
+    - Hash new passwords with yescrypt when crypt() supports it (libxcrypt), else SHA512 as
+      before (--disable-yescrypt-passwords keeps SHA512). Existing hashes keep working; vchkpw and
+      vpopmaild upgrade them at the next login (--disable-rehash-passwords turns that off). Dovecot needs
+      no change as long as its host has libxcrypt.
+    - Optional Argon2id password hashes (--enable-argon2id-passwords, needs libsodium).
+    - authvchkpw: compare the whole password hash.
+    - Check the result of mkpasswd3() everywhere.
 
 5.6.14 - Sep 16, 2026
   - storage.h: refactored 64-bit endian conversion handling, replacing non-portable GNU-specific byte-swap
