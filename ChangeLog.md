@@ -30,6 +30,8 @@
     - Optional Argon2id password hashes (--enable-argon2id-passwords, needs libsodium).
     - authvchkpw: compare the whole password hash.
     - Check the result of mkpasswd3() everywhere.
+    - vchkpw and vpopmaild log a password check that fails for lack of memory as such, not as a
+      wrong password, and log a rehash that fails, with a hint at the memory limit.
 
 5.6.14 - Sep 16, 2026
   - storage.h: refactored 64-bit endian conversion handling, replacing non-portable GNU-specific byte-swap
