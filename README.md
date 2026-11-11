@@ -66,6 +66,23 @@ Here is the SQL query to upgrade the `vpopmail` table:
 ``` sql
 ALTER TABLE `vpopmail` CHANGE `pw_passwd` `pw_passwd` VARCHAR(128) CHARACTER SET latin1 COLLATE latin1_swedish_ci NULL DEFAULT NULL;
 ```
+
+### Changes for PostgreSQL only
+
+You have to widen the columns that hold IP addresses from varchar(18) to varchar(39), so that IPv6
+addresses fit (as already done for MySQL). Only run the statements for the tables that exist in your database:
+
+    relay         --enable-roaming-users
+    lastauth      --enable-auth-logging
+    ip_alias_map  --enable-ip-alias-domains
+
+
+``` sql
+ALTER TABLE relay ALTER COLUMN ip_addr TYPE varchar(39);
+ALTER TABLE lastauth ALTER COLUMN remote_ip TYPE varchar(39);
+ALTER TABLE ip_alias_map ALTER COLUMN ip_addr TYPE varchar(39);
+```
+
 ## Upgrading from version 5.6.3
 
 Several other non breaking changes have been made to the `MySQL` tables' layout.  
