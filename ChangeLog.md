@@ -4,6 +4,17 @@
   - vdelivermail: structured logging, quota enforcement, :default and vdefaultdelivery by @rohan-bb69 in https://github.com/sagredo-dev/vpopmail/pull/16
   - Remove --enable-make-seekable feature and --enable-defaultdelivery option in https://github.com/sagredo-dev/vpopmail/pull/18
   - configure.ac: throw an error if tinycdb is enabled while the auth-module is not cdb by @sagredo-dev in https://github.com/sagredo-dev/vpopmail/pull/17
+  - PostgreSQL module (by @yitzhaq):
+    - Escape SQL strings through libpq.
+    - Make room for IPv6 addresses in IP columns and ip map reads. Existing databases need
+      sql/vpopmail-pgsql-ipv6_upgrade.sql.
+    - Create a valid vlog table, use userid in deletes.
+    - Fix double frees in the dir_control and ip map functions.
+    - Roll back failed transactions; mapping an already mapped IP address replaces the mapping.
+    - Return the results callers expect.
+    - Connection, buffer, leak and table name fixes.
+    - vauth_deluser(): cleanup failures do not decide the result.
+    - vauth_adduser(): fail when the domain is not in assign.
   - Password hashing (by @yitzhaq):
     - Hash new passwords with yescrypt when crypt() supports it (libxcrypt), else SHA512 as
       before (--disable-yescrypt-passwords keeps SHA512). Existing hashes keep working; vchkpw and
