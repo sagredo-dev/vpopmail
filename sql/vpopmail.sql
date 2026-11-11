@@ -147,8 +147,6 @@ CREATE TABLE IF NOT EXISTS `vpopmail` (
   `pw_name` varchar(64) NOT NULL,
   `pw_domain` varchar(96) NOT NULL,
   `pw_passwd` varchar(128) DEFAULT NULL,
-  `my_uid` tinyint(4) NOT NULL DEFAULT 89,
-  `my_gid` tinyint(4) NOT NULL DEFAULT 89,
   `pw_uid` int(11) DEFAULT NULL,
   `pw_gid` int(11) DEFAULT NULL,
   `pw_gecos` varchar(64) DEFAULT NULL,
