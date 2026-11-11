@@ -15,6 +15,14 @@
     - Connection, buffer, leak and table name fixes.
     - vauth_deluser(): cleanup failures do not decide the result.
     - vauth_adduser(): fail when the domain is not in assign.
+  - Password hashing (by @yitzhaq):
+    - Hash new passwords with yescrypt when crypt() supports it (libxcrypt), else SHA512 as
+      before (--disable-yescrypt-passwords keeps SHA512). Existing hashes keep working; vchkpw and
+      vpopmaild upgrade them at the next login (--disable-rehash-passwords turns that off). Dovecot needs
+      no change as long as its host has libxcrypt.
+    - Optional Argon2id password hashes (--enable-argon2id-passwords, needs libsodium).
+    - authvchkpw: compare the whole password hash.
+    - Check the result of mkpasswd3() everywhere.
 
 5.6.14 - Sep 16, 2026
   - storage.h: refactored 64-bit endian conversion handling, replacing non-portable GNU-specific byte-swap

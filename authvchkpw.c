@@ -86,19 +86,16 @@ pw_comp(char *login __unused, char *password, char *challenge, char *response)
 {
 	unsigned char   digest[16];
 	unsigned char   digascii[33];
-	char           *crypt_pass;
 	unsigned char   h;
 	int             j;
 
 	if(!response || (response && !*response))
 	{
-		if (!(crypt_pass = crypt((char *) challenge, (char *) password)))
-		{
-			printf("454-%s (#4.3.0)\r\n", strerror(errno));
-			fflush(stdout);
-			_exit (111);
-		}
-		return(strncmp((const char *) crypt_pass, (const char *) password, (size_t) 14));
+		/* plain text: compare the whole hash, as vauth_crypt() does
+		 * (also removes a {XXX-CRYPT} prefix, refuses an empty hash and,
+		 * with --enable-argon2id-passwords, handles Argon2id)
+		 */
+		return(vpw_check_password(challenge, password) != 0);
 	}
 	hmac_md5((unsigned char *) challenge, (int) strlen((const char *) challenge), (unsigned char *) password,
 		(int) strlen((const char *) password), digest);
