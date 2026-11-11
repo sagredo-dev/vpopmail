@@ -32,6 +32,12 @@
 #include <time.h>
 #include <unistd.h>
 #include "config.h"
+#ifdef HAVE_CRYPT_H
+#include <crypt.h>
+#endif
+#ifdef ARGON2ID_PASSWORDS
+#include <sodium.h>
+#endif
 #ifdef HAVE_ERR_H
 #include <err.h>
 #endif
@@ -907,6 +913,46 @@ int mkpasswd3(char *clearpass, char *crypted, int ssize) {
   char salt[12];
   static int seeded = 0;
 
+#if defined(ARGON2ID_PASSWORDS)
+  {
+    /* Stored with the {ARGON2ID} prefix, which dovecot uses to pick the
+     * scheme whatever its default scheme is; vpopmail removes it when
+     * checking (vpw_check_password()).
+     */
+    char ahash[crypto_pwhash_STRBYTES];
+
+    if (sodium_init() >= 0 &&
+        crypto_pwhash_str_alg(ahash, clearpass, strlen(clearpass),
+                              crypto_pwhash_OPSLIMIT_INTERACTIVE,
+                              crypto_pwhash_MEMLIMIT_INTERACTIVE,
+                              crypto_pwhash_ALG_ARGON2ID13) == 0) {
+      if (snprintf(crypted, ssize, "{ARGON2ID}%s", ahash) >= ssize)
+        return (VA_CRYPT_FAILED);
+      return (VA_SUCCESS);
+    }
+    /* libsodium failed (e.g. out of memory): use the scheme below */
+  }
+#endif
+
+#if defined(YESCRYPT_PASSWORDS)
+  {
+    /* crypt_gensalt_rn() takes its random bytes from the system */
+    char ysalt[CRYPT_GENSALT_OUTPUT_SIZE];
+
+    if (crypt_gensalt_rn("$y$", 0, NULL, 0, ysalt, sizeof(ysalt)) != NULL) {
+      tmpstr = crypt(clearpass, ysalt);
+      if (tmpstr != NULL && strncmp(tmpstr, "$y$", 3) == 0) {
+        if (strlen(tmpstr) >= (size_t)ssize) return (VA_CRYPT_FAILED);
+        strcpy(crypted, tmpstr);
+        return (VA_SUCCESS);
+      }
+    }
+    /* no yescrypt at run time (the crypt library is not the one configure
+     * found): use the scheme below
+     */
+  }
+#endif
+
   if (!seeded) {
     seeded = 1;
     srand(time(NULL) ^ (getpid() << 15));
@@ -944,8 +990,11 @@ int mkpasswd3(char *clearpass, char *crypted, int ssize) {
   salt[2] = 0;
 #endif
 
+  /* crypt() reports failure with NULL or, in libxcrypt, with a "*0" or "*1"
+   * token, which is not a hash ('*' never starts one)
+   */
   tmpstr = crypt(clearpass, salt);
-  if (tmpstr == NULL) return (VA_CRYPT_FAILED);
+  if (tmpstr == NULL || tmpstr[0] == '*') return (VA_CRYPT_FAILED);
 
 #if defined(MD5_PASSWORDS) || defined(SHA512_PASSWORDS)
   /* Make sure this host's crypt supports MD5 passwords.  If not,
@@ -956,13 +1005,116 @@ int mkpasswd3(char *clearpass, char *crypted, int ssize) {
     salt[1] = randltr();
     salt[2] = 0;
     tmpstr = crypt(clearpass, salt);
-    if (tmpstr == NULL) return (VA_CRYPT_FAILED);
+    if (tmpstr == NULL || tmpstr[0] == '*') return (VA_CRYPT_FAILED);
   }
 #endif
 
-  strncpy(crypted, tmpstr, ssize);
+  /* a cut-off hash would not match the password */
+  if (strlen(tmpstr) >= (size_t)ssize) return (VA_CRYPT_FAILED);
+  strcpy(crypted, tmpstr);
   return (VA_SUCCESS);
 }
+
+/************************************************************************/
+
+/* Skip leading {SCHEME} prefixes, as dovecot writes them ({SHA512-CRYPT},
+ * {ARGON2ID}, ...), and the LDAP module's {crypt}.
+ */
+static const char *vpw_strip_scheme(const char *hash) {
+  while (hash[0] == '{') {
+    const char *k = strchr(hash, '}');
+    if (k == NULL) break;
+    hash = k + 1;
+  }
+  return hash;
+}
+
+/* Check the plain text password 'clear' against the stored hash.
+ * Returns 0 when it matches, non-zero otherwise. Handles every scheme crypt()
+ * knows and, with --enable-argon2id-passwords, Argon2id hashes.
+ */
+int vpw_check_password(const char *clear, const char *stored) {
+  const char *hash;
+  const char *c;
+
+  if (clear == NULL || stored == NULL) return (-1);
+  hash = vpw_strip_scheme(stored);
+  /* an empty hash would match an empty crypt() result */
+  if (hash[0] == '\0') return (-1);
+
+  if (strncmp(hash, "$argon2", 7) == 0) {
+#ifdef ARGON2ID_PASSWORDS
+    if (sodium_init() < 0) return (-1);
+    return (crypto_pwhash_str_verify(hash, clear, strlen(clear)) == 0) ? 0 : 1;
+#else
+    return (-1);
+#endif
+  }
+
+  c = crypt(clear, hash);
+  if (c == NULL || c[0] == '*') return (-1);
+  return (strcmp(c, hash) != 0);
+}
+
+/************************************************************************/
+
+#ifdef REHASH_PASSWORDS
+/* Rank of the hash schemes mkpasswd3() can make, oldest first: DES, MD5,
+ * SHA512, yescrypt, Argon2id. -1 for anything else (bcrypt, unknown), which
+ * is never replaced.
+ */
+static int vpw_hash_rank(const char *stored) {
+  const char *hash = vpw_strip_scheme(stored);
+
+  if (hash[0] != '$') return (strlen(hash) == 13) ? 0 : -1; /* DES */
+  if (strncmp(hash, "$1$", 3) == 0) return 1;
+  if (strncmp(hash, "$6$", 3) == 0) return 2;
+  if (strncmp(hash, "$y$", 3) == 0) return 3;
+  if (strncmp(hash, "$argon2id$", 10) == 0) return 4;
+  return -1;
+}
+
+/* rank of the scheme mkpasswd3() is configured to make */
+#if defined(ARGON2ID_PASSWORDS)
+#define VPW_HASH_TARGET_RANK 4
+#elif defined(YESCRYPT_PASSWORDS)
+#define VPW_HASH_TARGET_RANK 3
+#elif defined(SHA512_PASSWORDS)
+#define VPW_HASH_TARGET_RANK 2
+#elif defined(MD5_PASSWORDS)
+#define VPW_HASH_TARGET_RANK 1
+#else
+#define VPW_HASH_TARGET_RANK 0
+#endif
+
+/* Call after the plain text password 'clear' was checked against vpw and
+ * matched. If the stored hash uses an older scheme than the one mkpasswd3()
+ * makes now (for example SHA512 after the move to yescrypt), store the
+ * password again in the current scheme, so that hashes are upgraded as users
+ * log in. A hash is never replaced by one of an older or unknown scheme
+ * (e.g. when yescrypt is disabled or not available on this host).
+ * Returns 1 when the hash was replaced, 0 otherwise.
+ */
+int vpw_rehash(struct vqpasswd *vpw, char *domain, char *clear) {
+  static char crypted[MAX_PW_PASS + 1];
+  int old_rank;
+
+  if (vpw == NULL || domain == NULL || clear == NULL || clear[0] == 0) return 0;
+  if (vpw->pw_passwd == NULL || vpw->pw_passwd[0] == 0) return 0;
+  old_rank = vpw_hash_rank(vpw->pw_passwd);
+  /* unknown scheme, or already as new as what mkpasswd3() makes: the
+   * common case, decided without hashing anything
+   */
+  if (old_rank < 0 || old_rank >= VPW_HASH_TARGET_RANK) return 0;
+
+  if (mkpasswd3(clear, crypted, sizeof(crypted)) != VA_SUCCESS) return 0;
+  /* mkpasswd3() fell back to an older scheme at run time */
+  if (vpw_hash_rank(crypted) <= old_rank) return 0;
+
+  vpw->pw_passwd = crypted;
+  return (vauth_setpw(vpw, domain) == 0);
+}
+#endif
 
 /************************************************************************/
 
@@ -1670,7 +1822,8 @@ int vpasswd(char *username, char *domain, char *password, int apop) {
   if (mypw->pw_flags & NO_PASSWD_CHNG) return (-1);
 
   /* encrypt their supplied password, and save it */
-  mkpasswd3(password, Crypted, sizeof(Crypted));
+  if (mkpasswd3(password, Crypted, sizeof(Crypted)) != VA_SUCCESS)
+    return (VA_CRYPT_FAILED);
   mypw->pw_passwd = Crypted;
 
 #ifdef CLEAR_PASS
