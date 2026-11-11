@@ -25,6 +25,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <dirent.h>
+#include <syslog.h>
 #include "config.h"
 #include "vpopmail.h"
 #include "vauth.h"
@@ -394,6 +395,10 @@ int login()
  char *pass;
  uid_t uid;
  gid_t gid;
+ int checked;
+#ifdef REHASH_PASSWORDS
+ int rehashed;
+#endif
 
 
 //  return values:  0 = valid   -1 = missing parm warning  -2 = invalid login
@@ -418,14 +423,32 @@ int login()
     return(-2);
   }
 
-  if ( vauth_crypt(TheUser, TheDomain, pass, tmpvpw) != 0 ) {
+  if ( (checked = vauth_crypt(TheUser, TheDomain, pass, tmpvpw)) != 0 ) {
+    if ( checked == VPW_CHECK_NOMEM || checked == VPW_CHECK_FAILED ) {
+      /* not a wrong password: the hash could not be checked */
+      openlog("vpopmaild", LOG_PID, LOG_MAIL);
+      syslog(LOG_NOTICE, "%s %s@%s",
+             checked == VPW_CHECK_NOMEM ?
+             "not enough memory to check the password, raise the memory limit" :
+             "could not check the password (memory limit too low?)",
+             TheUser, TheDomain);
+      closelog();
+    }
     show_error( ERR_INVALID_LOGIN, 207 );
     return(-2);
   } 
 
 #ifdef REHASH_PASSWORDS
   /* store the password in the current hash scheme if the stored hash is older */
-  vpw_rehash(tmpvpw, TheDomain, pass);
+  if ( (rehashed = vpw_rehash(tmpvpw, TheDomain, pass)) < 0 ) {
+    openlog("vpopmaild", LOG_PID, LOG_MAIL);
+    syslog(LOG_NOTICE, "password not rehashed, %s %s@%s",
+           rehashed == VA_MEMORY_ALLOC_ERR ? "not enough memory for the new hash, raise the memory limit" :
+           rehashed == VA_CRYPT_FAILED ? "could not make the new hash (memory limit too low?)" :
+           "could not store the new hash",
+           TheUser, TheDomain);
+    closelog();
+  }
 #endif
 
 //  snprintf(WriteBuf,sizeof(WriteBuf), RET_OK_MORE);

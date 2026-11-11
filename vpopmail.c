@@ -37,6 +37,7 @@
 #endif
 #ifdef ARGON2ID_PASSWORDS
 #include <sodium.h>
+#include <sys/mman.h>
 #endif
 #ifdef HAVE_ERR_H
 #include <err.h>
@@ -1029,9 +1030,33 @@ static const char *vpw_strip_scheme(const char *hash) {
   return hash;
 }
 
+#ifdef ARGON2ID_PASSWORDS
+/* Can this process reserve 'bytes' of memory? libsodium reserves the memory
+ * for an Argon2id hash the same way, so this fails exactly when a memory
+ * limit (softlimit) is too low for it. 1 = yes, 0 = no, -1 = cannot tell.
+ */
+static int vpw_memory_available(size_t bytes) {
+#if defined(MAP_ANONYMOUS)
+  void *p;
+
+  if (bytes == 0) return (-1);
+  p = mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
+           -1, 0);
+  if (p == MAP_FAILED) return (0);
+  munmap(p, bytes);
+  return (1);
+#else
+  return (-1);
+#endif
+}
+#endif
+
 /* Check the plain text password 'clear' against the stored hash.
- * Returns 0 when it matches, non-zero otherwise. Handles every scheme crypt()
- * knows and, with --enable-argon2id-passwords, Argon2id hashes.
+ * Returns 0 when it matches, non-zero otherwise: VPW_CHECK_NOMEM when an
+ * Argon2id hash could not be checked because the process may not use the
+ * memory it needs, VPW_CHECK_FAILED when crypt() could not check a yescrypt
+ * hash (in both cases the password may or may not be right), 1 or -1 in every other case. Handles every scheme crypt() knows
+ * and, with --enable-argon2id-passwords, Argon2id hashes.
  */
 int vpw_check_password(const char *clear, const char *stored) {
   const char *hash;
@@ -1044,15 +1069,31 @@ int vpw_check_password(const char *clear, const char *stored) {
 
   if (strncmp(hash, "$argon2", 7) == 0) {
 #ifdef ARGON2ID_PASSWORDS
+    const char *m;
+
     if (sodium_init() < 0) return (-1);
-    return (crypto_pwhash_str_verify(hash, clear, strlen(clear)) == 0) ? 0 : 1;
+    if (crypto_pwhash_str_verify(hash, clear, strlen(clear)) == 0) return (0);
+    /* libsodium reports a check that could not allocate its memory as a
+     * mismatch. Tell them apart by the memory cost in the hash ($m=, KiB).
+     */
+    if ((m = strstr(hash, "$m=")) != NULL &&
+        vpw_memory_available((size_t)strtoul(m + 3, NULL, 10) * 1024) == 0)
+      return (VPW_CHECK_NOMEM);
+    return (1);
 #else
     return (-1);
 #endif
   }
 
   c = crypt(clear, hash);
-  if (c == NULL || c[0] == '*') return (-1);
+  if (c == NULL || c[0] == '*') {
+    /* A wrong password gives a different hash; this is a failure to check.
+     * For yescrypt it is usually a memory limit that is too low, but crypt()
+     * does not say.
+     */
+    if (strncmp(hash, "$y$", 3) == 0) return (VPW_CHECK_FAILED);
+    return (-1);
+  }
   return (strcmp(c, hash) != 0);
 }
 
@@ -1093,7 +1134,11 @@ static int vpw_hash_rank(const char *stored) {
  * password again in the current scheme, so that hashes are upgraded as users
  * log in. A hash is never replaced by one of an older or unknown scheme
  * (e.g. when yescrypt is disabled or not available on this host).
- * Returns 1 when the hash was replaced, 0 otherwise.
+ * Returns 1 when the hash was replaced, 0 when there was nothing to do, and a
+ * VA_ error when the hash should have been replaced but was not:
+ * VA_MEMORY_ALLOC_ERR when the process may not use the memory an Argon2id
+ * hash needs, VA_CRYPT_FAILED when no hash of the current scheme could be
+ * made, VA_COULD_NOT_UPDATE_FILE when vauth_setpw() failed.
  */
 int vpw_rehash(struct vqpasswd *vpw, char *domain, char *clear) {
   static char crypted[MAX_PW_PASS + 1];
@@ -1107,12 +1152,19 @@ int vpw_rehash(struct vqpasswd *vpw, char *domain, char *clear) {
    */
   if (old_rank < 0 || old_rank >= VPW_HASH_TARGET_RANK) return 0;
 
-  if (mkpasswd3(clear, crypted, sizeof(crypted)) != VA_SUCCESS) return 0;
-  /* mkpasswd3() fell back to an older scheme at run time */
-  if (vpw_hash_rank(crypted) <= old_rank) return 0;
+  /* mkpasswd3() failed, or fell back to an older scheme at run time */
+  if (mkpasswd3(clear, crypted, sizeof(crypted)) != VA_SUCCESS ||
+      vpw_hash_rank(crypted) <= old_rank) {
+#ifdef ARGON2ID_PASSWORDS
+    if (vpw_memory_available(crypto_pwhash_MEMLIMIT_INTERACTIVE) == 0)
+      return (VA_MEMORY_ALLOC_ERR);
+#endif
+    return (VA_CRYPT_FAILED);
+  }
 
   vpw->pw_passwd = crypted;
-  return (vauth_setpw(vpw, domain) == 0);
+  if (vauth_setpw(vpw, domain) != 0) return (VA_COULD_NOT_UPDATE_FILE);
+  return (1);
 }
 #endif
 

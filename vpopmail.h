@@ -294,6 +294,11 @@ char *get_remote_ip();
 /*  Not yet categorized  */
 char randltr(void);
 int mkpasswd3(char *, char *, int);
+/* vpw_check_password() (and vauth_crypt()): the hash could not be checked,
+ * for lack of memory (Argon2id under a memory limit), or crypt() failed on a
+ * yescrypt hash (most likely for the same reason) */
+#define VPW_CHECK_NOMEM 2
+#define VPW_CHECK_FAILED 3
 int vpw_check_password(const char *, const char *);
 #ifdef REHASH_PASSWORDS
 struct vqpasswd;
