@@ -25,7 +25,6 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <dirent.h>
-#include <syslog.h>
 #include "config.h"
 #include "vpopmail.h"
 #include "vauth.h"
@@ -426,13 +425,11 @@ int login()
   if ( (checked = vauth_crypt(TheUser, TheDomain, pass, tmpvpw)) != 0 ) {
     if ( checked == VPW_CHECK_NOMEM || checked == VPW_CHECK_FAILED ) {
       /* not a wrong password: the hash could not be checked */
-      openlog("vpopmaild", LOG_PID, LOG_MAIL);
-      syslog(LOG_NOTICE, "%s %s@%s",
-             checked == VPW_CHECK_NOMEM ?
-             "not enough memory to check the password, raise the memory limit" :
-             "could not check the password (memory limit too low?)",
-             TheUser, TheDomain);
-      closelog();
+      fprintf(stderr, "vpopmaild: pid %d %s %s@%s\n", (int)getpid(),
+              checked == VPW_CHECK_NOMEM ?
+              "not enough memory to check the password, raise the memory limit" :
+              "could not check the password (memory limit too low?)",
+              TheUser, TheDomain);
     }
     show_error( ERR_INVALID_LOGIN, 207 );
     return(-2);
@@ -441,13 +438,11 @@ int login()
 #ifdef REHASH_PASSWORDS
   /* store the password in the current hash scheme if the stored hash is older */
   if ( (rehashed = vpw_rehash(tmpvpw, TheDomain, pass)) < 0 ) {
-    openlog("vpopmaild", LOG_PID, LOG_MAIL);
-    syslog(LOG_NOTICE, "password not rehashed, %s %s@%s",
-           rehashed == VA_MEMORY_ALLOC_ERR ? "not enough memory for the new hash, raise the memory limit" :
-           rehashed == VA_CRYPT_FAILED ? "could not make the new hash (memory limit too low?)" :
-           "could not store the new hash",
-           TheUser, TheDomain);
-    closelog();
+    fprintf(stderr, "vpopmaild: pid %d password not rehashed, %s %s@%s\n", (int)getpid(),
+            rehashed == VA_MEMORY_ALLOC_ERR ? "not enough memory for the new hash, raise the memory limit" :
+            rehashed == VA_CRYPT_FAILED ? "could not make the new hash (memory limit too low?)" :
+            "could not store the new hash",
+            TheUser, TheDomain);
   }
 #endif
 

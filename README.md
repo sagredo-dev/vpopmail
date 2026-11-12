@@ -19,8 +19,8 @@ no column needs to change (a yescrypt hash is 73 characters).
 
 Checking a yescrypt password needs about 16 MiB of memory. `vchkpw` and `vpopmaild` often run
 under a memory limit (`softlimit` in their run scripts); if it is too low for that, the login
-is refused and `could not check the password (memory limit too low?)` is logged to syslog
-instead of a password failure.
+is refused and `could not check the password (memory limit too low?)` is logged instead of a
+password failure. `vchkpw` logs to syslog, `vpopmaild` to standard error.
 
 When a user logs in through `vchkpw` or `vpopmaild` with a password whose hash uses an older
 scheme, it is stored again in the current scheme, so hashes are upgraded as users log in
@@ -28,7 +28,7 @@ scheme, it is stored again in the current scheme, so hashes are upgraded as user
 Making the new hash needs memory too (about 16 MiB for yescrypt, 64 MiB for Argon2id). When
 it cannot be made, usually because the memory limit (`softlimit`) is too low, or cannot be
 stored, the login still succeeds, the old hash stays, and `vchkpw` or `vpopmaild` logs
-`password not rehashed` with the reason to syslog.
+`password not rehashed` with the reason.
 Users whose logins never go through `vchkpw` or `vpopmaild` (for example IMAP/POP3 with
 dovecot reading the SQL table directly) get the new scheme when they next change their
 password.
@@ -55,8 +55,8 @@ Keep in mind:
 - Checking an Argon2id password needs 64 MiB of memory. `vchkpw` and `vpopmaild` often run
   under a memory limit (`softlimit` in the run scripts of qmail-smtpd, qmail-submission,
   qmail-pop3d and vpopmaild), which then needs to be about 100 MB or more. With less, the login
-  is refused, and `not enough memory to check the password` is logged to syslog instead of a
-  password failure. yescrypt needs about 16 MiB.
+  is refused, and `not enough memory to check the password` is logged instead of a password
+  failure. yescrypt needs about 16 MiB.
 - Only builds with `--enable-argon2id-passwords` can check Argon2id hashes. Once users have
   them, building without the option again locks those users out until their password is
   reset.
