@@ -467,7 +467,7 @@ sites that will have more than 10 domains on thier system.
 
 If you have a large number of users ( more than 10,000 ) 
 AND you will only be hosting 10 domains or less AND you
-are using mysql/oracle modules THEN use "no"
+are using mysql module THEN use "no"
 --enable-many-domains=n
 
 Do NOT turn off many-domains unless you *know* exactly
