@@ -253,7 +253,7 @@ struct vqpasswd *vauth_getpw(char *user, char *domain) {
 
   ldap_value_free_len(rval);
 
-  if (*passwd == '{') {
+  if (*passwd == '{' && strncasecmp(passwd, "{ARGON2ID}", 10) != 0) {
     for (t = h = (passwd + 1); *t; t++) {
       if (*t == '}') {
         *t++ = '\0';
@@ -271,7 +271,7 @@ struct vqpasswd *vauth_getpw(char *user, char *domain) {
          *  Added check for MD5 crypted passwords
          */
 
-        if (strcmp(h, "crypt") && strcmp(h, "MD5")) {
+        if (strcasecmp(h, "crypt") && strcmp(h, "MD5")) {
           free(h - 1);
           return NULL;
         }
@@ -524,6 +524,20 @@ struct vqpasswd *vauth_getall(char *domain, int first, int sortit) {
 
    vol@inter7.com
 */
+/* The userPassword value for a hash made by mkpasswd3(): {crypt} for the
+ * crypt() schemes, an {ARGON2ID} hash as it is. Returns a string to free
+ * with safe_free().
+ */
+static char *vldap_userpassword(const char *hash) {
+  size_t len = strlen(hash) + 7 + 1;
+  char *v = (char *)safe_malloc(len);
+
+  snprintf(v, len, "%s%s", hash[0] == '{' ? "" : "{crypt}", hash);
+  return v;
+}
+
+/***************************************************************************/
+
 int vauth_adduser(char *user, char *domain, char *password, char *gecos,
                   char *dir, int apop) {
   char *dn = NULL;
@@ -597,14 +611,7 @@ int vauth_adduser(char *user, char *domain, char *password, char *gecos,
   lm[0]->mod_values[0] = safe_strdup(user);
 
   /* lm[1] will store : userPassword / pw_password (crypted, made above) */
-  lm[1]->mod_values[0] = (char *)safe_malloc(strlen(crypted) + 7 + 1);
-#ifdef MD5_PASSWORDS
-
-  snprintf(lm[1]->mod_values[0], strlen(crypted) + 7 + 1, "{MD5}%s", crypted);
-#else
-
-  snprintf(lm[1]->mod_values[0], strlen(crypted) + 7 + 1, "{crypt}%s", crypted);
-#endif
+  lm[1]->mod_values[0] = vldap_userpassword(crypted);
 
   /* lm[2] will store : qmailUID / pw_uid */
   lm[2]->mod_values[0] = (char *)safe_malloc(10);
@@ -948,16 +955,7 @@ int vauth_setpw(struct vqpasswd *inpw, char *domain) {
 
   lm[0]->mod_values[0] = safe_strdup(inpw->pw_name);
 
-  lm[1]->mod_values[0] = safe_malloc(strlen(inpw->pw_passwd) + 7 + 1);
-#ifdef MD5_PASSWORDS
-
-  snprintf(lm[1]->mod_values[0], strlen(inpw->pw_passwd) + 7 + 1, "{MD5}%s",
-           inpw->pw_passwd);
-#else
-
-  snprintf(lm[1]->mod_values[0], strlen(inpw->pw_passwd) + 7 + 1, "{crypt}%s",
-           inpw->pw_passwd);
-#endif
+  lm[1]->mod_values[0] = vldap_userpassword(inpw->pw_passwd);
 
   lm[2]->mod_values[0] = (char *)safe_malloc(10);
   sprintf(lm[2]->mod_values[0], "%d", inpw->pw_uid);
