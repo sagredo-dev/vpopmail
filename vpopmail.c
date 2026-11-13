@@ -26,6 +26,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -2924,6 +2926,11 @@ void vset_default_domain(char *domain) {
   char *tmpstr, *cp;
 #ifdef IP_ALIAS_DOMAINS
   char host[MAX_BUFF];
+  /* large enough for any textual IPv4 or IPv6 address (see get_remote_ip) */
+  char localip[64];
+  char oldkey[64];
+  char *ip;
+  int found;
 #endif
 
   if (domain != NULL) {
@@ -2952,33 +2959,48 @@ void vset_default_domain(char *domain) {
   }
 
 #ifdef IP_ALIAS_DOMAINS
-  tmpstr = getenv("TCPLOCALIP");
-
-  /* courier-imap uses IPv6 */
-  if (tmpstr != NULL) {
-    /* As a security precaution, remove all but good chars */
-    for (cp = tmpstr; *(cp += strspn(cp, ok_env_chars));) {
-      *cp = '_';
-    }
-
-    /* Michael Bowe 14th August 2003
-     * Mmmm Yuk below. What if TCPLOCALIP=":\0"
-     * Buffer overflow.
-     * Need to perhaps at least check strlen of tmpstr
-     */
-    if (tmpstr[0] == ':') {
-      tmpstr += 2;
-      while (*tmpstr != ':') ++tmpstr;
-      ++tmpstr;
-    }
-  }
-
-  memset(host, 0, sizeof(host));
   /* take the ip address that the connection was made to
    * and go and look this up in our vip map
    * and then store the domain into the host var
    */
-  if (vget_ip_map(tmpstr, host, sizeof(host)) == 0 && !host_in_locals(host)) {
+  tmpstr = getenv("TCPLOCALIP");
+  /* Too long to be an IP address: no lookup. */
+  if (tmpstr != NULL && strlen(tmpstr) < sizeof(localip)) {
+    struct in6_addr a6; /* large enough for an IPv4 address too */
+
+    /* The form this lookup used before: every character outside
+     * ok_env_chars (such as ':') replaced by '_'. Maps written for it are
+     * still found. Work on copies: don't change the environment.
+     */
+    strcpy(oldkey, tmpstr);
+    for (cp = oldkey; *(cp += strspn(cp, ok_env_chars));) {
+      *cp = '_';
+    }
+
+    strcpy(localip, tmpstr);
+    ip = localip;
+    /* courier-imap and other IPv6 servers give IPv4 connections as
+     * ::ffff:a.b.c.d; look those up as a.b.c.d.
+     */
+    if (strncasecmp(ip, "::ffff:", 7) == 0 && strchr(ip + 7, '.') != NULL)
+      ip += 7;
+    /* A valid IPv4 or IPv6 address is looked up as is; anything else in
+     * the sanitized form, as before.
+     */
+    if (inet_pton(AF_INET, ip, &a6) != 1 && inet_pton(AF_INET6, ip, &a6) != 1)
+      ip = oldkey;
+
+    memset(host, 0, sizeof(host));
+    found = (vget_ip_map(ip, host, sizeof(host)) == 0);
+    if (!found && ip != oldkey) {
+      memset(host, 0, sizeof(host));
+      found = (vget_ip_map(oldkey, host, sizeof(host)) == 0);
+    }
+  } else {
+    found = 0;
+  }
+
+  if (found && !host_in_locals(host)) {
     if (strlen(host) > 0) {
       /* Michael Bowe 14th August 2003
        * How can we prevent possible buffer overflows here
@@ -3532,16 +3554,14 @@ int open_smtp_relay() {
   int fd_lok_file;
 #endif /* FILE_LOCKING */
   char *ipaddr;
-  char *tmpstr;
   time_t mytime;
   int rebuild_cdb = 1;
   char open_smtp_tmp_filename[MAX_BUFF];
   char tmpbuf1[MAX_BUFF];
-  char tmpbuf2[MAX_BUFF];
 
   mytime = time(NULL);
 
-  ipaddr = get_remote_ip();
+  ipaddr = get_relay_ip();
   if (ipaddr == NULL) {
     return 0;
   }
@@ -3584,11 +3604,12 @@ int open_smtp_relay() {
 
   /* read in the current open-smtp file */
   while (fgets(tmpbuf1, sizeof(tmpbuf1), fs_cur_file) != NULL) {
-    snprintf(tmpbuf2, sizeof(tmpbuf2), "%s", tmpbuf1);
-    /* extract the ip address from this line */
-    tmpstr = strtok(tmpbuf2, ":");
-    /* is this a match for our current ip? */
-    if (strcmp(tmpstr, ipaddr) != 0) {
+    /* is this the line for our current ip? Lines are ip:allow,...; an IPv6
+     * address contains ':' itself, so compare the address and the ':' after
+     * it rather than the text up to the first ':'
+     */
+    if (strncmp(tmpbuf1, ipaddr, strlen(ipaddr)) != 0 ||
+        tmpbuf1[strlen(ipaddr)] != ':') {
       /* no match, so copy the line out to our tmp file */
       fputs(tmpbuf1, fs_tmp_file);
     } else {
@@ -4123,33 +4144,67 @@ char *date_header() {
 
 char *get_remote_ip() {
   char *ipenv;
-  static char ipbuf[30];
+  /* Large enough for any textual IPv4 or IPv6 address, including the
+   * IPv4-mapped form ::ffff:255.255.255.255 (INET6_ADDRSTRLEN is 46).
+   */
+  static char ipbuf[64];
   char *ipaddr;
   char *p;
 
   ipenv = getenv("TCPREMOTEIP"); /* tcpserver from daemontools */
   if (ipenv == NULL) ipenv = getenv("REMOTE_HOST"); /* xinetd */
-  if ((ipenv == NULL) || (strlen(ipenv) >= sizeof(ipbuf))) return ipenv;
+  if (ipenv == NULL) return NULL;
+  /* Too long to be an IP address: don't return it unsanitized. */
+  if (strlen(ipenv) >= sizeof(ipbuf)) return NULL;
 
   strcpy(ipbuf, ipenv);
   ipaddr = ipbuf;
 
-  /* Convert ::ffff:127.0.0.1 format to 127.0.0.1
-   * While avoiding buffer overflow.
+  /* Convert the IPv4-mapped ::ffff:127.0.0.1 format to 127.0.0.1.
+   * Only that prefix: other addresses may start with ':' too (e.g. ::1).
    */
-  if (*ipaddr == ':') {
-    ipaddr++;
-    if (*ipaddr != '\0') ipaddr++;
-    while ((*ipaddr != ':') && (*ipaddr != '\0')) ipaddr++;
-    if (*ipaddr != '\0') ipaddr++;
+  if (strncasecmp(ipaddr, "::ffff:", 7) == 0 && strchr(ipaddr + 7, '.') != NULL)
+    ipaddr += 7;
+
+  /* A valid IPv4 or IPv6 address is returned as is, so IPv6 keeps its ':'
+   * separators in the logs and in tcpserver rules (tcprules matches IPv6
+   * rules written with ':', not '_').
+   */
+  {
+    struct in6_addr a6; /* large enough for an IPv4 address too */
+    if (inet_pton(AF_INET, ipaddr, &a6) == 1 ||
+        inet_pton(AF_INET6, ipaddr, &a6) == 1)
+      return ipaddr;
   }
 
-  /* remove invalid characters */
+  /* Anything else: remove invalid characters, as before */
   for (p = ipaddr; *(p += strspn(p, ok_env_chars));) {
     *p = '_';
   }
 
   return ipaddr;
+}
+
+/* Address written into POP-before-SMTP relay rules (open-smtp / relay table).
+ * tcpserver looks rules up by the exact text of the client address, so an IPv6
+ * address is written with ':' in the form inet_ntop() gives (the form
+ * tcpserver from ucspi-tcp6, or from ucspi-tcp with the IPv6 patch, puts in
+ * TCPREMOTEIP; their tcprules accept such rules). NULL when there is no usable
+ * address.
+ */
+char *get_relay_ip() {
+  static char relaybuf[64];
+  char *ipaddr;
+  struct in6_addr a6;
+
+  if ((ipaddr = get_remote_ip()) == NULL || *ipaddr == '\0') return NULL;
+
+  if (inet_pton(AF_INET6, ipaddr, &a6) == 1 &&
+      inet_ntop(AF_INET6, &a6, relaybuf, sizeof(relaybuf)) != NULL)
+    return relaybuf;
+
+  snprintf(relaybuf, sizeof(relaybuf), "%s", ipaddr);
+  return relaybuf;
 }
 
 char *maildir_to_email(const char *maildir) {

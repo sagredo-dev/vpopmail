@@ -1031,7 +1031,7 @@ int vdel_ip_map( char *ip, char *domain)
 		if ( strcmp(ip, ip_f) == 0 && strcmp(domain,domain_f) == 0)
 			continue;
 
-		fprintf(fs1, tmpbuf1);
+		fputs(tmpbuf1, fs1);
 
 	}
 	fclose(fs);

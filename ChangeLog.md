@@ -4,30 +4,7 @@
   - vdelivermail: structured logging, quota enforcement, :default and vdefaultdelivery by @rohan-bb69 in https://github.com/sagredo-dev/vpopmail/pull/16
   - Remove --enable-make-seekable feature and --enable-defaultdelivery option in https://github.com/sagredo-dev/vpopmail/pull/18
   - configure.ac: throw an error if tinycdb is enabled while the auth-module is not cdb by @sagredo-dev in https://github.com/sagredo-dev/vpopmail/pull/17
-  - MySQL module (by @yitzhaq):
-    - Limits: read the permission columns at the right index, widen perm_maillist. Databases
-      with --enable-mysql-limits need sql/vpopmail-mysql-limits_upgrade.sql.
-    - vauth_deluser(): cleanup failures do not decide the result.
-    - vauth_adduser(): fail when the domain is not in assign.
-  - SQLite module (by @yitzhaq):
-    - Escape SQL strings by doubling quotes, single-quote all values.
-    - Handle SQLITE_ROW correctly, keep the caller's query on retries.
-    - Add the POP-before-SMTP relay functions.
-    - One connection with a busy timeout, finalize statements once, refuse empty queries.
-    - vauth_deluser(): cleanup failures do not decide the result.
-    - vauth_adduser(): fail when the domain is not in assign.
-  - PostgreSQL module (by @yitzhaq):
-    - Escape SQL strings through libpq.
-    - Make room for IPv6 addresses in IP columns and ip map reads. Existing databases need
-      sql/vpopmail-pgsql-ipv6_upgrade.sql.
-    - Create a valid vlog table, use userid in deletes.
-    - Fix double frees in the dir_control and ip map functions.
-    - Roll back failed transactions; mapping an already mapped IP address replaces the mapping.
-    - Return the results callers expect.
-    - Connection, buffer, leak and table name fixes.
-    - vauth_deluser(): cleanup failures do not decide the result.
-    - vauth_adduser(): fail when the domain is not in assign.
-  - Password hashing (by @yitzhaq):
+  - Password hashing by @yitzhaq in https://github.com/sagredo-dev/vpopmail/pull/46
     - Hash new passwords with yescrypt when crypt() supports it (libxcrypt), else SHA512 as
       before (--disable-yescrypt-passwords keeps SHA512). Existing hashes keep working; vchkpw and
       vpopmaild upgrade them at the next login (--disable-rehash-passwords turns that off). Dovecot needs
@@ -36,7 +13,36 @@
     - authvchkpw: compare the whole password hash.
     - Check the result of mkpasswd3() everywhere.
     - vchkpw and vpopmaild log a password check that fails for lack of memory as such, not as a
-      wrong password, and log a rehash that fails, with a hint at the memory limit.
+      wrong password, and log a rehash that fails, with a hint at the memory limit, in
+      https://github.com/sagredo-dev/vpopmail/pull/52
+  - IPv6 and relay rules by @yitzhaq in https://github.com/sagredo-dev/vpopmail/pull/50
+    - get_remote_ip(): fix off-by-one overflow of ipbuf in https://github.com/sagredo-dev/vpopmail/pull/20
+    - get_remote_ip(): keep valid IPv6 addresses intact; write IPv6 relay rules with ':'.
+    - vset_default_domain(): look up IPv6 and IPv4-mapped TCPLOCALIP correctly.
+    - vdel_ip_map(): don't use map file lines as a format string.
+  - MySQL module by @yitzhaq in https://github.com/sagredo-dev/vpopmail/pull/51
+    - Limits: read the permission columns at the right index, widen perm_maillist. Databases
+      with --enable-mysql-limits need sql/vpopmail-mysql-limits_upgrade.sql.
+    - vauth_deluser(): cleanup failures do not decide the result.
+    - vauth_adduser(): fail when the domain is not in assign.
+  - PostgreSQL module by @yitzhaq in https://github.com/sagredo-dev/vpopmail/pull/48
+    - Escape SQL strings through libpq.
+    - Make room for IPv6 addresses in IP columns and ip map reads. Existing databases need
+      sql/vpopmail-pgsql-ipv6_upgrade.sql.
+    - Create a valid vlog table, use userid in deletes.
+    - Fix double frees in the dir_control and ip map functions and in logsql().
+    - Roll back failed transactions; mapping an already mapped IP address replaces the mapping.
+    - Return the results callers expect.
+    - Connection, buffer, leak and table name fixes.
+    - vauth_deluser(): cleanup failures do not decide the result.
+    - vauth_adduser(): fail when the domain is not in assign.
+  - SQLite module by @yitzhaq in https://github.com/sagredo-dev/vpopmail/pull/49
+    - Escape SQL strings by doubling quotes, single-quote all values.
+    - Handle SQLITE_ROW correctly, keep the caller's query on retries.
+    - Add the POP-before-SMTP relay functions.
+    - One connection with a busy timeout, finalize statements once, refuse empty queries.
+    - vauth_deluser(): cleanup failures do not decide the result.
+    - vauth_adduser(): fail when the domain is not in assign.
 
 5.6.14 - Sep 16, 2026
   - storage.h: refactored 64-bit endian conversion handling, replacing non-portable GNU-specific byte-swap
