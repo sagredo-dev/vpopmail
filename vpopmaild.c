@@ -2389,13 +2389,15 @@ int get_limits()
     mylimits.perm_forward); wait_write();
   snprintf(WriteBuf,sizeof(WriteBuf), "perm_autoresponder %d" RET_CRLF, 
     mylimits.perm_autoresponder); wait_write();
-  snprintf(WriteBuf,sizeof(WriteBuf), "perm_maillist %d" RET_CRLF, 
+  snprintf(WriteBuf,sizeof(WriteBuf), "perm_maillist %d" RET_CRLF,
     mylimits.perm_maillist); wait_write();
+  /* as set_limits takes them */
+  snprintf(WriteBuf,sizeof(WriteBuf), "perm_maillist_users %d" RET_CRLF,
+    mylimits.perm_maillist_users); wait_write();
+  snprintf(WriteBuf,sizeof(WriteBuf), "perm_maillist_moderators %d" RET_CRLF,
+    mylimits.perm_maillist_moderators); wait_write();
   snprintf(WriteBuf,sizeof(WriteBuf), "perm_quota %d" RET_CRLF,
-   (mylimits.perm_quota) | 
-   (mylimits.perm_maillist_users<<VLIMIT_DISABLE_BITS) |
-   (mylimits.perm_maillist_moderators<<(VLIMIT_DISABLE_BITS*2)));
-  wait_write();
+    mylimits.perm_quota); wait_write();
 
   snprintf(WriteBuf,sizeof(WriteBuf), "perm_defaultquota %d" RET_CRLF, 
     mylimits.perm_defaultquota); wait_write();
