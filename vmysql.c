@@ -478,7 +478,8 @@ int vauth_adduser(char *user, char *domain, char *pass, char *gecos,
             snprintf(dirbuf, sizeof(dirbuf), "%s/users/%s", VPOPMAILDIR, user);
         }
     } else {
-        vget_assign(domain, dom_dir, sizeof(dom_dir), &uid, &gid );
+        if (vget_assign(domain, dom_dir, sizeof(dom_dir), &uid, &gid ) == NULL)
+            return(VA_DOMAIN_DOES_NOT_EXIST);
         if ( strlen(dir) > 0 ) {
             snprintf(dirbuf, sizeof(dirbuf), "%s/%s/%s", dom_dir, dir, user);
         } else {
@@ -723,28 +724,27 @@ int vauth_deluser( char *user, char *domain )
 
 #ifdef ENABLE_AUTH_LOGGING
     qnprintf( SqlBufUpdate, SQL_BUF_SIZE, 
-        "delete from lastauth where user = '%s' and domain = '%s'", 
+        "delete from lastauth where user = '%s' and domain = '%s'",
         user, domain );
-    if (mysql_query(&mysql_update,SqlBufUpdate)) {
-	   err = mysql_errno(&mysql_update);
-	   if (err != ER_NO_SUCH_TABLE)
-		  err = -1;
-	   else
-		  err = 0;
-    } 
+    /* Cleanup only: the user is already deleted, and failing here would
+     * make vdeluser() stop before removing the maildir. Report it, don't
+     * fail (and don't clear an error from the user delete above).
+     */
+    if (mysql_query(&mysql_update,SqlBufUpdate) &&
+        mysql_errno(&mysql_update) != ER_NO_SUCH_TABLE) {
+        fprintf(stderr, "vauth_deluser: lastauth: %s\n", mysql_error(&mysql_update));
+    }
 #endif
 
 #ifdef ENABLE_SQL_LOGGING
 #ifdef ENABLE_SQL_REMOVE_DELETED
     qnprintf( SqlBufUpdate, SQL_BUF_SIZE,
-        "delete from vlog where domain = '%s' and user = '%s'", 
+        "delete from vlog where domain = '%s' and user = '%s'",
        domain, user );
-    if (mysql_query(&mysql_update,SqlBufUpdate)) {
-	   err = mysql_errno(&mysql_update);
-	   if (err != ER_NO_SUCH_TABLE)
-		  err = -1;
-	   else
-		  err = 0;
+    /* cleanup only, as above */
+    if (mysql_query(&mysql_update,SqlBufUpdate) &&
+        mysql_errno(&mysql_update) != ER_NO_SUCH_TABLE) {
+        fprintf(stderr, "vauth_deluser: vlog: %s\n", mysql_error(&mysql_update));
     }
 #endif
 #endif
@@ -1863,7 +1863,7 @@ int vget_limits(const char *domain, struct vlimits *limits)
         return vlimits_read_limits_file (VLIMITS_DEFAULT_FILE, limits);
 
     } else if ((row = mysql_fetch_row(res_read)) != NULL) {
-        int perm = atol(row[22]);
+        int perm = atol(row[23]);
 
         limits->maxpopaccounts = atoi(row[0]);
         limits->maxaliases = atoi(row[1]);
@@ -1893,8 +1893,8 @@ int vget_limits(const char *domain, struct vlimits *limits)
         limits->perm_maillist_users = perm & VLIMIT_DISABLE_ALL;
         perm >>= VLIMIT_DISABLE_BITS;
         limits->perm_maillist_moderators = perm & VLIMIT_DISABLE_ALL;
-        limits->perm_quota = strtoll(row[23], NULL, 10);
-        limits->perm_defaultquota = strtoll(row[24], NULL, 10);
+        limits->perm_quota = strtoll(row[24], NULL, 10);
+        limits->perm_defaultquota = strtoll(row[25], NULL, 10);
     }
     mysql_free_result(res_read);
 

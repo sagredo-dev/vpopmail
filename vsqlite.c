@@ -1580,7 +1580,7 @@ int vget_limits(const char *domain, struct vlimits *limits) {
 
   rc = sqlite3_step(stmt_read);
   if (rc == SQLITE_ROW) {
-    int perm = atol(sqlite3_column_text(stmt_read, 22));
+    int perm = atol(sqlite3_column_text(stmt_read, 23));
 
     limits->maxpopaccounts = atoi(sqlite3_column_text(stmt_read, 0));
     limits->maxaliases = atoi(sqlite3_column_text(stmt_read, 1));
@@ -1611,9 +1611,9 @@ int vget_limits(const char *domain, struct vlimits *limits) {
     limits->perm_maillist_users = perm & VLIMIT_DISABLE_ALL;
     perm >>= VLIMIT_DISABLE_BITS;
     limits->perm_maillist_moderators = perm & VLIMIT_DISABLE_ALL;
-    limits->perm_quota = strtoll(sqlite3_column_text(stmt_read, 23), NULL, 10);
+    limits->perm_quota = strtoll(sqlite3_column_text(stmt_read, 24), NULL, 10);
     limits->perm_defaultquota =
-        strtoll(sqlite3_column_text(stmt_read, 24), NULL, 10);
+        strtoll(sqlite3_column_text(stmt_read, 25), NULL, 10);
   } else if (rc == SQLITE_DONE) {
     vsqlite_finalize_read();
     return vlimits_read_limits_file(VLIMITS_DEFAULT_FILE, limits);

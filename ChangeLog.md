@@ -4,6 +4,11 @@
   - vdelivermail: structured logging, quota enforcement, :default and vdefaultdelivery by @rohan-bb69 in https://github.com/sagredo-dev/vpopmail/pull/16
   - Remove --enable-make-seekable feature and --enable-defaultdelivery option in https://github.com/sagredo-dev/vpopmail/pull/18
   - configure.ac: throw an error if tinycdb is enabled while the auth-module is not cdb by @sagredo-dev in https://github.com/sagredo-dev/vpopmail/pull/17
+  - MySQL module (by @yitzhaq):
+    - Limits: read the permission columns at the right index, widen perm_maillist. Databases
+      with --enable-mysql-limits need sql/vpopmail-mysql-limits_upgrade.sql.
+    - vauth_deluser(): cleanup failures do not decide the result.
+    - vauth_adduser(): fail when the domain is not in assign.
   - SQLite module (by @yitzhaq):
     - Escape SQL strings by doubling quotes, single-quote all values.
     - Handle SQLITE_ROW correctly, keep the caller's query on retries.
