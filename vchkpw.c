@@ -401,6 +401,7 @@ It is not for runnning on the command line.\n",
 void login_virtual_user() {
   int apopaccepted = -1;
   int cramaccepted = -1;
+  int checked = -1;
   char AuthType[15] = "PLAIN";
 #ifdef MIN_LOGIN_INTERVAL
   time_t last_time;
@@ -471,7 +472,18 @@ void login_virtual_user() {
    * If it does not match, log errors if requested and exit
    */
   if ((cramaccepted != 0) && (apopaccepted != 0) &&
-      vauth_crypt(TheUser, TheDomain, ThePass, vpw) != 0) {
+      (checked = vauth_crypt(TheUser, TheDomain, ThePass, vpw)) != 0) {
+    if (checked == VPW_CHECK_NOMEM || checked == VPW_CHECK_FAILED) {
+      /* not a wrong password: the hash could not be checked */
+      snprintf(LogLine, sizeof(LogLine), "%s: %s %s@%s:%s", VchkpwLogName,
+               checked == VPW_CHECK_NOMEM ?
+               "not enough memory to check the password, raise the memory limit" :
+               "could not check the password (memory limit too low?)",
+               TheUser, TheDomain, IpAddr);
+      vlog(VLOG_ERROR_INTERNAL, TheUser, TheDomain, ThePass, TheName, IpAddr,
+           LogLine);
+      vchkpw_exit(3);
+    }
     if (ENABLE_LOGGING == 1 || ENABLE_LOGGING == 2) {
       snprintf(LogLine, sizeof(LogLine), "%s: password fail %s@%s:%s",
                VchkpwLogName, TheUser, TheDomain, IpAddr);
@@ -495,7 +507,18 @@ void login_virtual_user() {
    * hash is older.
    */
   if ((cramaccepted != 0) && (apopaccepted != 0)) {
-    vpw_rehash(vpw, TheDomain, ThePass);
+    int rehashed = vpw_rehash(vpw, TheDomain, ThePass);
+
+    if (rehashed < 0) {
+      snprintf(LogLine, sizeof(LogLine), "%s: password not rehashed, %s %s@%s:%s",
+               VchkpwLogName,
+               rehashed == VA_MEMORY_ALLOC_ERR ? "not enough memory for the new hash, raise the memory limit" :
+               rehashed == VA_CRYPT_FAILED ? "could not make the new hash (memory limit too low?)" :
+               "could not store the new hash",
+               TheUser, TheDomain, IpAddr);
+      vlog(VLOG_ERROR_INTERNAL, TheUser, TheDomain, ThePass, TheName, IpAddr,
+           LogLine);
+    }
   }
 #endif
 
