@@ -1378,7 +1378,7 @@ AC_MSG_CHECKING(whether an auth module has been specified)
 AUTH_MODULE="cdb"
 
 AC_ARG_ENABLE(auth-module,
-    [  --enable-auth-module=MOD   Nominate how to store the vpopmail account information (cdb (default), mysql, pgsql, ldap, oracle, sybase, or sqlite).],
+    [  --enable-auth-module=MOD   Nominate how to store the vpopmail account information (cdb (default), mysql, pgsql, ldap, oracle, or sqlite).],
     AUTH_MODULE="$enableval",
 )
 
@@ -1540,23 +1540,13 @@ case $AUTH_MODULE in
     ;;
 
   sy*|Sy*|SY*)
-    AC_MSG_RESULT(sybase)
-    USE_CDB=0
-    USE_SQL=1
-    USE_SYBASE=1
-    rm -rf vauth.c
-    ln -sf vsybase.c vauth.c
-    AC_DEFINE_UNQUOTED(USE_SQL,$USE_SQL,"")
-    AC_DEFINE_UNQUOTED(USE_SYBASE,$USE_SYBASE,"")
-    auth_libs="-L/opt/sybase/lib -lsybdb -lm $loglib"
-    AC_SUBST(auth_libs)
-    auth_inc="-I/opt/sybase/include"
-    AC_SUBST(auth_inc)
+    AC_MSG_RESULT(no)
+    AC_MSG_ERROR(The sybase auth-module has been removed. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|oracle|sqlite)
     ;;
 
   *)
     AC_MSG_RESULT(no)
-    AC_MSG_ERROR(A valid auth-module was not selected. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|oracle|sybase|sqlite)
+    AC_MSG_ERROR(A valid auth-module was not selected. Please specify using --enable-auth-module=cdb|mysql|pgsql|ldap|oracle|sqlite)
     ;;
 
 esac
@@ -1983,7 +1973,7 @@ AC_ARG_ENABLE(oracle, [],
 AC_ARG_ENABLE(sybase, [],
     [
         AC_MSG_RESULT(yes)
-	AC_MSG_ERROR(--enable-sybase has been superceded. Please use --enable-auth-module=sybase instead)
+	AC_MSG_ERROR(--enable-sybase: the sybase auth-module has been removed)
     ]
 )
 
@@ -2285,10 +2275,6 @@ case $AUTH_MODULE in
     echo "       auth module = oracle --enable-auth-module=oracle"
     ;;
 
-  sy*|Sy*|SY*)
-    echo "       auth module = sybase --enable-auth-module=sybase"
-    ;;
-    
   sq*|Sq*|SQ*)
     echo "       auth module = sqlite --enable-auth-module=sqlite"
     ;;    
