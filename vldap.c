@@ -1416,16 +1416,24 @@ int vldap_connect() {
   verrori = load_connection_info();
   if (verrori) return -1;
 
-  snprintf(uri, 1024, "%s:%d", VLDAP_SERVER, VLDAP_PORT);
+  if (ld != NULL) return VA_SUCCESS;
+
+  /* ldap_initialize() takes a URI; the server may be given as a host name
+   * (localhost) or as a URI (ldap://..., ldaps://..., ldapi://...) */
+  snprintf(uri, 1024, "%s%s:%d", strstr(VLDAP_SERVER, "://") ? "" : "ldap://",
+           VLDAP_SERVER, VLDAP_PORT);
   ret = ldap_initialize(&ld, uri);
   if (ret != LDAP_SUCCESS) {
     fprintf(stderr, "%s\n", ldap_err2string(ret));
+    ld = NULL;
     return -99;
   }
 
   ret = ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &ldapversion);
   if (ret != LDAP_OPT_SUCCESS) {
     fprintf(stderr, "Failed to set LDAP-Option\n");
+    ldap_unbind_ext_s(ld, NULL, NULL);
+    ld = NULL;
     return -99;
   }
 
@@ -1436,6 +1444,8 @@ int vldap_connect() {
 
   if (ret != LDAP_SUCCESS) {
     fprintf(stderr, "%s\n", ldap_err2string(ret));
+    ldap_unbind_ext_s(ld, NULL, NULL);
+    ld = NULL;
     return (VA_NO_AUTH_CONNECTION);
   }
 
