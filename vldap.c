@@ -210,17 +210,20 @@ struct vqpasswd *vauth_getpw(char *user, char *domain) {
                           NULL, NULL, NULL, LDAP_NO_LIMIT, &res);
 
   safe_free((void **)&filter);
+  safe_free((void **)&dn);
 
   /* see if the search ran without generating an error */
   if (ret != LDAP_SUCCESS) {
     fprintf(stderr, "%s\n", ldap_err2string(ret));
+    ldap_msgfree(res);
     return NULL;
   }
 
   /* grab a pointer to the 1st entry in the chain of search results */
   msg = ldap_first_entry(ld, res);
   if (msg == NULL) {
-    /* We had an error grabbing the pointer */
+    /* no such user */
+    ldap_msgfree(res);
     return NULL;
   }
 
@@ -242,6 +245,7 @@ struct vqpasswd *vauth_getpw(char *user, char *domain) {
   rval = ldap_get_values_len(ld, msg, "userPassword");
   if (rval == NULL) {
     fprintf(stderr, "Error\n");
+    ldap_msgfree(res);
     return NULL;
   }
 
@@ -273,6 +277,7 @@ struct vqpasswd *vauth_getpw(char *user, char *domain) {
 
         if (strcasecmp(h, "crypt") && strcmp(h, "MD5")) {
           free(h - 1);
+          ldap_msgfree(res);
           return NULL;
         }
         break;
@@ -283,6 +288,8 @@ struct vqpasswd *vauth_getpw(char *user, char *domain) {
        vol@inter7.com
     */
     if (!(*t)) {
+      free(h - 1);
+      ldap_msgfree(res);
       return NULL;
     }
   }
@@ -314,6 +321,7 @@ struct vqpasswd *vauth_getpw(char *user, char *domain) {
   if (rval == NULL) {
     safe_free((void **)&vpw->pw_passwd);
     fprintf(stderr, "Error\n");
+    ldap_msgfree(res);
     return NULL;
   }
 
@@ -401,6 +409,7 @@ struct vqpasswd *vauth_getpw(char *user, char *domain) {
   }
 
   vlimits_setflags(vpw, domain);
+  ldap_msgfree(res);
 
   return vpw;
 }
@@ -684,6 +693,8 @@ int vauth_adduser(char *user, char *domain, char *password, char *gecos,
   for (i = 0; i < NUM_LDAP_FIELDS + 2; ++i) {
     safe_free((void **)&lm[i]->mod_type);
     safe_free((void **)&lm[i]->mod_values[0]);
+    safe_free((void **)&lm[i]->mod_values);
+    safe_free((void **)&lm[i]);
   }
 
   safe_free((void **)&lm);
@@ -994,7 +1005,13 @@ int vauth_setpw(struct vqpasswd *inpw, char *domain) {
   ret = ldap_modify_ext_s(ld, dn, lm, NULL, NULL);
   safe_free((void **)&dn);
 
-  for (i = 0; i < NUM_LDAP_FIELDS; ++i) safe_free((void **)&lm);
+  for (i = 0; i < NUM_LDAP_FIELDS; ++i) {
+    safe_free((void **)&lm[i]->mod_type);
+    safe_free((void **)&lm[i]->mod_values[0]);
+    safe_free((void **)&lm[i]->mod_values);
+    safe_free((void **)&lm[i]);
+  }
+  safe_free((void **)&lm);
 
   if (ret != LDAP_SUCCESS) {
     fprintf(stderr, "%s\n", ldap_err2string(ret));
