@@ -539,19 +539,23 @@ int vauth_adduser(char *user, char *domain, char *password, char *gecos,
     if (vldap_connect() != 0) return -99;
   }
 
-  lm = (LDAPMod **)safe_malloc(sizeof(LDAPMod *) * (NUM_LDAP_FIELDS + 1));
+  /* the fields, cn and sn: qmailUser inherits person, which requires them */
+  lm = (LDAPMod **)safe_malloc(sizeof(LDAPMod *) * (NUM_LDAP_FIELDS + 3));
 
-  for (i = 0; i < NUM_LDAP_FIELDS; ++i) {
+  for (i = 0; i < NUM_LDAP_FIELDS + 2; ++i) {
     lm[i] = (LDAPMod *)safe_malloc(sizeof(LDAPMod));
 
     memset((LDAPMod *)lm[i], 0, sizeof(LDAPMod));
     lm[i]->mod_op = LDAP_MOD_ADD;
-    lm[i]->mod_type = safe_strdup(ldap_fields[i]);
+    lm[i]->mod_type = safe_strdup(i < NUM_LDAP_FIELDS ? ldap_fields[i] :
+                                  i == NUM_LDAP_FIELDS ? "cn" : "sn");
     lm[i]->mod_values = (char **)safe_malloc(sizeof(char *) * 2);
     lm[i]->mod_values[1] = NULL;
   }
 
-  lm[NUM_LDAP_FIELDS] = NULL;
+  lm[NUM_LDAP_FIELDS + 2] = NULL;
+  lm[NUM_LDAP_FIELDS]->mod_values[0] = safe_strdup(user);
+  lm[NUM_LDAP_FIELDS + 1]->mod_values[0] = safe_strdup(user);
 
   /* lm[0] will store : uid / pw_name */
   lm[0]->mod_values[0] = safe_strdup(user);
@@ -607,7 +611,7 @@ int vauth_adduser(char *user, char *domain, char *password, char *gecos,
    *   ou=somedomain.com,o=vpopmail
    */
   if (compose_dn(&dn_tmp, domain) != 0) {
-    for (i = 0; i < 8; ++i) {
+    for (i = 0; i < NUM_LDAP_FIELDS + 2; ++i) {
       safe_free((void **)&lm[i]->mod_type);
       safe_free((void **)&lm[i]->mod_values[0]);
     }
@@ -632,7 +636,7 @@ int vauth_adduser(char *user, char *domain, char *password, char *gecos,
   ret = ldap_add_ext_s(ld, dn, lm, NULL, NULL);
   safe_free((void **)&dn);
 
-  for (i = 0; i < NUM_LDAP_FIELDS; ++i) {
+  for (i = 0; i < NUM_LDAP_FIELDS + 2; ++i) {
     safe_free((void **)&lm[i]->mod_type);
     safe_free((void **)&lm[i]->mod_values[0]);
   }
