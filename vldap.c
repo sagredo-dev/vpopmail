@@ -15,6 +15,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
  */
+/* the valias functions use the synchronous calls (ldap_search_s(),
+ * ldap_get_values(), ...) that OpenLDAP 2.5+ only declares with this */
+#define LDAP_DEPRECATED 1
 #include <lber.h>
 #include <ldap.h>
 #include <pwd.h>
