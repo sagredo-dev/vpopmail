@@ -394,9 +394,6 @@
 #undef USE_MYSQL
 
 /* "" */
-#undef USE_ORACLE
-
-/* "" */
 #undef USE_POSTGRES
 
 /* "" */
@@ -404,9 +401,6 @@
 
 /* "" */
 #undef USE_SQLITE
-
-/* "" */
-#undef USE_SYBASE
 
 /* Enable extensions on AIX 3, Interix.  */
 #ifndef _ALL_SOURCE
