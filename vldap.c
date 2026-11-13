@@ -120,7 +120,7 @@ struct vqpasswd *vauth_getpw(char *user, char *domain) {
   struct vqpasswd *vpw = NULL;
   LDAPMessage *res = NULL, *msg = NULL;
   struct berval **rval = NULL;
-  char *filter = NULL, **vals = NULL, *h = NULL, *t = NULL, *passwd = NULL;
+  char *filter = NULL, *h = NULL, *t = NULL, *passwd = NULL;
   char *dn = NULL;
   uid_t myuid;
   uid_t uid;
@@ -295,9 +295,9 @@ struct vqpasswd *vauth_getpw(char *user, char *domain) {
     vpw->pw_shell = (char *)safe_malloc(1);
 
   if (rval) {
-    memset((char *)vpw->pw_shell, 0, (strlen(*vals) + 1));
+    memset((char *)vpw->pw_shell, 0, (*rval)->bv_len + 1);
     memcpy((char *)vpw->pw_shell, (char *)((*rval)->bv_val),
-           (*rval)->bv_len + 1);
+           (*rval)->bv_len);
     ldap_value_free_len(rval);
   } else {
     *vpw->pw_shell = '\0';
@@ -310,7 +310,7 @@ struct vqpasswd *vauth_getpw(char *user, char *domain) {
     vpw->pw_gecos = (char *)safe_malloc((*rval)->bv_len + 1);
     memset((char *)vpw->pw_gecos, 0, (*rval)->bv_len + 1);
     memcpy((char *)vpw->pw_gecos, (char *)((*rval)->bv_val),
-           (*rval)->bv_len + 1);
+           (*rval)->bv_len);
     ldap_value_free_len(rval);
   } else
     fprintf(stderr, "Error\n");
@@ -320,7 +320,7 @@ struct vqpasswd *vauth_getpw(char *user, char *domain) {
   if (rval) {
     vpw->pw_dir = (char *)safe_malloc((*rval)->bv_len + 1);
     memset((char *)vpw->pw_dir, 0, (*rval)->bv_len + 1);
-    memcpy((char *)vpw->pw_dir, (char *)((*rval)->bv_val), (*rval)->bv_len + 1);
+    memcpy((char *)vpw->pw_dir, (char *)((*rval)->bv_val), (*rval)->bv_len);
     ldap_value_free_len(rval);
   } else
     fprintf(stderr, "Error\n");
@@ -348,10 +348,21 @@ struct vqpasswd *vauth_getpw(char *user, char *domain) {
     vpw->pw_clear_passwd = (char *)safe_malloc((*rval)->bv_len + 1);
     memset((char *)vpw->pw_clear_passwd, 0, (*rval)->bv_len + 1);
     memcpy((char *)vpw->pw_clear_passwd, (char *)((*rval)->bv_val),
-           (*rval)->bv_len + 1);
+           (*rval)->bv_len);
     ldap_value_free_len(rval);
   }
 #endif
+
+  /* callers expect strings, as the other modules give, also for attributes
+   * the entry does not have */
+  if (vpw->pw_gecos == NULL) vpw->pw_gecos = (char *)calloc(1, 1);
+  if (vpw->pw_dir == NULL) vpw->pw_dir = (char *)calloc(1, 1);
+  if (vpw->pw_clear_passwd == NULL) vpw->pw_clear_passwd = (char *)calloc(1, 1);
+  if (vpw->pw_gecos == NULL || vpw->pw_dir == NULL ||
+      vpw->pw_clear_passwd == NULL) {
+    printf("No more memory...exiting\n");
+    exit(1);
+  }
 
   vlimits_setflags(vpw, domain);
 
@@ -369,9 +380,10 @@ struct vqpasswd *vauth_getall(char *domain, int first, int sortit) {
   size_t len = 0;
   struct vqpasswd *pw = NULL;
   LDAPMessage *res = NULL;
-  char *filter = NULL, **vals = NULL;
+  char *filter = NULL;
   char *basedn = NULL;
   struct berval **rval = NULL;
+  char user[MAX_PW_NAME + 1];
 
   /* if 1st time through, extract all users from this chosen domain */
   if (first) {
@@ -439,7 +451,9 @@ struct vqpasswd *vauth_getall(char *domain, int first, int sortit) {
     }
 
     /* grab the vpopmail properties of this user */
-    pw = vauth_getpw(*vals, domain);
+    snprintf(user, sizeof(user), "%.*s", (int)(*rval)->bv_len, (*rval)->bv_val);
+    ldap_value_free_len(rval);
+    pw = vauth_getpw(user, domain);
 
     return pw;
   } else {
@@ -458,9 +472,9 @@ struct vqpasswd *vauth_getall(char *domain, int first, int sortit) {
       return NULL;
     }
 
-    pw = vauth_getpw(*vals, domain);
-
+    snprintf(user, sizeof(user), "%.*s", (int)(*rval)->bv_len, (*rval)->bv_val);
     ldap_value_free_len(rval);
+    pw = vauth_getpw(user, domain);
 
     return pw;
   }
