@@ -43,6 +43,22 @@
     - One connection with a busy timeout, finalize statements once, refuse empty queries.
     - vauth_deluser(): cleanup failures do not decide the result.
     - vauth_adduser(): fail when the domain is not in assign.
+  - vmakedotqmail: 
+    - updated for new etc/vdefaultdelivery situation
+    - check etc/vdefaultdelivery before reading it, read past 0xff bytes, close it on every path by @yitzhaq
+  - File-based limits: keep the mailing list user and moderator permissions; vpopmaild
+    get_limits sends them as perm_maillist_users and perm_maillist_moderators, as set_limits
+    takes them, by @yitzhaq
+  - LDAP module by @yitzhaq
+    - Build with OpenLDAP 2.5+ (vldap_connect(); the valias functions' synchronous API).
+    - vauth_getpw(), vauth_getall(): fix NULL pointer crashes; "" for missing attributes.
+    - vauth_adduser(): set cn and sn, which the schema requires.
+    - vauth_setpw(): allocate room for the terminating NULL.
+    - Accept a host name as the server; connect once.
+    - Escape values in search filters and DNs.
+    - Store Argon2id hashes as {ARGON2ID}, crypt() hashes as {crypt}.
+    - Free search results and modification lists.
+  - Remove the Sybase and Oracle auth modules by @yitzhaq
 
 5.6.14 - Sep 16, 2026
   - storage.h: refactored 64-bit endian conversion handling, replacing non-portable GNU-specific byte-swap
