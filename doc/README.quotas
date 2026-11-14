@@ -81,11 +81,6 @@ VPOPMAIL AND MAILDIRQUOTAS                               (updated 16/Jan/2004)
 
 * CAVEATS
 
-    MAILDROP
-
-    If you use maildrop for filtering, compile it with maildirquota support 
-    if you want to use it with vpopmail 5.1.1 and above with quotas.
-
     POP SERVERS
 
     qmail-pop3d does not update maildirsize when you delete messages.  

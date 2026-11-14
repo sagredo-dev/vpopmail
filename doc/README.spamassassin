@@ -30,8 +30,6 @@ following entries to vlimits.default, or .qmailadmin-limits, respectively:
 disable_spamassassin
 delete_spam
 
-If you want to automatically filter mail, see README.maildrop
-
 
 Bill Shupp
 hostmaster@shupp.org

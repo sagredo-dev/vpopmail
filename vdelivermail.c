@@ -1840,98 +1840,17 @@ int is_spam(char *spambuf, int len, int *in_headers) {
 #endif
 
 
-/* Hand the message to maildrop, which files it itself; fdcopy()'s caller then discards the
- * tmp file we had been writing.
- *
- * WARNING: This feature has had minimal testing. In all of vpopmail's history its maildrop
- * feature has never been capable of handling valias lines (or user-not-found catchall instructions)
- * that specify a maildir. It only worked if it coincidentally matched the user's home directory.
- * Perhaps admins would be better served by running maildrop from within defaultdelivery instead.
- *
- * fdcopy()'s own extra_headers went to write_fd,
- * not to stdin, so preline is what puts them in front of the message here.
- *
- * read_fd is the message to hand over, and must be passed rather than left to inheritance.
- * For an ordinary delivery it is already fd 0 and the dup2 below is a no-op. For a quota
- * warning it is the open .quotawarn.msg, while fd 0 still holds the incoming message that a
- * previous maildrop run consumed to EOF -- inheriting fd 0 there fed maildrop nothing and
- * lost the warning entirely. When SpamAssassin ran, fdcopy() has replaced fd 0 with spamc's
- * output and read_fd is 0, so the dup2 is skipped and maildrop reads the filtered message.
- *
- * Don't rewind: fdcopy() already rewound stdin where that was right, and doing it again would
- * be wrong in the spamc case.
- *
- * Every failure exits, so the caller needs no error path. Non-zero from maildrop defers rather
- * than bounces: maildrop signals temporary failure with EX_TEMPFAIL 75.
- */
-void run_maildrop(int read_fd) {
-  char *args[3];
-  pid_t pid;
-  int wstat, ret, xcode, saved_errno;
-
-  #ifndef MAILDROP_PROG
-  #define MAILDROP_PROG NULL
-  #endif
-
-  // preline prepends the Delivered-To and Return-Path lines maildrop expects, taken from DTLINE and RPLINE.
-  args[0] = QMAILDIR "bin/preline"; /* QMAILDIR carries its own trailing slash */
-  args[1] = MAILDROP_PROG;
-  args[2] = NULL;
-
-  pid = fork();
-  saved_errno = errno;
-  if (pid == -1) {
-    vexiterr(EXIT_DEFER, ERROR, "", "maildrop failed, unable to fork, errno=%d %s",
-             saved_errno, strerror(saved_errno));
-  }
-  if (pid == 0) {
-    if (read_fd != 0 && dup2(read_fd, 0) == -1) _exit(121);
-    sig_catch(SIGPIPE, SIG_DFL);
-    execv(args[0], args);
-    /* Don't report errors to stdout here: stdout belongs to the parent, which sees 120 via waitpid. */
-    _exit(120);
-  }
-
-  do {
-    ret = waitpid(pid, &wstat, 0);
-  } while (ret < 0 && errno == EINTR);
-  saved_errno = errno;
-
-  if (ret < 0) {
-    vexiterr(EXIT_DEFER, ERROR, "", "maildrop failed, waitpid errno=%d (%s)",
-             saved_errno, strerror(saved_errno));
-  }
-  if (WIFSIGNALED(wstat)) {
-    vexiterr(EXIT_DEFER, ERROR, "", "maildrop failed, received signal %d", WTERMSIG(wstat));
-  }
-  if (!WIFEXITED(wstat)) {
-    vexiterr(EXIT_DEFER, ERROR, "", "maildrop failed, terminated abnormally");
-  }
-
-  xcode = WEXITSTATUS(wstat);
-  if (xcode == 120) {
-    vexiterr(EXIT_DEFER, ERROR, "", "maildrop failed, could not execute %s", args[0]);
-  }
-  if (xcode == 121) {
-    vexiterr(EXIT_DEFER, ERROR, "", "maildrop failed, could not place the message on stdin");
-  }
-  if (xcode != 0) {
-    vexiterr(EXIT_DEFER, ERROR, "", "maildrop failed, exited %d", xcode);
-  }
-}
-
-
-/**
+/*
  * @returns if delivery worked
  * @retval 0 message was delivered as is
  * @retval -1 error
  *
  * delete_mail / move_mail / in_headers may be NULL (e.g. inject / stdout);
  * only set when non-NULL.
- * local: 1 means delivering to a Maildir (enable SA/maildrop paths)
+ * local: 1 means delivering to a Maildir (enable SpamAssassin processing)
  * spamc_user: identity for spamc -u. Empty string skips spamc
  */
-/* effective_flags is the resolved NO_MAILDROP/NO_SPAMASSASSIN/DELETE_SPAM policy
+/* effective_flags is the resolved NO_SPAMASSASSIN/DELETE_SPAM policy
  * (a vqpasswd pw_flags value -- see vlimits_setflags()/calc_effective_flags())
  * for whoever actually owns the delivery this call is for. The caller is
  * responsible for resolving it correctly (confirmed owner vs. not); this
@@ -1987,18 +1906,6 @@ static int fdcopy(int write_fd, int read_fd, const char *extra_headers,
   }
 #endif
 
-#ifdef MAILDROP
-  // WARNING: This delivery pathway ignores the message file we just created on disk and
-  // then maildrop obtains the message content from stdin. It determines the destination
-  // by parsing EXT and HOST all over again. valias lines that specify othe maildir paths
-  // are disregarded.
-  if (local == 1 && !(effective_flags & NO_MAILDROP)) {
-    run_maildrop(read_fd);
-    if (delete_mail) *delete_mail = 1;
-    return (0);
-  }
-#endif
-
   /* read it in chunks and write it to the new file */
   while ((file_count = read(read_fd, msgbuf, sizeof(msgbuf))) > 0) {
 #ifdef SPAMASSASSIN
@@ -2031,7 +1938,7 @@ static int fdcopy(int write_fd, int read_fd, const char *extra_headers,
   /* No body */
   if (in_headers && *in_headers == 1 && delete_mail) *delete_mail = 1;
 #endif
-#if !defined(SPAMASSASSIN) && !defined(MAILDROP)
+#ifndef SPAMASSASSIN
   (void)delete_mail;
   (void)spamc_user;
   (void)effective_flags;
@@ -2066,7 +1973,7 @@ static bool is_trash_folder(const char *path) {
  *
  * final_message_size_out, when not NULL, receives the size of the message file once it has
  * been successfully generated on disk in the maildir's tmp/ -- after extra headers, and after
- * anything SpamAssassin or maildrop did to it, so it is not the size of the incoming message.
+ * anything SpamAssassin did to it, so it is not the size of the incoming message.
  * Set to 0 first, and left there whenever no complete file was produced: a write that failed
  * part-way (EDQUOT included), a close that failed, or a stdout delivery that never opens one.
  * It is reported even if the file is then discarded rather than filed.
@@ -2081,7 +1988,7 @@ static bool is_trash_folder(const char *path) {
  *
  * For spamc_user, empty string means don't attempt spamc at all.
  *
- * effective_flags is the resolved NO_MAILDROP/NO_SPAMASSASSIN/DELETE_SPAM policy
+ * effective_flags is the resolved NO_SPAMASSASSIN/DELETE_SPAM policy
  * for spamc_user's actual owner (see fdcopy()) -- the caller must resolve
  * this correctly, since a maildir delivery may not belong to spamc_user at all.
  *
@@ -2117,7 +2024,7 @@ int deliver_to_maildir(const char *maildir, const char *quota_root,
   if (final_message_size_out) *final_message_size_out = 0;
 
   if (DeliverToStdout) {
-    // Setting local=0 here, to avoid maildrop from doing a real delivery. Consider enabling spamc only, for this pathway.
+    // Setting local=0 here skips SpamAssassin processing for stdout delivery.
     if (fdcopy(1, read_fd, extra_headers, headerlen,
                spamc_user, NULL, NULL, NULL, 0, 0) < 0) {
       log_event(ERROR, "echo to stdout failed");
@@ -2190,16 +2097,16 @@ int deliver_to_maildir(const char *maildir, const char *quota_root,
       delete_mail = 1;
     } else if (final_message_size_out) {
       /* The file exists and is complete, so report its size whatever becomes of it next --
-       * including the discard just below, where SA or maildrop generated a perfectly good
+       * including the discard just below, where SpamAssassin generated a perfectly good
        * file in tmp/ and then declined to have it filed. */
       *final_message_size_out = sb.st_size;
     }
 
-    if (delete_mail == 1) { // only relevant to SA or maildrop
+    if (delete_mail == 1) { // only relevant to SpamAssassin
       if (unlink(local_file_tmp) != 0) {
         log_event(ERROR, "unlink failed %s errno = %d\n", local_file_tmp, errno);
-        // Rohan: removed return (errno); This is a success path because a message 
-        // landed in `tmp`, but SA/maildrop don't want it delivered, e.g. because it's spam.
+        // Rohan: removed return (errno); This is a success path because a message
+        // landed in `tmp`, but SpamAssassin doesn't want it delivered, e.g. because it's spam.
       }
       return (0);
     }
@@ -2595,15 +2502,15 @@ int deliver_quota_warning(const char *dir, const char *template_path, const char
   char extra_headers[HEADERS_SIZE] = "";
   const char *date;
 
-  // We use a local delivery_log here, as our caller, manage_deliver_to_maildir, is using the 
+  // We use a local delivery_log here, as our caller, manage_deliver_to_maildir, is using the
   // gelf.context.delivery to track its own in-progress delivery.
-  // vexiterr are only possible during deliver_to_maildir within its maildrop delivery path,
-  // but at least those will trigger a delivery log describing the outcome of our caller's primary delivery attempt.
+  // vexiterr may occur during deliver_to_maildir, but at least those will trigger a delivery
+  // log describing the outcome of our caller's primary delivery attempt.
   delivery_log_t delivery_log;
   delivery_log_t *d = &delivery_log;
 
   memset(d, 0, sizeof *d);
-  // don't set "source" or "instruction" - the delivery is not the result of a user-configured delivery instruction.  
+  // don't set "source" or "instruction" - the delivery is not the result of a user-configured delivery instruction.
   // Won't set maildir_initial_bytes, it'd be maildir_initial_bytes (from the primary delivery) + size by now.
   // Not setting other maildir_quota fields, we didn't check quota again for the sake of this warning message.
   // Not setting maildir_nearly_full again, that was set for the primary delivery.
@@ -3225,7 +3132,7 @@ Outputs, as fields of *c:
   quota_warning_user - the owner of the destination maildir, e.g. bob@example.com
   quota_root - where to find the maildirsize file. The file contains allocation and consumption figures.
   quota_allocation_source - "db" or "maildirsize"
-  effective_flags - NO_SPAMASSASSIN etc., spamc/maildrop builds only
+  effective_flags - NO_SPAMASSASSIN, used only in SpamAssassin builds
 */
 void calc_maildir_constraints(maildir_constraints_t *c, const vqpasswd_copy_t *recipient, const char *address,
  const char *abs_maildir) {
@@ -3234,10 +3141,10 @@ void calc_maildir_constraints(maildir_constraints_t *c, const vqpasswd_copy_t *r
   c->in_main_domains_tree = path_is_within(abs_maildir, DOMAINS_TREE);
 
   bool check_effective_flags = false;
-#if defined(SPAMASSASSIN) || defined(MAILDROP)
+#ifdef SPAMASSASSIN
   check_effective_flags = true;
 #endif
-  // Set fallback user flags, which leaves Maildrop enabled by default.
+  // Set fallback user flags.
   // We default to no spam check, as losing a message to broken/unwanted filtering 
   // is worse than receiving extra spam.
   c->effective_flags = NO_SPAMASSASSIN;
@@ -3576,7 +3483,6 @@ void manage_deliver_to_maildir(const char *address_in, const vqpasswd_copy_t *re
 
   delivery_log_t *d = &gelf.context.delivery;
   bool nearly_full_after_delivery = false;
-  bool enforce_quota = true;
 
   memset(d, 0, sizeof *d);
   d->in_progress = true;
@@ -3635,12 +3541,7 @@ void manage_deliver_to_maildir(const char *address_in, const vqpasswd_copy_t *re
     snprintf(d->maildir_quota_source, sizeof d->maildir_quota_source, "%s", c.quota_allocation_source);
   }
 
-#ifdef MAILDROP
-  // If we are delivering via maildrop, it should enforce quota itself.
-  enforce_quota = c.effective_flags & NO_MAILDROP;
-#endif
-
-  if (*c.quota && enforce_quota) {
+  if (*c.quota) {
     // If over-quota, this will bounce, and not return.
     enforce_maildir_quota(d, c.quota_root, c.overquota_bounce_template_dir, c.domain_quota_warning_template_dir,
       c.quota, c.quota_allocation_source, &nearly_full_after_delivery, c.quota_warning_user);
@@ -4527,7 +4428,7 @@ int main(int argc, char **argv) {
   if (getuid() == 0 || geteuid() == 0) {
     if (within_qmail_default) {
         printf(STANDARD_DEFER_MESSAGE "\n");
-        vexit(EXIT_DEFER); // if we are called by maildrop, it receives EPIPE before it can see our exit code.
+        vexit(EXIT_DEFER); // A piping caller receives EPIPE before it can see our exit code.
     }
     printf("Aborting: vdelivermail won't deliver as root; run it as the domain's owner, e.g. " VPOPUSER "\n");
     exit(1);
@@ -4537,7 +4438,7 @@ int main(int argc, char **argv) {
   if (gelf_setup(&gelf, config_file_problem, sizeof(config_file_problem)) != 0) {
     if (within_qmail_default) {
       printf("%s. (#4.3.0)\n", config_file_problem);
-      vexit(EXIT_DEFER); // if we are called by maildrop, it receives EPIPE before it can see our exit code.
+      vexit(EXIT_DEFER); // A piping caller receives EPIPE before it can see our exit code.
     }
     printf("%s. Aborting.\n", config_file_problem);
     exit(1);
@@ -4550,7 +4451,7 @@ int main(int argc, char **argv) {
     if (gelf.config.file.mandatory) {
       if (within_qmail_default) {
         printf("Unable to open log file %s. (#4.3.0)\n", gelf.config.file.path);
-        vexit(EXIT_DEFER); // if we are called by maildrop, it receives EPIPE before it can see our exit code.
+        vexit(EXIT_DEFER); // A piping caller receives EPIPE before it can see our exit code.
       }
       printf("%s. Aborting.\n", log_start_problem);
       exit(1);
@@ -4572,7 +4473,7 @@ int main(int argc, char **argv) {
 
   log_process_start(&gelf);
 
-  // Drain stdin first, to avoid preline or maildrop from receiving EPIPE and missing out on our carefully chosen exit codes.
+  // Drain stdin first, to avoid preline from receiving EPIPE and missing out on our carefully chosen exit codes.
   if (!isatty(0) && !Seekable(0)) {
     if (MakeSeekable(stdin) == -1) {
       if (! failed) {
