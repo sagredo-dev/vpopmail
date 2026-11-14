@@ -148,7 +148,6 @@
 #define DELETE_SPAM 0x8000
 #define SA_ADMIN 0x10000
 #define SA_EXPERT 0x20000
-#define NO_MAILDROP 0x40000
 
 /*  Constants for vlistlib  */
 #define MAX_SORT_BLOCKS 1000

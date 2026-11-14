@@ -1563,7 +1563,7 @@ int vget_limits(const char *domain, struct vlimits *limits) {
            "maxmsgcount, defaultquota, defaultmaxmsgcount, "
            "disable_pop, disable_imap, disable_dialup, "
            "disable_passwordchanging, disable_webmail, disable_relay, "
-           "disable_smtp, disable_spamassassin, delete_spam, disable_maildrop, "
+           "disable_smtp, disable_spamassassin, delete_spam, "
            "perm_account, "
            "perm_alias, perm_forward, perm_autoresponder, perm_maillist, "
            "perm_quota, perm_defaultquota \n"
@@ -1580,7 +1580,7 @@ int vget_limits(const char *domain, struct vlimits *limits) {
 
   rc = sqlite3_step(stmt_read);
   if (rc == SQLITE_ROW) {
-    int perm = atol(sqlite3_column_text(stmt_read, 23));
+    int perm = atol(sqlite3_column_text(stmt_read, 22));
 
     limits->maxpopaccounts = atoi(sqlite3_column_text(stmt_read, 0));
     limits->maxaliases = atoi(sqlite3_column_text(stmt_read, 1));
@@ -1601,19 +1601,18 @@ int vget_limits(const char *domain, struct vlimits *limits) {
     limits->disable_smtp = atoi(sqlite3_column_text(stmt_read, 15));
     limits->disable_spamassassin = atoi(sqlite3_column_text(stmt_read, 16));
     limits->delete_spam = atoi(sqlite3_column_text(stmt_read, 17));
-    limits->disable_maildrop = atoi(sqlite3_column_text(stmt_read, 18));
-    limits->perm_account = atoi(sqlite3_column_text(stmt_read, 19));
-    limits->perm_alias = atoi(sqlite3_column_text(stmt_read, 20));
-    limits->perm_forward = atoi(sqlite3_column_text(stmt_read, 21));
-    limits->perm_autoresponder = atoi(sqlite3_column_text(stmt_read, 22));
+    limits->perm_account = atoi(sqlite3_column_text(stmt_read, 18));
+    limits->perm_alias = atoi(sqlite3_column_text(stmt_read, 19));
+    limits->perm_forward = atoi(sqlite3_column_text(stmt_read, 20));
+    limits->perm_autoresponder = atoi(sqlite3_column_text(stmt_read, 21));
     limits->perm_maillist = perm & VLIMIT_DISABLE_ALL;
     perm >>= VLIMIT_DISABLE_BITS;
     limits->perm_maillist_users = perm & VLIMIT_DISABLE_ALL;
     perm >>= VLIMIT_DISABLE_BITS;
     limits->perm_maillist_moderators = perm & VLIMIT_DISABLE_ALL;
-    limits->perm_quota = strtoll(sqlite3_column_text(stmt_read, 24), NULL, 10);
+    limits->perm_quota = strtoll(sqlite3_column_text(stmt_read, 23), NULL, 10);
     limits->perm_defaultquota =
-        strtoll(sqlite3_column_text(stmt_read, 25), NULL, 10);
+        strtoll(sqlite3_column_text(stmt_read, 24), NULL, 10);
   } else if (rc == SQLITE_DONE) {
     vsqlite_finalize_read();
     return vlimits_read_limits_file(VLIMITS_DEFAULT_FILE, limits);
@@ -1640,7 +1639,7 @@ int vset_limits(const char *domain, const struct vlimits *limits) {
       "diskquota, maxmsgcount, defaultquota, defaultmaxmsgcount, "
       "disable_pop, disable_imap, disable_dialup, "
       "disable_passwordchanging, disable_webmail, disable_relay, "
-      "disable_smtp, disable_spamassassin, delete_spam, disable_maildrop, "
+      "disable_smtp, disable_spamassassin, delete_spam, "
       "perm_account, "
       "perm_alias, perm_forward, perm_autoresponder, perm_maillist, "
       "perm_quota, perm_defaultquota) \n"
@@ -1653,7 +1652,7 @@ int vset_limits(const char *domain, const struct vlimits *limits) {
       limits->disable_pop, limits->disable_imap, limits->disable_dialup,
       limits->disable_passwordchanging, limits->disable_webmail,
       limits->disable_relay, limits->disable_smtp, limits->disable_spamassassin,
-      limits->delete_spam, limits->disable_maildrop, limits->perm_account,
+      limits->delete_spam, limits->perm_account,
       limits->perm_alias, limits->perm_forward, limits->perm_autoresponder,
       (limits->perm_maillist |
        (limits->perm_maillist_users << VLIMIT_DISABLE_BITS) |

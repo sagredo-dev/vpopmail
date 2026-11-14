@@ -162,10 +162,6 @@ int main(int argc, char *argv[])
                 printf("  DEL_SPAM\n");
                 strncat(OptionString, "x", sizeof(OptionString)-strlen(OptionString)-1);
             }
-            if (limits.disable_maildrop != 0) {
-                printf("  NO_MAILDROP\n");
-                strncat(OptionString, "m", sizeof(OptionString)-strlen(OptionString)-1);
-            }
             printf("Flags (for commandline): %s\n", OptionString);
             printf("Flags for non postmaster accounts:");
             printf("\n  pop account:            ");
@@ -254,7 +250,6 @@ int main(int argc, char *argv[])
             limits.disable_relay = 0;
             limits.disable_spamassassin = 0;
             limits.delete_spam = 0;
-            limits.disable_maildrop = 0;
             for (i=0; i<(int)strlen(GidFlagString); i++) {
                 switch(GidFlagString[i]) {
                     case 'u': limits.disable_dialup = 1; break;
@@ -266,7 +261,6 @@ int main(int argc, char *argv[])
                     case 'r': limits.disable_relay = 1; break;
                     case 'c': limits.disable_spamassassin = 1; break;
                     case 'x': limits.delete_spam = 1; break;
-                    case 'm': limits.disable_maildrop = 1; break;
                 }
             }
         }
@@ -416,9 +410,8 @@ void usage()
     printf("            r ( set no external relay flag )\n");
     printf("            c ( set no spamassasssin flag )\n");
     printf("            x ( set delete spam flag )\n");
-    printf("            m ( set no maildrop flag )\n");
 
-    
+
     printf("the following options are bit flags for non postmaster admins\n");
     printf("         -p \"flags\"  (set pop account flags)\n");
     printf("         -a \"flags\"  (set alias flags)\n");

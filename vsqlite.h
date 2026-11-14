@@ -256,7 +256,6 @@ valias_line text not null"
       disable_smtp             integer NOT NULL DEFAULT 0, \
       disable_spamassassin     integer NOT NULL DEFAULT 0, \
       delete_spam              integer NOT NULL DEFAULT 0, \
-      disable_maildrop		   integer NOT NULL DEFAULT 0, \
       perm_account             integer NOT NULL DEFAULT 0, \
       perm_alias               integer NOT NULL DEFAULT 0, \
       perm_forward             integer NOT NULL DEFAULT 0, \
