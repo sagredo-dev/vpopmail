@@ -728,7 +728,7 @@ set_limits domain
 
 Rights required: SA_ADMIN, or QA_ADMIN with override_domain_limits rights.
 
-Action:  Set Limits informaiton for a domain.  
+Action:  Set Limits information for a domain.  
 ```
 max_popaccounts
 max_aliases
