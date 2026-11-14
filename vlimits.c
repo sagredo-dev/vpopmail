@@ -497,9 +497,11 @@ int vlimits_write_limits_file(const char *dir, const struct vlimits *limits)
         fprintf(fs, "perm_alias: %d\n", limits->perm_alias);
         fprintf(fs, "perm_forward: %d\n", limits->perm_forward);
         fprintf(fs, "perm_autoresponder: %d\n", limits->perm_autoresponder);
-        fprintf(fs, "perm_maillist: %d\n", limits->perm_maillist);
-        fprintf(fs, "perm_quota: %d\n",
-          (limits->perm_quota)|(limits->perm_maillist_users<<VLIMIT_DISABLE_BITS)|(limits->perm_maillist_moderators<<(VLIMIT_DISABLE_BITS*2)));
+        /* the mailing list user and moderator bits go with perm_maillist,
+         * where vget_limits() and the SQL modules read them */
+        fprintf(fs, "perm_maillist: %d\n",
+          (limits->perm_maillist)|(limits->perm_maillist_users<<VLIMIT_DISABLE_BITS)|(limits->perm_maillist_moderators<<(VLIMIT_DISABLE_BITS*2)));
+        fprintf(fs, "perm_quota: %d\n", limits->perm_quota);
         fprintf(fs, "perm_defaultquota: %d\n", limits->perm_defaultquota);
         fclose(fs);
     } else {
