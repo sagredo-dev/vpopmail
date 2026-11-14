@@ -686,8 +686,7 @@ Action:  Display the mapping between IP addresses and domain names.
 
 get_limits domain
 
-Rights required: Any.  SA_ADMIN can read all domains, all other users
-                 can only read their own domain.
+Rights required: SA_ADMIN
 
 Action:  Return Limits information for a domain.  If no special limits 
          are set, it returns the default limit settings for all domains.
