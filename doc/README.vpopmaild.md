@@ -4,10 +4,7 @@ get_user_size user@example.com
 
 get_domain_size domain
 
-
-
-==========================================================================
-
+---------------------------------------
 
 Vpopmaild provides a way for authorized clients to perform most of the 
 tasks you can do with the vpopmail command line tools, without having 
@@ -20,8 +17,7 @@ combination of the original information provided by Ken Jones, the
 original author of vpopmaild, a list of functions available by Rick 
 Widmer and some pages from John Simpson's qmail web site:
 
-  http://qmail.jms1.net/
-
+  <http://qmail.jms1.net/>
 
 The most basic capability of vpopmaild is to verify whether or not a
 given email address and password are correct.  This can be done with 
@@ -36,17 +32,6 @@ administrators.  Creating addresses, aliasas and such within a domain
 for system and domain administrators.  Anyone can change their password,
 set up a forward or vacation message.  (Try help from various users.)
 
-
-There are at least two projects to replace qmailadmin using the daemon.
-Rick Widmer has one on SourceForge called pmailadmin.  Currently only
-the daemon interface and system library are operational.
-
-   http://pmailadmin.sourceforge.net/
-
-Bill Shupp has announced a project, it is currently only available
-if you email the author.
-
-
 There are five sections to the rest of this document:
 
   1: Using the service
@@ -59,14 +44,7 @@ There are five sections to the rest of this document:
 
   5: Interpreting Errors
 
---------------------------------------------------------------------
---------------------------------------------------------------------
---------------------------------------------------------------------
---------------------------------------------------------------------
-
-1 :   U s i n g   t h e   s e r v i c e 
-
-
+#1   Using the service 
 
 If you don't yet have the daemon running, skip down to section 3, 
 Installing the Daemon, and use one of those options to start the daemon.
@@ -74,6 +52,7 @@ Once the service is running, you can test it by telnetting to localhost
 port 89. This is a sample of what it looks like when running as a service
 on port 89.
 
+```
   $ telnet localhost 89
   Trying 127.0.0.1...
   Connected to 127.0.0.1.
@@ -112,6 +91,7 @@ on port 89.
   quit
   +OK
   Connection closed by foreign host.
+```
 
 As you can see, when you successfully log into the service, it shows
 you pretty much everything about the account you are logged into.  The
@@ -123,7 +103,7 @@ access the daemon, it is probably easier to decode the bitmap than the
 lines of text.  The bit values are listed in section 4 near the end of
 this file.
 
-
+```
   $ telnet localhost 89
   Trying 127.0.0.1...
   Connected to 127.0.0.1.
@@ -146,13 +126,14 @@ this file.
   quit
   +OK
   Connection closed by foreign host.
-
+```
 
 When all you need to know is if the current login is valid, use the slogin
 command.  Think Silent Login.  All this returns is +OK if the user exists
 and the password is valid or -ERR if either is incorrect.  You should send
 the quit command before you disconnect from the service.
 
+```
   $ telnet 127.0.0.1 89
   Trying 127.0.0.1...
   Connected to 127.0.0.1.
@@ -163,7 +144,7 @@ the quit command before you disconnect from the service.
   quit
   +OK
   Connection closed by foreign host.
-
+```
 
 A few things are worth mentioning here...
 
@@ -191,8 +172,9 @@ account, you can use the following command:
 
 As root...
 
+```
   # vmoduser -a postmaster@domain.xyz
-
+```
 You can run vmoduser by itself to see the list of flags which can be set. 
 Note that some of the flags may not have any effect on your system, 
 depending on how vpopmail was compiled.
@@ -202,31 +184,25 @@ flag.)  If you are going to have user with system admin rights, you might
 want to create a domain with an illegal name like  illegal.xyz  vpopmaild 
 will allow you to login, but there is no way to send email to this domain.
 
+```
   #  vadddomain illegal.xyz postmaster-password
   #  vmoduser -S postmaster@illegal.xyz
+```
 
-
-
---------------------------------------------------------------------
---------------------------------------------------------------------
---------------------------------------------------------------------
---------------------------------------------------------------------
-
-2 :    C o m m a n d s 
-
-
+#2 Commands 
 
 consider ordering commands from lesser rights to more rights.
 
 NOTE: mod_user is the one with the breakdown of the gidflage bitmap.
 
-
 --------------------------------------------------------------------
 
+```
 login user@domain.ext password  - verbose user/domain attributes
 clogin user@domain.ext password - compact user/domain attributes
 slogin user@domain.ext password - silent, just return success or 
                                   failure of login
+```
 
 Rights required: Must be a valid email address.
 
@@ -346,8 +322,6 @@ encrypted_password - an already encrypted password.  This only sets the
 system_admin_privileges - allow this user full access to all domains.
 
 system_expert_privileges - allow this user to edit .qmail files.
-
-
 
 --------------------------------------------------------------------
 
@@ -610,7 +584,6 @@ in the file.  After the last line of the file a line containing only
 a period '.' is sent to mark the end of file.
 
 
-
 --------------------------------------------------------------------
 
 list_domains [page lines_per_page]
@@ -720,6 +693,7 @@ Action:  Return Limits information for a domain.  If no special limits
          are set, it returns the default limit settings for all domains.
          Find out where these files are kept, and add it here.
 
+```
 max_popaccounts
 max_aliases
 max_forwards
@@ -746,7 +720,7 @@ perm_autoresponder
 perm_maillist
 perm_quota
 perm_defaultquota
-
+```
 
 --------------------------------------------------------------------
 
@@ -755,7 +729,7 @@ set_limits domain
 Rights required: SA_ADMIN, or QA_ADMIN with override_domain_limits rights.
 
 Action:  Set Limits informaiton for a domain.  
-
+```
 max_popaccounts
 max_aliases
 max_forwards
@@ -782,7 +756,7 @@ perm_autoresponder
 perm_maillist
 perm_quota
 perm_defaultquota
-
+```
 
 --------------------------------------------------------------------
 
@@ -867,30 +841,22 @@ Action:	Display a list of the commands currently available to the
 	"clogin", "slogin", "help", and "quit" commands are shown.
 
 
-
-
---------------------------------------------------------------------
---------------------------------------------------------------------
---------------------------------------------------------------------
---------------------------------------------------------------------
-
-
-3 :    R u n n i n g   v p o p m a i l d
+#3 Running vpopmaild
 
 
 For a simple quick test, just run the daemon at the command line.
 
 As root...
-
+```
   # ./vpopmaild
-
+```
 
 To run under tcpserver temporarily from the command line:
 
 As root...
-
+```
   # tcpserver -vHRD 0 89 ./vpopmaild
-
+```
 
 Running vpopmaild under daemontools is the only way to run it as a
 mission critical service.
@@ -905,7 +871,7 @@ on 127.0.0.1, which on most systems is the "localhost" interface- which
 means that the packets never physically leave the machine, and 
 therefore cannot be "sniffed" by other machines.
 
-Setting up the service
+## Setting up the service
 
 Note that the commands below assume that your daemontools services are 
 physically running in the /var/service directory.  If you keep your 
@@ -915,45 +881,50 @@ is not under /service or you will not be able to reliably stop the
 service when needed.
 
 As root...
-
+```
   # mkdir -m 1755 /var/service/vpopmaild
   # cd /var/service/vpopmaild
-
+```
 Copy the following lines into a file named run in the directory you
 just created.  Don't include the  --- lines in the file, they just 
 show the beginning and end of the file.
 
----------------------------------------------------------------------
+```
 #!/bin/sh
 exec 2>&1
 exec env - PATH="/usr/bin:/bin:/usr/local/bin" \
      tcpserver -vHRD 127.0.0.1 89 ~vpoppmail/bin/vpopmaild
----------------------------------------------------------------------
+```
 
+```
   # chmod 755 run
   # mkdir -m 755 log
   # cd log
+```
 
 Copy the following lines into a file named run in the directory you
 just created.
 
----------------------------------------------------------------------
+```
 #!/bin/sh
 VQ="/var/qmail"
 exec env - PATH="$VQ/bin:/usr/local/bin:/usr/bin:/bin" \
      multilog t n1024 s1048576 ./mail \
      '-*' '+*ver: status:*' =lstatus
----------------------------------------------------------------------
+```
 
+```
   # chmod 755 run
   # ln -s /var/service/vpopmaild /service/
+```
 
 Wait a few seconds...
 
+```
   # svstat /service/vpopmaild
   /service/vpopmaild: up (pid 22457) 7 seconds
   /service/vpopmaild/log: up (pid 22460) 7 seconds
-
+```
 
 
 Using the service
@@ -963,15 +934,7 @@ port 89.  Go back to the section on Running the deamon for an example
 session.
 
 
-
---------------------------------------------------------------------
---------------------------------------------------------------------
---------------------------------------------------------------------
---------------------------------------------------------------------
-
-4 :     B i t m a p   d e f i n i t i o n  
-
-
+#4 Bitmap definition  
 
 This appeared early in the discussion leading to the daemon, so
 until I find a better place for it, I'll add it here.  The important
@@ -984,83 +947,115 @@ from Ken on the vpopmail list.
 
 
 I'll try to give a detailed listing.
+
+```
 #define NO_PASSWD_CHNG 0x01
+```
 If set, the code should not allow the password to be changed
 
+```
 #define NO_POP         0x02
+```
 If set, reject pop authentications
 
+```
 #define NO_WEBMAIL     0x04
+```
 If set, reject webmail authentications
 
+```
 #define NO_IMAP        0x08
+```
 If set, reject imap authentications
 
+```
 #define BOUNCE_MAIL    0x10
+```
 If set, bounce any incoming mail back to the sender
 
+```
 #define NO_RELAY       0x20
+```
 If set, do not allow the account to relay email.
 This is useful for sites that want to have email accounts that
 are only allowed to send email internally.
 
+```
 #define NO_DIALUP      0x40
+```
 If set, code should not allow dialup access. This was originally
 added to support radius sites.
 
+```
 #define V_USER0       0x080
 #define V_USER1       0x100
 #define V_USER2       0x200
 #define V_USER3       0x400
+```
 After adding the NO_DIALUP flag we realized there may be other
 flags people will want that are not directly used by any email code.
 
+```
 #define NO_SMTP       0x800
+```
 If set, do not allow smtp connections.
 
+```
 #define QA_ADMIN     0x1000
+```
 If set, the user is granted admin privileges in qmailadmin
 
+```
 #define V_OVERRIDE   0x2000
+```
 If set, the user is not subject to domain limits. Part of the
 vlimit code.
 
+```
 #define NO_SPAMASSASSIN 0x4000
+```
 If set, (and --enable-spamassassin=y) do not process the
 incoming mail through spamassassin. 
 
+```
 #define DELETE_SPAM  0x8000
+```
 with --enable-spamasssassin=y setting this flag
 will delete all email above the users required_hits
 preference.
 
 
-==============================================================================
+------------------------------------------------------
 The original readme from Ken:
 
 To run as daemon:
+
+```
 tcpserver -vHRD 0 89 ./vpopmaild
+```
 
 Then as client
+```
 telnet localhost 89
+```
 
 Or to run on the command line for testing
+```
 ./vpopmaild
-
+```
 First login. example:
+
+```
 login postmaster@example.com password
+```
 
 Then for list of commands:
+
+```
 help
+```
 
-
---------------------------------------------------------------------
---------------------------------------------------------------------
---------------------------------------------------------------------
---------------------------------------------------------------------
-
-5 :     E r r o r    M e s s a g e    F o r m a t
-
+#5 Error Message Format
 
 Error messages are in the form  ERR- major.minor message  
 
@@ -1070,7 +1065,6 @@ which test within the source code triggered the error message.  The last two
 digits should indicate the error number within a function, and the rest should 
 identify which function the failure happened in.  You can search the source 
 code with this value to find the point where an error happened.
-
 
 The actual error messages are stored in the file vpopmaild.msg for easy translation.
 Once there are other language files, I'll create a directory to store the various
