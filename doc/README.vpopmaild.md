@@ -44,7 +44,7 @@ There are five sections to the rest of this document:
 
   5: Interpreting Errors
 
-#1   Using the service 
+# Using the service 
 
 If you don't yet have the daemon running, skip down to section 3, 
 Installing the Daemon, and use one of those options to start the daemon.
@@ -189,7 +189,7 @@ will allow you to login, but there is no way to send email to this domain.
   #  vmoduser -S postmaster@illegal.xyz
 ```
 
-#2 Commands 
+# Commands 
 
 consider ordering commands from lesser rights to more rights.
 
@@ -841,7 +841,7 @@ Action:	Display a list of the commands currently available to the
 	"clogin", "slogin", "help", and "quit" commands are shown.
 
 
-#3 Running vpopmaild
+# Running vpopmaild
 
 
 For a simple quick test, just run the daemon at the command line.
@@ -927,14 +927,14 @@ Wait a few seconds...
 ```
 
 
-Using the service
+# Using the service
 
 Once the service is running, you can test it by telnetting to localhost
 port 89.  Go back to the section on Running the deamon for an example 
 session.
 
 
-#4 Bitmap definition  
+# Bitmap definition  
 
 This appeared early in the discussion leading to the daemon, so
 until I find a better place for it, I'll add it here.  The important
@@ -1055,7 +1055,7 @@ Then for list of commands:
 help
 ```
 
-#5 Error Message Format
+# Error Message Format
 
 Error messages are in the form  ERR- major.minor message  
 
