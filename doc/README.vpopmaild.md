@@ -686,7 +686,7 @@ Action:  Display the mapping between IP addresses and domain names.
 
 get_limits domain
 
-Rights required: SA_ADMIN, or QA_ADMIN with override_domain_limits rights.
+Rights required: SA_ADMIN
 
 Action:  Return Limits information for a domain.  If no special limits 
          are set, it returns the default limit settings for all domains.
@@ -725,7 +725,7 @@ perm_defaultquota
 
 set_limits domain
 
-Rights required: SA_ADMIN, or QA_ADMIN with override_domain_limits rights.
+Rights required: SA_ADMIN
 
 Action:  Set Limits information for a domain.  
 ```
