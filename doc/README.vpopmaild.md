@@ -927,7 +927,7 @@ Wait a few seconds...
 ```
 
 
-# Using the service
+## Using the service
 
 Once the service is running, you can test it by telnetting to localhost
 port 89.  Go back to the section on Running the deamon for an example 
