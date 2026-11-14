@@ -9,6 +9,7 @@ run the followiing on an existing vpopmail database:
 
 ``` sql
 ALTER TABLE `limits` MODIFY `perm_maillist` SMALLINT NOT NULL DEFAULT 0;
+ALTER TABLE `limits` DROP `disable_maildrop`;
 ```
 
 Upgrading to vpopmail-5.6.x

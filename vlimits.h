@@ -42,7 +42,6 @@ struct vlimits {
       short     disable_smtp;
       short     disable_spamassassin;
       short     delete_spam;
-      short     disable_maildrop;
 
       /* the following permissions are for non-postmaster admins */
       short     perm_account;

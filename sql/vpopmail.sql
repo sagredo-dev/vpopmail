@@ -83,7 +83,6 @@ CREATE TABLE IF NOT EXISTS `limits` (
   `disable_smtp` tinyint(1) NOT NULL DEFAULT 0,
   `disable_spamassassin` tinyint(1) NOT NULL DEFAULT 0,
   `delete_spam` tinyint(1) NOT NULL DEFAULT 0,
-  `disable_maildrop` tinyint(1) NOT NULL DEFAULT 0,
   `perm_account` tinyint(2) NOT NULL DEFAULT 0,
   `perm_alias` tinyint(2) NOT NULL DEFAULT 0,
   `perm_forward` tinyint(2) NOT NULL DEFAULT 0,

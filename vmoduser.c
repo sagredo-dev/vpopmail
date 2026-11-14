@@ -154,7 +154,6 @@ void usage()
     printf("         -E ( grant expert privileges - edit .qmail files )\n");
     printf("         -f ( disable spamassassin)\n");
     printf("         -F ( delete spam)\n");
-    printf("         -m ( disable maildrop)\n");
     printf("  [The following flags aren't used directly by vpopmail but are]\n");
     printf("  [included for other programs that share the user database.]\n");
     printf("         -u ( set no dialup flag )\n");
@@ -265,9 +264,6 @@ void get_options(int argc,char **argv)
                 break;
             case 'F':
                 GidFlag |= DELETE_SPAM;
-                break;
-            case 'm':
-                GidFlag |= NO_MAILDROP;
                 break;
             case 'h':
                 usage();

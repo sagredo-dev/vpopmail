@@ -287,7 +287,6 @@ INDEX (alias, domain)"
       disable_smtp             TINYINT(1) NOT NULL DEFAULT 0, \
       disable_spamassassin     TINYINT(1) NOT NULL DEFAULT 0, \
       delete_spam              TINYINT(1) NOT NULL DEFAULT 0, \
-      disable_maildrop	       TINYINT(1) NOT NULL DEFAULT 0, \
       perm_account             TINYINT(2) NOT NULL DEFAULT 0, \
       perm_alias               TINYINT(2) NOT NULL DEFAULT 0, \
       perm_forward             TINYINT(2) NOT NULL DEFAULT 0, \

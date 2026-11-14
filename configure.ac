@@ -1158,58 +1158,6 @@ esac
 
 #----------------------------------------------------------------------
 
-AC_MSG_CHECKING(whether maildrop is enabled)
-AC_ARG_ENABLE(maildrop,
-        [  --enable-maildrop          Enable maildrop. See  README.maildrop for more info.],
-        ENABLE_MAILDROP=$enableval,
-                [
-                        ENABLE_MAILDROP=0
-                ]
-)
-
-case $ENABLE_MAILDROP in
-  0*|n*|N*)
-      AC_MSG_RESULT(no)
-      ;;
-  *)
-      AC_MSG_RESULT(yes)
-      ENABLE_MAILDROP=1
-      AC_DEFINE_UNQUOTED(MAILDROP,$ENABLE_MAILDROP,"")
-
-    AC_MSG_CHECKING(whether we can locate the maildrop program)
-    for f in /usr/bin/maildrop /usr/local/bin/maildrop
-    do
-        if test -f $f
-        then
-            maildrop_prog=$f
-            break
-        fi
-    done
-    AC_ARG_ENABLE(maildrop-prog,
-        [  --enable-maildrop-prog=PATH    Full path to maildrop program [/usr/{local/}bin/maildrop].],
-        maildrop_prog="$enableval",
-        [
-            if test "$maildrop_prog" = ""
-            then
-                AC_MSG_RESULT(no)
-                AC_MSG_ERROR([Unable to find your maildrop prog, specify --enable-maildrop-prog.])
-            fi
-        ]
-    )
-
-    if test ! -f "$maildrop_prog"
-    then
-        AC_MSG_RESULT(no)
-        AC_MSG_ERROR([Unable to find your maildrop program, specify --enable-maildrop-prog=/full/path/to/maildrop])
-    fi
-
-    AC_MSG_RESULT(yes)
-    AC_DEFINE_UNQUOTED(MAILDROP_PROG,"$maildrop_prog","")
-
-      ;;
-esac
-
-#----------------------------------------------------------------------
 AC_MSG_CHECKING(whether domainquotas is enabled)
 AC_ARG_ENABLE(domainquotas,
         [  --enable-domainquotas      Enable non-system domain quotas. See README.quotas for more info.],
@@ -2382,15 +2330,6 @@ if test "${enable_spam_threshold+set}" = set; then
 else
     echo "    spam threshold = OFF --disable-spam-threshold (default)"
 fi
-
-case $ENABLE_MAILDROP in
-  1*|y*|Y*)
-    echo "          maildrop = ON  --enable-maildrop"
-    ;;
-  *)
-    echo "          maildrop = OFF --disable-maildrop (default)"
-    ;;
-esac
 
 echo "${CC} -O2" > cdb/conf-cc
 echo "${CC} -s" > cdb/conf-ld
