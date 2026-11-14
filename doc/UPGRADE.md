@@ -68,11 +68,13 @@ Upgrading to vpopmail-5.4.33
 ----------------------------
 If you are storing limits in MySQL, the following schema changes must be made:
 
+``` sql
 ALTER TABLE `limits` ADD `disable_maildrop` TINYINT(1) DEFAULT '0' NOT NULL AFTER `disable_spamassassin`;
 ALTER TABLE `limits` MODIFY `diskquota` BIGINT UNSIGNED NOT NULL DEFAULT 0;
 ALTER TABLE `limits` MODIFY `maxmsgcount` BIGINT UNSIGNED NOT NULL DEFAULT 0;
 ALTER TABLE `limits` MODIFY `defaultquota` BIGINT UNSIGNED NOT NULL DEFAULT 0;
 ALTER TABLE `limits` MODIFY `defaultmaxmsgcount` BIGINT UNSIGNED NOT NULL DEFAULT 0;
+```
 
 Upgrading to vpopmail-5.4.18
 ----------------------------
@@ -95,6 +97,7 @@ the 'vpopmail' table with one for each of your domain tables.  Also, the
 ip_alias_map, vlog and limits tables only exist if various configuration
 options are enabled, so they may or may not be relevant on your system.
 
+``` sql
 ALTER TABLE `dir_control` CHANGE `domain` `domain` CHAR(96) NOT NULL;
 ALTER TABLE `ip_alias_map` CHANGE domain domain CHAR(96) NOT NULL;
 ALTER TABLE `lastauth` CHANGE domain domain CHAR(96) NOT NULL;
@@ -105,6 +108,7 @@ ALTER TABLE `vpopmail` CHANGE pw_domain pw_domain CHAR(96) NOT NULL;
 ALTER TABLE `limits` CHANGE domain domain CHAR(96) NOT NULL,
       ADD `disable_spamassassin` TINYINT(1) DEFAULT '0' NOT NULL AFTER `disable_smtp`,
       ADD `delete_spam` TINYINT(1) DEFAULT '0' NOT NULL AFTER `disable_spamassassin`;
+```
 
 Upgrading to vpopmail-5.4
 -------------------------
@@ -113,6 +117,7 @@ Upgrading to 5.4 from 5.3.x or 5.2.x is straight forward.
 
 It should really be a case of following these basic steps
 
+```
   tar xzf vpopmail-5.4.0.tar.gz
   cd vpopmail-5.4.0
 
@@ -125,6 +130,7 @@ It should really be a case of following these basic steps
 
   make
   make install-strip
+```
 
 This will overwrite your existing vpopmail files with the 5.4 versions.
 No adjustment to your various qmail run scripts etc should be required.
@@ -173,8 +179,6 @@ MYSQL SPECIFIC
     so if you are using MySQL you will need to edit the file so it
     contains the correct settings for your database.
     
-
-
 Upgrading to vpopmail-5.2
 -------------------------
 Everything should be backwardly compatible with
@@ -218,7 +222,9 @@ to make it as easy as possible.
 
 The configure options that work for most sites is:
 
+```
 ./configure ; make ; make install-strip
+```
 
 If you are running a mysql, ldap or anything besides
 the default vpasswd(cdb) module follow the normal
@@ -234,17 +240,22 @@ ALTER TABLE vpopmail ADD COLUMN pw_clear_passwd char(16);
 If you are using pop authentication before relay,
 otherwise known as roaming-users add the
 
+```
 --enable-roaming-users=y option
+```
 
 If you are running mysql add:
 
+```
 --enable-mysql=y option
+```
 
 If you think email for jack-test@domain.com should go
 should be delivered to jack@domain.com mailbox add:
 
+```
 --enable-qmail-ext=y option
-
+```
 
 If you are running a site which has many users (more than 10,000)
 AND you plan on *never* having more than 10 domains on your machine
@@ -266,6 +277,5 @@ run the vcdir program that is in the contrib
 directory. See the contrib/vcdir.README file 
 for more details.
 
-
 Quotas
-Please read README.quotas for information about the new softquota mechanism.
+Please read [README.quotas](README.quotas) for information about the new softquota mechanism
