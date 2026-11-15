@@ -65,7 +65,9 @@ Keep in mind:
 - The LDAP module stores the hash as `{crypt}{ARGON2ID}$argon2id$...`; it checks passwords
   itself, but an LDAP server that checks binds against `userPassword` will not understand it.
 
-## Upgrading from version 5.4.33
+## Upgrading
+
+### Upgrading from version 5.4.33
 
 When upgrading from version 5.4.33 to version 5.6.x, if you have the accounts on SQL, you should
 enlarge the `vpopmail.pw_passwd` column size, as the default password encryption is SHA512, which is
@@ -77,7 +79,7 @@ Here is the SQL query to upgrade the `vpopmail` table:
 ALTER TABLE `vpopmail` CHANGE `pw_passwd` `pw_passwd` VARCHAR(128) CHARACTER SET latin1 COLLATE latin1_swedish_ci NULL DEFAULT NULL;
 ```
 
-### Changes for PostgreSQL only
+#### Changes for PostgreSQL only
 
 You have to widen the columns that hold IP addresses from varchar(18) to varchar(39), so that IPv6
 addresses fit (as already done for MySQL). Only run the statements for the tables that exist in your database:
@@ -93,7 +95,7 @@ ALTER TABLE lastauth ALTER COLUMN remote_ip TYPE varchar(39);
 ALTER TABLE ip_alias_map ALTER COLUMN ip_addr TYPE varchar(39);
 ```
 
-## Upgrading from version 5.6.3
+### Upgrading from version 5.6.3
 
 Several other non breaking changes have been made to the `MySQL` tables' layout.  
 Here is how you can quickly alter the tables (inlcluded the change mentioned above):
@@ -136,7 +138,7 @@ ALTER TABLE `aliasdomains` CHANGE `alias` `alias` VARCHAR(96) CHARACTER SET lati
 ALTER TABLE `aliasdomains` CHANGE `domain` `domain` VARCHAR(96) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL; 
 ```
 
-## Upgrading from version 5.6.x > 5.6.3
+### Upgrading from version 5.6.x > 5.6.3
 
 For `MySQL`/`MariaDB` only, with `--enable-mysql-limits`, run on an existing `vpopmail` database:
 
