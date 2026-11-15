@@ -136,6 +136,14 @@ ALTER TABLE `aliasdomains` CHANGE `alias` `alias` VARCHAR(96) CHARACTER SET lati
 ALTER TABLE `aliasdomains` CHANGE `domain` `domain` VARCHAR(96) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL; 
 ```
 
+## Upgrading from version 5.6.x > 5.6.3
+
+For `MySQL`/`MariaDB` only, with `--enable-mysql-limits`, run on an existing `vpopmail` database:
+
+``` sql
+ALTER TABLE `limits` MODIFY `perm_maillist` SMALLINT NOT NULL DEFAULT 0;
+```
+
 ## Usage for `s/qmail` users
 
 The location of the users' cdb file in [`s/qmail`](https://www.fehcom.de/sqmail/sqmail.html) is `assign.cdb`.
