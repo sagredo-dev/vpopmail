@@ -1,6 +1,6 @@
 # ChangeLog
 
-5.7.0 - Oct 27, 2026
+5.7-dev
   - vdelivermail: structured logging, quota enforcement, :default and vdefaultdelivery by Rohan Carly in https://github.com/sagredo-dev/vpopmail/pull/16
   - Remove --enable-make-seekable feature and --enable-defaultdelivery option in https://github.com/sagredo-dev/vpopmail/pull/18
   - configure.ac: throw an error if tinycdb is enabled while the auth-module is not cdb by @sagredo-dev in https://github.com/sagredo-dev/vpopmail/pull/17
