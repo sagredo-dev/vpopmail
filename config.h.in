@@ -260,12 +260,6 @@
 #undef LOG_NAME
 
 /* "" */
-#undef MAILDROP
-
-/* "" */
-#undef MAILDROP_PROG
-
-/* "" */
 #undef MANY_DOMAINS
 
 /* "" */

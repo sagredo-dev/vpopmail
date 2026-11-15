@@ -799,8 +799,6 @@ enable_spamassassin
 enable_spamc_prog
 enable_spam_junkfolder
 enable_spam_threshold
-enable_maildrop
-enable_maildrop_prog
 enable_domainquotas
 enable_logger_syslog
 enable_logger_sqlite
@@ -1510,8 +1508,6 @@ Optional Features:
   --enable-spamc-prog=PATH   Full path to spamc program /usr/{local/}bin/spamc.
   --enable-spam-junkfolder   Automatically move (not deleted) spam messages into Junk folder
   --enable-spam-threshold=# or n Automatically delete messages that score more than # spam hits
-  --enable-maildrop          Enable maildrop. See  README.maildrop for more info.
-  --enable-maildrop-prog=PATH    Full path to maildrop program /usr/{local/}bin/maildrop.
   --enable-domainquotas      Enable non-system domain quotas. See README.quotas for more info.
   --enable-logger-syslog   Log all changes to syslog
   --enable-logger-sqlite   Log all changes to a sqlite database
@@ -9103,77 +9099,6 @@ esac
 
 #----------------------------------------------------------------------
 
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether maildrop is enabled" >&5
-printf %s "checking whether maildrop is enabled... " >&6; }
-# Check whether --enable-maildrop was given.
-if test ${enable_maildrop+y}
-then :
-  enableval=$enable_maildrop; ENABLE_MAILDROP=$enableval
-else $as_nop
-
-                        ENABLE_MAILDROP=0
-
-
-fi
-
-
-case $ENABLE_MAILDROP in
-  0*|n*|N*)
-      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-      ;;
-  *)
-      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-      ENABLE_MAILDROP=1
-
-printf "%s\n" "#define MAILDROP $ENABLE_MAILDROP" >>confdefs.h
-
-
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether we can locate the maildrop program" >&5
-printf %s "checking whether we can locate the maildrop program... " >&6; }
-    for f in /usr/bin/maildrop /usr/local/bin/maildrop
-    do
-        if test -f $f
-        then
-            maildrop_prog=$f
-            break
-        fi
-    done
-    # Check whether --enable-maildrop-prog was given.
-if test ${enable_maildrop_prog+y}
-then :
-  enableval=$enable_maildrop_prog; maildrop_prog="$enableval"
-else $as_nop
-
-            if test "$maildrop_prog" = ""
-            then
-                { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-                as_fn_error $? "Unable to find your maildrop prog, specify --enable-maildrop-prog." "$LINENO" 5
-            fi
-
-
-fi
-
-
-    if test ! -f "$maildrop_prog"
-    then
-        { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-        as_fn_error $? "Unable to find your maildrop program, specify --enable-maildrop-prog=/full/path/to/maildrop" "$LINENO" 5
-    fi
-
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-
-printf "%s\n" "#define MAILDROP_PROG \"$maildrop_prog\"" >>confdefs.h
-
-
-      ;;
-esac
-
-#----------------------------------------------------------------------
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether domainquotas is enabled" >&5
 printf %s "checking whether domainquotas is enabled... " >&6; }
 # Check whether --enable-domainquotas was given.
@@ -12140,15 +12065,6 @@ if test "${enable_spam_threshold+set}" = set; then
 else
     echo "    spam threshold = OFF --disable-spam-threshold (default)"
 fi
-
-case $ENABLE_MAILDROP in
-  1*|y*|Y*)
-    echo "          maildrop = ON  --enable-maildrop"
-    ;;
-  *)
-    echo "          maildrop = OFF --disable-maildrop (default)"
-    ;;
-esac
 
 echo "${CC} -O2" > cdb/conf-cc
 echo "${CC} -s" > cdb/conf-ld
