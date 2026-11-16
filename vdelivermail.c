@@ -1231,7 +1231,7 @@ bool test_config(void) {
   loaded = load_text_file(DefaultDeliveryFile, &instructions);
   if (loaded == -1) {
     // Could end up in systemd journal:
-    printf("INFO: vdefaultdelivery file %s not found, but the file is not compulsary.\n", DefaultDeliveryFile);
+    printf("INFO: vdefaultdelivery file %s not present (optional)\n", DefaultDeliveryFile);
   }
   else if (loaded == -2) {
     printf("ERROR: vdefaultdelivery file %s can't be read, or has a line too long\n", DefaultDeliveryFile);
