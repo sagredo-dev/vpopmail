@@ -133,6 +133,13 @@ sh EXT=user HOST=example.com RPLINE=$'Return-Path: <sender@example.net>\n' \
 
 `-d` only diverts the final maildir write. Forwards and programs in valias rows or .qmail files still run for real.
 
+### Checking the configuration: `vdelivermail -t`
+
+`vdelivermail -t` checks the setup without delivering anything and without putting anything in the log file. It checks
+`vdelivermail.ini`, `vdefaultdelivery` and the database connection, prints one line per check, and exits 0 if
+everything is usable, or 1 if not. Run it as root or as the vpopmail user. As root, it first switches to vpopmail's uid
+and gid, so that every check is made with the permissions a real delivery has.
+
 
 ## Configuration
 

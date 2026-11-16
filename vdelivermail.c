@@ -926,7 +926,7 @@ int validate_forwarding_address(char* line, int check_mode) {
     if (strlen(line) >= AUTH_SIZE) {
       snprintf(msg, sizeof msg, "invalid email address - too long: %.80s...", line);
       if (check_mode) {
-        printf("ERROR: %s",msg);
+        printf("ERROR: %s\n",msg);
       }
       else {
         vexiterr(EXIT_BOUNCE, ERROR, "", "%s",msg);
@@ -940,7 +940,7 @@ int validate_forwarding_address(char* line, int check_mode) {
         is_username_valid(local_part) != 0 || is_domain_valid(domain) != 0) {
       snprintf(msg, sizeof msg, "invalid email address: %s", line);
       if (check_mode) {
-        printf("ERROR: %s",msg); 
+        printf("ERROR: %s\n",msg);
       } 
       else {
         vexiterr(EXIT_BOUNCE, ERROR, "", "%s",msg);
@@ -953,7 +953,7 @@ int validate_forwarding_address(char* line, int check_mode) {
     if (is_username_valid(line) != 0) {
       snprintf(msg, sizeof msg, "invalid local-part-only email address: %s", line);
       if (check_mode) {
-        printf("ERROR: %s",msg); 
+        printf("ERROR: %s\n",msg);
       } 
       else {
         vexiterr(EXIT_BOUNCE, ERROR, "", "%s",msg);
@@ -963,6 +963,141 @@ int validate_forwarding_address(char* line, int check_mode) {
   }
   return 1;
 }
+
+
+int validate_shell_command(char* line) {
+  if (strstr(line, "vdelivermail") != NULL) {
+    printf("ERROR: calling vdelivermail from vdefaultdelivery is deprecated.\n");
+    return 0; // fatal in test mode, accepted in production for backward compatability
+  }
+  return 1;
+}
+
+
+int validate_path_to_maildir(char* line) {
+  // Detect programming error
+  // if (line[0] != '.' && line[0] != '/') {
+  //   printf("ERROR: unexpected first character for path to Maildir");
+  //   return 0;
+  // };
+
+  // Valid in a filename, but almost certainly a mistake, e.g. a \r mid-line from a Windows editor.
+  for (const char *c = line; *c != '\0'; c++) {
+    if (iscntrl((unsigned char)*c)) {
+      char shown[3 * MAX_BUFF]; // sanitise_inplace writes 3 bytes (U+FFFD) per bad byte
+      snprintf(shown, sizeof shown, "%s", line);
+      sanitise_inplace(shown, sizeof shown, false, NULL, NULL);
+      printf("ERROR: Maildir path %s contains control character %d (0x%02x)\n",
+             shown, (unsigned char)*c, (unsigned char)*c);
+      return 0;
+    }
+  }
+
+  // Unlike qmail-local, we only allow Maildirs, not mbox files.
+  if (line[strlen(line) - 1] != '/') {
+    printf("ERROR: can't handle mbox delivery for %s\n", line);
+    return 0;
+  }
+
+  return 1;
+}
+
+
+// In a vdefaultdelivery file, we reject every directive
+int validate_directive(char* line) {
+  if (strcmp(line,":default") == 0) {
+    printf("ERROR: :default is only valid in the valias table\n");
+    return 0;
+  }
+
+  printf("ERROR: invalid directive: %s\n", line + 1); // line is ":<directive>"
+  return 0; // sic
+}
+
+
+// Designed for -t mode only, not for normal operation. Here we want to describe errors and continue parsing.
+// In this case we have freedom to prints errors to stdout.
+int validate_default_delivery(char** instructions) {
+  int i;
+  char* line;
+  char* p;
+  int valid=1;
+  int significant_rows=0;
+
+  if (instructions[0] == NULL) {
+    printf("WARN: vdefaultdelivery file is zero bytes. Mail will be discarded.\n"); // non-fatal, still valid
+    return 1;
+  };
+
+  for (i=1; instructions[i-1] != NULL; i++) {
+    line = instructions[i-1];
+    p=line;
+
+    if (*p == '#') { continue; };
+
+    while (isspace(*p)) p++; // also detects \r and \n
+
+    if (*p == '\0') {
+      // Blank lines are ignored, including the first. Unlike qmail-local's .qmail parsing, that's not an error.
+      continue;
+    }
+
+    // Now we have at least one character. 
+    significant_rows++;
+
+    // Remove trailing whitespace including newline characters.
+    p = line + strlen(line) - 1;
+    while (isspace(*p)) p--;
+    p++;
+    *p = '\0';
+  
+    // qmail-local's +list only means something in a .qmail file. Delivery would forward to "+list".
+    if (strcmp(line, "+list") == 0) {
+      printf("ERROR: +list is only valid in a .qmail file\n");
+      valid=0;
+      continue;
+    }
+
+    // set the pointer to the second character of line
+    switch (line[0]) {
+      case '.':
+      case '/':
+        valid = valid && validate_path_to_maildir(line);
+        break;
+      case '|':
+        p = line + 1;
+        valid = valid && validate_shell_command(p);
+        break;
+      case ':':
+        valid = valid && validate_directive(line);
+        break;
+      case '&':
+        p = line + 1;
+        valid = valid && validate_forwarding_address(p,1);
+        break;
+      default:
+        p = line;
+        while (isspace(*p)) p++; // also detects \r and \n
+        if (*p == '#') {
+          printf("ERROR: Comments must begin at beginning of line.\n");
+          valid=0;
+          break;
+        }
+        else if (*p == '.' || *p == '/' || *p == '|' || *p == ':' || *p == '&') {
+          printf("ERROR: delivery instructions must not have leading spaces.\n");
+          valid=0;
+          break;
+        }
+        valid = valid && validate_forwarding_address(line,1);
+    } // end switch
+  }
+
+  if (significant_rows==0) {
+    printf("WARN: vdefaultdelivery exists, is larger than 0 bytes, but has no instructions - mail will be discarded!\n"); // non-fatal, still valid
+  };
+
+  return valid;
+};
 
 
 /*
@@ -991,6 +1126,7 @@ void usage(void) {
   printf("options: -v, --version (print version number)\n");
   printf("         -V (verbose)\n");
   printf("         -h, --help (this help)\n");
+  printf("         -t (test config files and exit)\n");
   printf("         -d (dump delivery to stdout instead of Maildir)\n");
   printf("\ninstruction - what to do for user-not-found:\n");
   printf("  delete | bounce-no-mailbox | <email> | <Maildir>\n"); // the documented Maildir form is incorrect
@@ -998,6 +1134,139 @@ void usage(void) {
   printf("  vdelivermail \"\" delete\n");
   printf("  EXT=user HOST=example.com RPLINE=$'Return-Path: <sender@example.net>\\n' \\\n");
   printf("    ./vdelivermail -d \"\" delete < test.eml\n");
+  printf("  vdelivermail -t\n");
+}
+
+
+/*
+ * -t answers "will delivery work?", so it has to ask as the user that
+ * delivers. qmail-local setuids to vpopmail:vchkpw before running us, while
+ * whatever starts qmail is root: svscan, or systemd, whose ExecStartPre
+ * inherits the unit's User=. Drop to vpopmail here so that every check that
+ * follows - the log directory and the database connection alike - is made
+ * with the credentials that will be in force during a real delivery.
+ *
+ * Group before user: once the effective uid is not root, the privilege to
+ * change the effective gid is gone.
+ *
+ * Supplementary groups are deliberately not set up. Life With Qmail gives
+ * each qmail user a single primary group, owns the log directories by user
+ * (setuidgid qmaill) rather than making them group-writable, and keeps
+ * qmaill in the memberless "nofiles" group. A site relying on supplementary
+ * group membership has left that convention behind and can do without -t.
+ *
+ * Does not return if the credentials cannot be obtained.
+ */
+void assume_vpopmail_credentials(void) {
+  if (geteuid() == VPOPMAILUID && getegid() == VPOPMAILGID) {
+    return; /* already correct: run by hand as vpopmail, or from .qmail-default */
+  }
+
+  if (geteuid() != 0) {
+    printf("ERROR: -t must run as uid %d gid %d, or as root so it can switch; "
+           "it is running as uid %d gid %d\n",
+           (int)VPOPMAILUID, (int)VPOPMAILGID, (int)geteuid(), (int)getegid());
+    exit(1);
+  }
+
+  if (setegid(VPOPMAILGID) != 0) {
+    printf("ERROR: cannot switch to gid %d: %s\n", (int)VPOPMAILGID, strerror(errno));
+    exit(1);
+  }
+  if (seteuid(VPOPMAILUID) != 0) {
+    printf("ERROR: cannot switch to uid %d: %s\n", (int)VPOPMAILUID, strerror(errno));
+    exit(1);
+  }
+}
+
+
+// For -t. Opens an optional file as delivery would, rather than stat()ing it: only open()
+// answers "readable by us" exactly, and access() would check the real uid, not the
+// effective uid that assume_vpopmail_credentials() set.
+// what - describes the file in the messages, e.g. "global template".
+// Return value: true if the file is absent or usable, false if it exists but delivery couldn't use it.
+bool test_optional_file(const char *what, const char *path) {
+  struct stat st;
+  int fd;
+
+  if ((fd = open(path, O_RDONLY)) < 0) {
+    if (errno == ENOENT) {
+      printf("INFO: %s %s not present (optional)\n", what, path);
+      return true;
+    }
+    printf("ERROR: %s %s can't be opened: %s\n", what, path, strerror(errno));
+    return false;
+  }
+  // A directory opens fine, but delivery's first read of it would fail.
+  if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
+    printf("ERROR: %s %s is not a regular file\n", what, path);
+    close(fd);
+    return false;
+  }
+  close(fd);
+  printf("INFO: %s %s readable\n", what, path);
+  return true;
+}
+
+
+// Return value: true means configuration is valid.
+bool test_config(void) {
+  bool result = true;
+  char** instructions;
+  int loaded;
+
+  assume_vpopmail_credentials();
+  printf("INFO: checking as uid %d gid %d\n", (int)geteuid(), (int)getegid());
+  printf("INFO: domains tree %s\n", DOMAINS_TREE);
+
+  char config_path[MAX_BUFF];
+  if (gelf_load_config(&gelf.config, gelf_config_path(config_path, sizeof config_path), 1) != 0) {
+    printf("ERROR: configuration file is invalid.\n");
+    result = false;
+  } else {
+    printf("INFO: configuration file OK\n");
+  }
+  // TODO: free config
+
+  loaded = load_text_file(DefaultDeliveryFile, &instructions);
+  if (loaded == -1) {
+    // Could end up in systemd journal:
+    printf("INFO: vdefaultdelivery file %s not present (optional)\n", DefaultDeliveryFile);
+  }
+  else if (loaded == -2) {
+    printf("ERROR: vdefaultdelivery file %s can't be read, or has a line too long\n", DefaultDeliveryFile);
+    result = false;
+  }
+  else {
+    if (! validate_default_delivery(instructions)) {
+      printf("ERROR: vdefaultdelivery file %s has a syntax error\n", DefaultDeliveryFile);
+      result = false;
+    }
+    else {
+      printf("INFO: vdefaultdelivery file %s syntax OK\n", DefaultDeliveryFile);
+    }
+    free_array(instructions);
+  };
+
+  if (vauth_open(0) != 0) {
+      printf("ERROR: database: %s\n", verror(verrori)); // e.g. verrori VA_NO_AUTH_CONNECTION
+      result = false;
+  }
+  else {
+    printf("INFO: database connection OK\n");
+    vclose();
+  };
+
+  // Each template also has a per-domain copy, tried first during delivery; those aren't checked here.
+  if (! test_optional_file("global template", DOMAINS_TREE "/.quotawarn.msg")) result = false;
+  if (! test_optional_file("global template", DOMAINS_TREE "/.over-quota.msg")) result = false;
+  if (! test_optional_file("global template", DOMAINS_TREE "/.no-user.msg")) result = false;
+
+  // Used by vget_limits() for a domain with no limits of its own.
+  // Consider also parsing it with vlimits_read_limits_file(), as delivery does.
+  if (! test_optional_file("default limits file", VLIMITS_DEFAULT_FILE)) result = false;
+
+  return result;
 }
 
 
@@ -1016,13 +1285,15 @@ void process_interactive_mode_switches(int argc, char **argv) {
     }
   }
 
-  // For -h, -v we assume being run from command line, rather than from within .qmail-default
+  // For -h, -t, -v we assume being run from command line, rather than from within .qmail-default
   // If we needed additional safety, we could always EXIT_DEFER when getenv("DEFAULT") != NULL.
-  while ((c = getopt(argc, argv, "vdVh")) != -1) {
+  while ((c = getopt(argc, argv, "tvdVh")) != -1) {
     switch (c) {
       case 'h':
         usage();
         exit(0);
+      case 't':
+        vexit(test_config() ? 0 : 1); // vexit after vauth calls
       case 'v':
         print_version();
         exit(0);
@@ -1195,17 +1466,18 @@ void get_arguments(int argc, char **argv) {
     }
   }
 
-  // For -h, -v we assume being run from command line, rather than from within .qmail-default
+  // For -h, -t, -v we assume being run from command line, rather than from within .qmail-default
   // If we needed additional safety, we could always EXIT_DEFER when getenv("DEFAULT") != NULL.
   optind = 1;
 #if HAVE_DECL_OPTRESET
   optreset = 1;
 #endif
-  while ((c = getopt(argc, argv, "vdVh")) != -1) {
+  while ((c = getopt(argc, argv, "tvdVh")) != -1) {
     switch (c) {
       case 'h':
+      case 't':
       case 'v':
-        // -h/-v already exited, if DEFAULT was not set.
+        // -h/-t/-v already exited, if DEFAULT was not set.
         vexiterr(EXIT_DEFER, ERROR,"","%c not accepted when DEFAULT environment variable is set",c);
       case 'V':
         Verbose = 1;
@@ -4419,7 +4691,7 @@ int main(int argc, char **argv) {
   char log_start_problem[1024];
   bool logging_operational = false;
   
-  // Switches like -v need to work, even when configuration files are invalid.
+  // Switches like -t and -v need to work, even when configuration files are invalid.
   if (! within_qmail_default) {
     process_interactive_mode_switches(argc, argv);
   }
@@ -4440,7 +4712,7 @@ int main(int argc, char **argv) {
       printf("%s. (#4.3.0)\n", config_file_problem);
       vexit(EXIT_DEFER); // A piping caller receives EPIPE before it can see our exit code.
     }
-    printf("%s. Aborting.\n", config_file_problem);
+    printf("%s. For more detail run: vdelivermail -t. Aborting.\n", config_file_problem);
     exit(1);
   }
 
