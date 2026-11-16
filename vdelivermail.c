@@ -1180,8 +1180,38 @@ void assume_vpopmail_credentials(void) {
 }
 
 
-int test_config(void) {
-  int result = 1;
+// For -t. Opens an optional file as delivery would, rather than stat()ing it: only open()
+// answers "readable by us" exactly, and access() would check the real uid, not the
+// effective uid that assume_vpopmail_credentials() set.
+// what - describes the file in the messages, e.g. "global template".
+// Return value: true if the file is absent or usable, false if it exists but delivery couldn't use it.
+bool test_optional_file(const char *what, const char *path) {
+  struct stat st;
+  int fd;
+
+  if ((fd = open(path, O_RDONLY)) < 0) {
+    if (errno == ENOENT) {
+      printf("INFO: %s %s not present (optional)\n", what, path);
+      return true;
+    }
+    printf("ERROR: %s %s can't be opened: %s\n", what, path, strerror(errno));
+    return false;
+  }
+  // A directory opens fine, but delivery's first read of it would fail.
+  if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
+    printf("ERROR: %s %s is not a regular file\n", what, path);
+    close(fd);
+    return false;
+  }
+  close(fd);
+  printf("INFO: %s %s readable\n", what, path);
+  return true;
+}
+
+
+// Return value: true means configuration is valid.
+bool test_config(void) {
+  bool result = true;
   char** instructions;
   int loaded;
 
@@ -1192,7 +1222,7 @@ int test_config(void) {
   char config_path[MAX_BUFF];
   if (gelf_load_config(&gelf.config, gelf_config_path(config_path, sizeof config_path), 1) != 0) {
     printf("ERROR: configuration file is invalid.\n");
-    result = 0;
+    result = false;
   } else {
     printf("INFO: configuration file OK\n");
   }
@@ -1205,12 +1235,12 @@ int test_config(void) {
   }
   else if (loaded == -2) {
     printf("ERROR: vdefaultdelivery file %s can't be read, or has a line too long\n", DefaultDeliveryFile);
-    result=0;
+    result = false;
   }
   else {
     if (! validate_default_delivery(instructions)) {
       printf("ERROR: vdefaultdelivery file %s has a syntax error\n", DefaultDeliveryFile);
-      result=0;
+      result = false;
     }
     else {
       printf("INFO: vdefaultdelivery file %s syntax OK\n", DefaultDeliveryFile);
@@ -1220,14 +1250,21 @@ int test_config(void) {
 
   if (vauth_open(0) != 0) {
       printf("ERROR: database: %s\n", verror(verrori)); // e.g. verrori VA_NO_AUTH_CONNECTION
-      result=0;
+      result = false;
   }
   else {
     printf("INFO: database connection OK\n");
     vclose();
   };
 
-  // TODO: say if .quotawarn.msg , .over-quota.msg, .no-user.msg  exists and readable
+  // Each template also has a per-domain copy, tried first during delivery; those aren't checked here.
+  if (! test_optional_file("global template", DOMAINS_TREE "/.quotawarn.msg")) result = false;
+  if (! test_optional_file("global template", DOMAINS_TREE "/.over-quota.msg")) result = false;
+  if (! test_optional_file("global template", DOMAINS_TREE "/.no-user.msg")) result = false;
+
+  // Used by vget_limits() for a domain with no limits of its own.
+  // Consider also parsing it with vlimits_read_limits_file(), as delivery does.
+  if (! test_optional_file("default limits file", VLIMITS_DEFAULT_FILE)) result = false;
 
   return result;
 }
