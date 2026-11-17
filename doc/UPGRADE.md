@@ -12,6 +12,21 @@ ALTER TABLE `limits` MODIFY `perm_maillist` SMALLINT NOT NULL DEFAULT 0;
 ALTER TABLE `limits` DROP `disable_maildrop`;
 ```
 
+Checking a yescrypt hash needs about 16 MiB of memory, Argon2id 64 MiB. 
+Therefore, soflimits in programs which calls vchkpw such as qmail-smtpsd, qmail-submission
+should be set accordingly. The same for vpopmaild if it's using a soflimit.
+
+This is the suggested settings for the global softlimit:
+
+For yescrypt:
+- qmail-submission, qmail-smtpd: 50000000
+- vpopmaild: 40000000
+
+For Argon2id:
+- qmail-submission, qmail-smtpd: 100000000
+- vpopmaild: 100000000
+
+
 Upgrading to vpopmail-5.6.x
 ----------------------------
 When upgrading from version 5.4.33 to version 5.6.x, if you have the accounts on SQL, you should
