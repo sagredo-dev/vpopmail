@@ -4,7 +4,25 @@ you have the chkuser patch applied), Courier-IMAP etc.
 
 Upgrading to vpopmail-5.7.x
 ----------------------------
-If you have the accounts on MySQL / MariaDB, with --enable-mysql-limits, run
+
+`vpopmail-5.7.x` requires `inih` and `cjson`.
+
+Install like this in debian
+
+```
+apt install libinih-dev
+apt install libcjson-dev
+```
+
+On alma and (it should be the same on other RedHat-like systems)
+
+```
+dnf install inih-devel
+dnf install epel-release
+dnf install cjson-devel
+```
+
+If you have the accounts on MySQL / MariaDB, with `--enable-mysql-limits`, run
 the followiing on an existing vpopmail database:
 
 ``` sql
@@ -12,19 +30,48 @@ ALTER TABLE `limits` MODIFY `perm_maillist` SMALLINT NOT NULL DEFAULT 0;
 ALTER TABLE `limits` DROP `disable_maildrop`;
 ```
 
-Checking a yescrypt hash needs about 16 MiB of memory, Argon2id 64 MiB. 
-Therefore, soflimits in programs which calls vchkpw such as qmail-smtpsd, qmail-submission
-should be set accordingly. The same for vpopmaild if it's using a soflimit.
+#### Changes for PostgreSQL only
+
+You have to widen the columns that hold IP addresses from varchar(18) to varchar(39), so that IPv6
+addresses fit (as already done for MySQL). Only run the statements for the tables that exist in your database:
+
+    relay         --enable-roaming-users
+    lastauth      --enable-auth-logging
+    ip_alias_map  --enable-ip-alias-domains
+
+``` sql
+ALTER TABLE relay ALTER COLUMN ip_addr TYPE varchar(39);
+ALTER TABLE lastauth ALTER COLUMN remote_ip TYPE varchar(39);
+ALTER TABLE ip_alias_map ALTER COLUMN ip_addr TYPE varchar(39);
+```
+
+#### Password hashing
+
+`vpopmail-5.7` introduces `yescrypt` and, as an optional alternative, `Argon2id` password hashing.
+If you compiled `vpopmail` with `--enable-rehash-passwords` (default) the users' password
+will be rehashed at first access when calling `vchkpw` or `vpopmaild` or `vpassw` (not
+by imap or pop3). 
+
+Be aware that `yescrypt` (`--enable-yescrypt-passwords`, default) disables SHA-512, while
+`Argon2id` (`--enable-argon2id-passwords`, disabled by default, requires `libsodium`) disables
+`yescrypt`.  
+NB: If you enable a certain hash method, and then disable it, users won't be able
+to login anymore unless you reset their passwords.
+
+Checking a `yescrypt` hash needs about 16 MiB of memory, `Argon2id` 64 MiB. 
+Therefore, soflimits in programs which calls vchkpw such as `qmail-smtpsd`, `qmail-submission`
+should be set accordingly. The same for `vpopmaild` if it's using a soflimit.
 
 This is the suggested settings for the global softlimit:
 
-For yescrypt:
-- qmail-submission, qmail-smtpd: 50000000
-- vpopmaild: 40000000
+For `yescrypt`:
+- `qmail-submission`, `qmail-smtpsd`: 50000000
+- `vpopmaild`: 40000000
 
-For Argon2id:
-- qmail-submission, qmail-smtpd: 100000000
-- vpopmaild: 100000000
+For `Argon2id`:
+- `qmail-submission`, `qmail-smtpsd`: 100000000
+- `vpopmaild`: 100000000
+
 
 
 Upgrading to vpopmail-5.6.x
