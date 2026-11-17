@@ -4,7 +4,7 @@
 When qmail attempts to deliver a message to a `vpopmail` domain the first thing
 it does is look for delivery instructions in the following order:
 
- - if `valias` is enabled (`--enable-valias`) the SQL valiases are exetuted.
+ - if `valias` is enabled (`--enable-valias`) the SQL valiases are executed.
 
  - a `.qmail-user` file that matches the username (`.qmail-bob` is searched if the
    recipient is bob@domain.tld).
@@ -13,8 +13,8 @@ it does is look for delivery instructions in the following order:
    for the domain.
 
  - If no such _.qmail-*_ file is found, `qmail-local` executes the  _.qmail-default_
-   file for the domain. This is the point where vpopmail takes over the the delivery
-   process.  Vdelivermail searches the user database for the domain, and either
+   file for the domain. This is the point where `vpopmail` takes over the the delivery
+   process.  `vdelivermail` searches the user database for the domain, and either
    delivers the message to one of its existing accounts, or looks to its second
    parameter for instructions on what to do with messages to accounts that do not exist.
 
@@ -78,8 +78,7 @@ system, you really have to be a `qmail` guru to make it all work.
 
 ## Changes in version 5.7
 
-Thanks to Rohan Carly for the `vdelivermail` upgrade
-that is introduced below.
+Thanks to Rohan Carly for the `vdelivermail` upgrade that is introduced below.
 
 **1** 
 Build: `inih` (to read `vdelivermail.ini`) and `cJSON` (to build the JSON log records) are now required;
