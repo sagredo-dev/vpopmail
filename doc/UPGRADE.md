@@ -5,7 +5,7 @@ you have the chkuser patch applied), Courier-IMAP etc.
 Upgrading to vpopmail-5.7.x
 ----------------------------
 If you have the accounts on MySQL / MariaDB, with --enable-mysql-limits, run
-run the followiing on an existing vpopmail database:
+the followiing on an existing vpopmail database:
 
 ``` sql
 ALTER TABLE `limits` MODIFY `perm_maillist` SMALLINT NOT NULL DEFAULT 0;
