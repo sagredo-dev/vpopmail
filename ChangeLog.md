@@ -1,9 +1,10 @@
 # ChangeLog
 
-5.7-dev
+5.7.0
   - vdelivermail: structured logging, quota enforcement, :default and vdefaultdelivery by Rohan Carly in https://github.com/sagredo-dev/vpopmail/pull/16
   - Remove --enable-make-seekable feature and --enable-defaultdelivery option in https://github.com/sagredo-dev/vpopmail/pull/18
-  - configure.ac: throw an error if tinycdb is enabled while the auth-module is not cdb by @sagredo-dev in https://github.com/sagredo-dev/vpopmail/pull/17
+  - configure.ac: throw an error if tinycdb is enabled while the auth-module is not cdb in https://github.com/sagredo-dev/vpopmail/pull/17
+  - Remove obsolete maildrop support and disable_maildrop limit flag (--enable-maildrop) in https://github.com/sagredo-dev/vpopmail/pull/57
   - Password hashing by @yitzhaq in https://github.com/sagredo-dev/vpopmail/pull/46
     - Hash new passwords with yescrypt when crypt() supports it (libxcrypt), else SHA512 as
       before (--disable-yescrypt-passwords keeps SHA512). Existing hashes keep working; vchkpw and
