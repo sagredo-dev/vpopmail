@@ -5,21 +5,18 @@ you have the chkuser patch applied), Courier-IMAP etc.
 Upgrading to vpopmail-5.7.x
 ----------------------------
 
-`vpopmail-5.7.x` requires `inih` and `cjson`.
+`vpopmail-5.7.x` requires `inih`, `cjson` and `libcurl-devel`.
 
-Install like this in debian
-
-```
-apt install libinih-dev
-apt install libcjson-dev
-```
-
-On alma and (it should be the same on other RedHat-like systems)
+Install like this in debian:
 
 ```
-dnf install inih-devel
-dnf install epel-release
-dnf install cjson-devel
+apt install libinih-dev libcjson-dev libcurl4-openssl-dev
+```
+
+On RedHat-like systems:
+
+```
+dnf install inih-devel cjson-devel libcurl-devel
 ```
 
 If you have the accounts on MySQL / MariaDB, with `--enable-mysql-limits`, run
@@ -55,8 +52,9 @@ by imap or pop3).
 Be aware that `yescrypt` (`--enable-yescrypt-passwords`, default) disables SHA-512, while
 `Argon2id` (`--enable-argon2id-passwords`, disabled by default, requires `libsodium`) disables
 `yescrypt`.  
-NB: If you enable a certain hash method, and then disable it, users won't be able
-to login anymore unless you reset their passwords.
+**Note**: If you enable a certain hash method, and then disable it, users won't be able
+to login anymore unless you reset their passwords. For this reason it's strongly suggested to do a **database 
+backup** before the migration.
 
 Checking a `yescrypt` hash needs about 16 MiB of memory, `Argon2id` 64 MiB. 
 Therefore, soflimits in programs which calls vchkpw such as `qmail-smtpsd`, `qmail-submission`
