@@ -4,45 +4,46 @@
 
 This release contains security fixes, marked [security] below. All users are urged to upgrade. 
 
-  - Changes made by Rohan Carly in https://github.com/sagredo-dev/vpopmail/pull/16 and 
-    https://github.com/sagredo-dev/vpopmail/pull/58
-    - vdelivermail: added structured logging
-    - added etc/vdelivermail.ini configuration file
-    - quota enforcement
-    - added ~vpopmail/etc/vdefaultdelivery, which replaces control/defauldelivery
-    - :default option in valias executes ~vpopmail/etc/vdefaultdelivery
-    - vdelivermail -t tests configuration and database connection
   - Remove --enable-make-seekable feature and --enable-defaultdelivery option (now always active)
     in https://github.com/sagredo-dev/vpopmail/pull/18
   - configure.ac: throw an error if tinycdb is enabled while the auth-module is not cdb
     in https://github.com/sagredo-dev/vpopmail/pull/17
   - Remove obsolete maildrop support and disable_maildrop limit flag (--enable-maildrop)
     in https://github.com/sagredo-dev/vpopmail/pull/57
+  
+  - Changes made by Rohan Carly in https://github.com/sagredo-dev/vpopmail/pull/16,
+    https://github.com/sagredo-dev/vpopmail/pull/19 and https://github.com/sagredo-dev/vpopmail/pull/58
+    - vdelivermail: added structured logging
+    - added etc/vdelivermail.ini configuration file
+    - quota enforcement
+    - added ~vpopmail/etc/vdefaultdelivery, which replaces control/defauldelivery
+    - :default option in valias executes ~vpopmail/etc/vdefaultdelivery
+    - vdelivermail -t tests configuration and database connection
+
   - Changes made by [@yitzhaq](https://github.com/yitzhaq)
-    - \- authvchkpw: compare the whole password hash.
-    - \+ [security] authvchkpw: compare the whole password hash (wrong passwords could be accepted).
-    - \- Check the result of mkpasswd3() everywhere.
-    - \+ [security] Check the result of mkpasswd3() everywhere (a failed hash was stored as the password).
-    - \- get_remote_ip(): fix off-by-one overflow of ipbuf
-    - \+ [security] get_remote_ip(): fix off-by-one overflow of ipbuf
-    - \- get_remote_ip(): keep valid IPv6 addresses intact; write IPv6 relay rules with ':'.
-    - \+ [security] get_remote_ip(): keep valid IPv6 addresses intact (with --enable-roaming-users, a
-      login from ::1 could open the relay to e very client); write IPv6 relay rules with ':'.
-    - \- vdel_ip_map(): don't use map file lines as a format string.
-    - \+ [security] vdel_ip_map(): don't use map file lines as a format string.  
-    - PostgreSQL:
+    - [security] authvchkpw: compare the whole password hash (wrong passwords could be accepted), check the result
+	  of mkpasswd3() everywhere (a failed hash was stored as the password) in 
+	  https://github.com/sagredo-dev/vpopmail/pull/46
+    - [security] get_remote_ip(): fix off-by-one overflow of ipbuf in https://github.com/sagredo-dev/vpopmail/pull/20
+    - [security] get_remote_ip(): keep valid IPv6 addresses intact (with --enable-roaming-users, a
+      login from ::1 could open the relay to e very client); write IPv6 relay rules with ':', vdel_ip_map(): don't use
+	  map file lines as a format string in https://github.com/sagredo-dev/vpopmail/pull/50
+
+	- PostgreSQL (https://github.com/sagredo-dev/vpopmail/pull/48);
       - \- Escape SQL strings through libpq.
       - \+ [security] Escape SQL strings through libpq (SQL injection, also before login).
       - \- Fix double frees in the dir_control and ip map functions and in logsql().
       - \+ [security] Fix double frees in the dir_control and ip map functions and in logsql() (crashes,
-        e.g. vchkpw on a failed login).  
-    - SQLite:
+        e.g. vchkpw on a failed login).
+
+    - SQLite (https://github.com/sagredo-dev/vpopmail/pull/49):
       - \- Escape SQL strings by doubling quotes, single-quote all values.
       - \+ [security] Escape SQL strings by doubling quotes, single-quote all values (SQL injection).
       - \- One connection with a busy timeout, finalize statements once, refuse empty queries.
       - \+ [security] Finalize statements once (crash after a login in vpopmaild).
-      - \+ One connection with a busy timeout, refuse empty queries.  
-    - LDAP:
+      - \+ One connection with a busy timeout, refuse empty queries.
+
+    - LDAP (https://github.com/sagredo-dev/vpopmail/pull/55):
       - \- vauth_setpw(): allocate room for the terminating NULL.
       - \+ [security] vauth_setpw(): allocate room for the terminating NULL (heap overflow on every password change).
       - \- Escape values in search filters and DNs.
