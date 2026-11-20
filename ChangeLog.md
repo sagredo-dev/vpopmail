@@ -37,17 +37,13 @@ This release contains security fixes, marked [security] below. All users are urg
         e.g. vchkpw on a failed login).
 
     - SQLite (https://github.com/sagredo-dev/vpopmail/pull/49):
-      - \- Escape SQL strings by doubling quotes, single-quote all values.
-      - \+ [security] Escape SQL strings by doubling quotes, single-quote all values (SQL injection).
-      - \- One connection with a busy timeout, finalize statements once, refuse empty queries.
-      - \+ [security] Finalize statements once (crash after a login in vpopmaild).
-      - \+ One connection with a busy timeout, refuse empty queries.
+      - [security] Escape SQL strings by doubling quotes, single-quote all values (SQL injection).
+      - [security] Finalize statements once (crash after a login in vpopmaild).
+      - One connection with a busy timeout, refuse empty queries.
 
     - LDAP (https://github.com/sagredo-dev/vpopmail/pull/55):
-      - \- vauth_setpw(): allocate room for the terminating NULL.
-      - \+ [security] vauth_setpw(): allocate room for the terminating NULL (heap overflow on every password change).
-      - \- Escape values in search filters and DNs.
-      - \+ [security] Escape values in search filters and DNs (LDAP injection). 
+      - [security] vauth_setpw(): allocate room for the terminating NULL (heap overflow on every password change).
+      - [security] Escape values in search filters and DNs (LDAP injection). 
 
 5.6.14 - Sep 16, 2026
   - storage.h: refactored 64-bit endian conversion handling, replacing non-portable GNU-specific byte-swap
