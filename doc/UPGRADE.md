@@ -47,27 +47,27 @@ ALTER TABLE ip_alias_map ALTER COLUMN ip_addr TYPE varchar(39);
 `vpopmail-5.7` introduces `yescrypt` and, as an optional alternative, `Argon2id` password hashing.
 If you compiled `vpopmail` with `--enable-rehash-passwords` (default) the users' password
 will be rehashed at first access when calling `vchkpw` or `vpopmaild` or `vpassw` (not
-by imap or pop3). 
+by imap or pop3 unless they go through `vchkpw`). 
 
 Be aware that `yescrypt` (`--enable-yescrypt-passwords`, default) disables SHA-512, while
 `Argon2id` (`--enable-argon2id-passwords`, disabled by default, requires `libsodium`) disables
 `yescrypt`.  
-**Note**: If you enable a certain hash method, and then disable it, users won't be able
+**Note**: If you enable `Argon2id` hash method, and then disable it, users won't be able
 to login anymore unless you reset their passwords. For this reason it's strongly suggested to do a **database 
 backup** before the migration.
 
 Checking a `yescrypt` hash needs about 16 MiB of memory, `Argon2id` 64 MiB. 
 Therefore, soflimits in programs which calls vchkpw such as `qmail-smtpsd`, `qmail-submission`
-should be set accordingly. The same for `vpopmaild` if it's using a soflimit.
+should be set accordingly. The same for `vpopmaild` if it's using a softlimit.
 
 This is the suggested settings for the global softlimit:
 
 For `yescrypt`:
-- `qmail-submission`, `qmail-smtpsd`: 50000000
+- `qmail-submission`, `qmail-smtpsd`, `qmail-pop3d`, `qmail-popup`: 50000000
 - `vpopmaild`: 40000000
 
 For `Argon2id`:
-- `qmail-submission`, `qmail-smtpsd`: 100000000
+- `qmail-submission`, `qmail-smtpsd`, `qmail-pop3d`, `qmail-popup`: 100000000
 - `vpopmaild`: 100000000
 
 
