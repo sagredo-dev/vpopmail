@@ -30,10 +30,8 @@ This release contains security fixes, marked [security] below. All users are urg
 	  map file lines as a format string in https://github.com/sagredo-dev/vpopmail/pull/50
 
 	- PostgreSQL (https://github.com/sagredo-dev/vpopmail/pull/48);
-      - \- Escape SQL strings through libpq.
-      - \+ [security] Escape SQL strings through libpq (SQL injection, also before login).
-      - \- Fix double frees in the dir_control and ip map functions and in logsql().
-      - \+ [security] Fix double frees in the dir_control and ip map functions and in logsql() (crashes,
+      - [security] Escape SQL strings through libpq (SQL injection, also before login).
+      - [security] Fix double frees in the dir_control and ip map functions and in logsql() (crashes,
         e.g. vchkpw on a failed login).
 
     - SQLite (https://github.com/sagredo-dev/vpopmail/pull/49):
