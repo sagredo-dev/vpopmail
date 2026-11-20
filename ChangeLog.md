@@ -1,65 +1,52 @@
 # ChangeLog
 
-5.7.0
-  - vdelivermail: structured logging, quota enforcement, :default and vdefaultdelivery by Rohan Carly in https://github.com/sagredo-dev/vpopmail/pull/16
-  - Remove --enable-make-seekable feature and --enable-defaultdelivery option in https://github.com/sagredo-dev/vpopmail/pull/18
-  - configure.ac: throw an error if tinycdb is enabled while the auth-module is not cdb in https://github.com/sagredo-dev/vpopmail/pull/17
-  - Remove obsolete maildrop support and disable_maildrop limit flag (--enable-maildrop) in https://github.com/sagredo-dev/vpopmail/pull/57
-  - Password hashing by @yitzhaq in https://github.com/sagredo-dev/vpopmail/pull/46
-    - Hash new passwords with yescrypt when crypt() supports it (libxcrypt), else SHA512 as
-      before (--disable-yescrypt-passwords keeps SHA512). Existing hashes keep working; vchkpw and
-      vpopmaild upgrade them at the next login (--disable-rehash-passwords turns that off). Dovecot needs
-      no change as long as its host has libxcrypt.
-    - Optional Argon2id password hashes (--enable-argon2id-passwords, needs libsodium).
-    - authvchkpw: compare the whole password hash.
-    - Check the result of mkpasswd3() everywhere.
-    - vchkpw and vpopmaild log a password check that fails for lack of memory as such, not as a
-      wrong password, and log a rehash that fails, with a hint at the memory limit, in
-      https://github.com/sagredo-dev/vpopmail/pull/52
-  - IPv6 and relay rules by @yitzhaq in https://github.com/sagredo-dev/vpopmail/pull/50
-    - get_remote_ip(): fix off-by-one overflow of ipbuf in https://github.com/sagredo-dev/vpopmail/pull/20
-    - get_remote_ip(): keep valid IPv6 addresses intact; write IPv6 relay rules with ':'.
-    - vset_default_domain(): look up IPv6 and IPv4-mapped TCPLOCALIP correctly.
-    - vdel_ip_map(): don't use map file lines as a format string.
-  - MySQL module by @yitzhaq in https://github.com/sagredo-dev/vpopmail/pull/51
-    - Limits: read the permission columns at the right index, widen perm_maillist. Databases
-      with --enable-mysql-limits need sql/vpopmail-mysql-limits_upgrade.sql.
-    - vauth_deluser(): cleanup failures do not decide the result.
-    - vauth_adduser(): fail when the domain is not in assign.
-  - PostgreSQL module by @yitzhaq in https://github.com/sagredo-dev/vpopmail/pull/48
-    - Escape SQL strings through libpq.
-    - Make room for IPv6 addresses in IP columns and ip map reads. Existing databases need
-      sql/vpopmail-pgsql-ipv6_upgrade.sql.
-    - Create a valid vlog table, use userid in deletes.
-    - Fix double frees in the dir_control and ip map functions and in logsql().
-    - Roll back failed transactions; mapping an already mapped IP address replaces the mapping.
-    - Return the results callers expect.
-    - Connection, buffer, leak and table name fixes.
-    - vauth_deluser(): cleanup failures do not decide the result.
-    - vauth_adduser(): fail when the domain is not in assign.
-  - SQLite module by @yitzhaq in https://github.com/sagredo-dev/vpopmail/pull/49
-    - Escape SQL strings by doubling quotes, single-quote all values.
-    - Handle SQLITE_ROW correctly, keep the caller's query on retries.
-    - Add the POP-before-SMTP relay functions.
-    - One connection with a busy timeout, finalize statements once, refuse empty queries.
-    - vauth_deluser(): cleanup failures do not decide the result.
-    - vauth_adduser(): fail when the domain is not in assign.
-  - vmakedotqmail: 
-    - updated for new etc/vdefaultdelivery situation
-    - check etc/vdefaultdelivery before reading it, read past 0xff bytes, close it on every path by @yitzhaq
-  - File-based limits: keep the mailing list user and moderator permissions; vpopmaild
-    get_limits sends them as perm_maillist_users and perm_maillist_moderators, as set_limits
-    takes them, by @yitzhaq
-  - LDAP module by @yitzhaq
-    - Build with OpenLDAP 2.5+ (vldap_connect(); the valias functions' synchronous API).
-    - vauth_getpw(), vauth_getall(): fix NULL pointer crashes; "" for missing attributes.
-    - vauth_adduser(): set cn and sn, which the schema requires.
-    - vauth_setpw(): allocate room for the terminating NULL.
-    - Accept a host name as the server; connect once.
-    - Escape values in search filters and DNs.
-    - Store Argon2id hashes as {ARGON2ID}, crypt() hashes as {crypt}.
-    - Free search results and modification lists.
-  - Remove the Sybase and Oracle auth modules by @yitzhaq
+5.7.0 - Nov 20, 2026
+
+This release contains security fixes, marked [security] below. All users are urged to upgrade. 
+
+  - Changes made by Rohan Carly in https://github.com/sagredo-dev/vpopmail/pull/16 and 
+    https://github.com/sagredo-dev/vpopmail/pull/58
+    - vdelivermail: added structured logging
+    - added etc/vdelivermail.ini configuration file
+    - quota enforcement
+    - added ~vpopmail/etc/vdefaultdelivery, which replaces control/defauldelivery
+    - :default option in valias executes ~vpopmail/etc/vdefaultdelivery
+    - vdelivermail -t tests configuration and database connection
+  - Remove --enable-make-seekable feature and --enable-defaultdelivery option (now always active)
+    in https://github.com/sagredo-dev/vpopmail/pull/18
+  - configure.ac: throw an error if tinycdb is enabled while the auth-module is not cdb
+    in https://github.com/sagredo-dev/vpopmail/pull/17
+  - Remove obsolete maildrop support and disable_maildrop limit flag (--enable-maildrop)
+    in https://github.com/sagredo-dev/vpopmail/pull/57
+  - Changes made by [@yitzhaq](https://github.com/yitzhaq)
+    - \- authvchkpw: compare the whole password hash.
+    - \+ [security] authvchkpw: compare the whole password hash (wrong passwords could be accepted).
+    - \- Check the result of mkpasswd3() everywhere.
+    - \+ [security] Check the result of mkpasswd3() everywhere (a failed hash was stored as the password).
+    - \- get_remote_ip(): fix off-by-one overflow of ipbuf
+    - \+ [security] get_remote_ip(): fix off-by-one overflow of ipbuf
+    - \- get_remote_ip(): keep valid IPv6 addresses intact; write IPv6 relay rules with ':'.
+    - \+ [security] get_remote_ip(): keep valid IPv6 addresses intact (with --enable-roaming-users, a
+      login from ::1 could open the relay to e very client); write IPv6 relay rules with ':'.
+    - \- vdel_ip_map(): don't use map file lines as a format string.
+    - \+ [security] vdel_ip_map(): don't use map file lines as a format string.  
+    - PostgreSQL:
+      - \- Escape SQL strings through libpq.
+      - \+ [security] Escape SQL strings through libpq (SQL injection, also before login).
+      - \- Fix double frees in the dir_control and ip map functions and in logsql().
+      - \+ [security] Fix double frees in the dir_control and ip map functions and in logsql() (crashes,
+        e.g. vchkpw on a failed login).  
+    - SQLite:
+      - \- Escape SQL strings by doubling quotes, single-quote all values.
+      - \+ [security] Escape SQL strings by doubling quotes, single-quote all values (SQL injection).
+      - \- One connection with a busy timeout, finalize statements once, refuse empty queries.
+      - \+ [security] Finalize statements once (crash after a login in vpopmaild).
+      - \+ One connection with a busy timeout, refuse empty queries.  
+    - LDAP:
+      - \- vauth_setpw(): allocate room for the terminating NULL.
+      - \+ [security] vauth_setpw(): allocate room for the terminating NULL (heap overflow on every password change).
+      - \- Escape values in search filters and DNs.
+      - \+ [security] Escape values in search filters and DNs (LDAP injection). 
 
 5.6.14 - Sep 16, 2026
   - storage.h: refactored 64-bit endian conversion handling, replacing non-portable GNU-specific byte-swap
