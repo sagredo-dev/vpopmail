@@ -27,6 +27,11 @@ ALTER TABLE `limits` MODIFY `perm_maillist` SMALLINT NOT NULL DEFAULT 0;
 ALTER TABLE `limits` DROP `disable_maildrop`;
 ```
 
+VpopMail 5.7.x moved _control/defaultdelivery_ to _~vpopmail/etc/vdefaultdelivery_, which is installed with _./Maildir_
+as default. Put your favourite delivery agent there.
+
+The configuration option `--enable-defaultdelivery` has been dropped, as it's now always active.
+
 #### Changes for PostgreSQL only
 
 You have to widen the columns that hold IP addresses from varchar(18) to varchar(39), so that IPv6
