@@ -16,7 +16,7 @@ This release contains security fixes, marked [security] below. All users are urg
     - vdelivermail: added structured logging
     - added etc/vdelivermail.ini configuration file
     - quota enforcement
-    - added ~vpopmail/etc/vdefaultdelivery, which replaces control/defauldelivery
+    - added ~vpopmail/etc/vdefaultdelivery, which replaces control/defaultdelivery
     - :default option in valias executes ~vpopmail/etc/vdefaultdelivery
     - vdelivermail -t tests configuration and database connection
 
