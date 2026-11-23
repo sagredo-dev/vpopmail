@@ -49,7 +49,7 @@ int close_big_dir(char *domain, uid_t uid, gid_t gid)
 int dec_dir_control(char *domain, uid_t uid, gid_t gid)
 {
 	open_big_dir(domain, uid, gid);
-	--vdir.cur_users;
+	if (vdir.cur_users > 0) --vdir.cur_users;
 	close_big_dir(domain, uid, gid);
 	return(0);
 }
