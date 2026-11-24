@@ -37,6 +37,11 @@
 #ifdef HAVE_CRYPT_H
 #include <crypt.h>
 #endif
+#ifdef YESCRYPT_PASSWORDS
+#define CRYPT_GENSALT_OUTPUT_SIZE 192
+extern char *crypt_gensalt_rn(const char *, unsigned long,
+                              const char *, int, char *, int);
+#endif
 #ifdef ARGON2ID_PASSWORDS
 #include <sodium.h>
 #include <sys/mman.h>
