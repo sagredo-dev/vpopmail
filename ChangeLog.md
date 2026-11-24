@@ -1,5 +1,9 @@
 # ChangeLog
 
+5.7.1 - Nov 24, 2026
+  - bigdir: never decrement a dir_control counter below 0 (tx Infern1)
+  - Add FreeBSD support for libxcrypt yescrypt
+
 5.7.0 - Nov 20, 2026
 
 This release contains security fixes, marked [security] below. All users are urged to upgrade. 
