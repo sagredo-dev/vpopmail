@@ -1783,7 +1783,7 @@ AC_ARG_ENABLE(sql-aliasdomains,
         [  --enable-sql-aliasdomains  Saves the domain aliases to database. Only valid for MySQL auth module.],
         SQL_ALIASDOMAINS=$enableval,
                 [
-	                if [[ "$AUTH_MODULE" != "mysql" ]];
+	                if test "$AUTH_MODULE" != "mysql"
 		        then
 	                        SQL_ALIASDOMAINS=n
 	                else
@@ -1796,7 +1796,7 @@ AC_ARG_ENABLE(sql-aliasdomains,
 case $SQL_ALIASDOMAINS in
   1*|y*|Y*)
                 AC_MSG_RESULT(yes)
-		if [[ "$AUTH_MODULE" != "mysql" ]];
+		if test "$AUTH_MODULE" != "mysql"
                 then
 			AC_MSG_ERROR(sql-aliasdomains is only supported in the MySQL authentication module.)
                 else
@@ -2297,7 +2297,7 @@ then
   fi
 fi
 
-if [[ "$AUTH_MODULE" == "mysql" ]];
+if test "$AUTH_MODULE" = "mysql"
 then
   if test "$SQL_ALIASDOMAINS" = 1
   then
