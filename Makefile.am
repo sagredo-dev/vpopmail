@@ -204,7 +204,7 @@ install-data-local: vdelivermail.ini.install vdelivermail.logrotate.install
 
 	echo "-I@vpopmaildir@/include" > \
 	 $(DESTDIR)@vpopmaildir@/etc/inc_deps
-	echo "-L@vpopmaildir@/lib -lvpopmail @auth_libs@ @LIBS@" > \
+	echo "@LDFLAGS@ -L@vpopmaildir@/lib -lvpopmail @auth_libs@ @LIBS@" > \
 	 $(DESTDIR)@vpopmaildir@/etc/lib_deps
 
 	if test @MANY_DOMAINS@ = 0; then \
