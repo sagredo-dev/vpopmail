@@ -1,5 +1,10 @@
 # ChangeLog
 
+5.7.2 - Nov 28, 2026
+  - Fix non-POSIX shell conditionals in configure.ac
+  - Makefile.am: propagate LDFLAGS in lib_deps for downstream linking. This solves a qmail
+    compilation break
+
 5.7.1 - Nov 24, 2026
   - bigdir: never decrement a dir_control counter below 0 (tx Infern1)
   - Add FreeBSD support for libxcrypt yescrypt
